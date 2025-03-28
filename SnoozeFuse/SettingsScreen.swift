@@ -175,7 +175,7 @@ struct TimerSettingsControl: View {
                 CuteTimePicker(
                     value: $holdTime,
                     unit: $holdUnit,
-                    label: "HOLD",
+                    label: "RELEASE",
                     focus: $focusedField,
                     timerField: .hold,
                     updateAction: updateHoldTimer
@@ -306,8 +306,7 @@ struct SettingsScreen: View {
                             )
                             
                             // Start button
-                            startButton
-                                .padding(.bottom, 80) // Added more bottom padding
+                            bottomButtonBar
                         }
                     }
                     .focused($isAnyFieldFocused)
@@ -359,17 +358,58 @@ struct SettingsScreen: View {
         }
     }
     
-    private var startButton: some View {
-        NavigationLink(destination: NapScreen().environmentObject(timerManager)) {
-            Text("Start Nap Session")
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .cornerRadius(10)
-                .padding(.horizontal, 40)
+    private var bottomButtonBar: some View {
+        HStack {
+            // More Settings button (placeholder)
+            Button(action: {
+                // Placeholder for future advanced settings
+            }) {
+                VStack(spacing: 8) {
+                    Image(systemName: "gearshape.2.fill")
+                        .font(.system(size: 20))
+                    Text("More Settings")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.8))
+                .frame(width: 120, height: 80)
+                .background(
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.gray.opacity(0.2))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 1)
+                )
+            }
+            
+            Spacer()
+            
+            // Circular Start button
+            NavigationLink(destination: NapScreen().environmentObject(timerManager)) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue, Color.blue.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 180, height: 180)
+                        .shadow(color: Color.blue.opacity(0.5), radius: 10, x: 0, y: 5)
+                    
+                    VStack(spacing: 5) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 77))
+                        Text("Start")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                }
+            }
         }
+        .padding(.horizontal, 30)
+        .padding(.bottom, 40)
     }
     
     private func showPreviewBriefly() {
@@ -422,7 +462,7 @@ struct CirclePreviewOverlay: View {
                         )
                     
                     // Size indicator
-                    Text("CIRCLE SIZE: \(Int(circleSize))")
+                    Text("HOLD CIRCLE SIZE: \(Int(circleSize))")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .tracking(2)

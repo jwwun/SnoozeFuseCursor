@@ -37,7 +37,7 @@ struct NapScreen: View {
             // Timer display at top
             VStack {
                 VStack(spacing: 0) {
-                    Text("HOLD TIMER")
+                    Text("RELEASE TIMER")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(Color.blue.opacity(0.7))
                         .tracking(3)
