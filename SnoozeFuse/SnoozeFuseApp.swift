@@ -11,4 +11,4 @@ struct SnoozeFuseApp: App {
                 .preferredColorScheme(.dark) // Enforcing dark mode as per requirements
         }
     }
-} 
+}

@@ -1,11 +1,6 @@
 import Foundation
 import Combine
 
-// Notification name for holdTimer reaching zero
-extension Notification.Name {
-    static let holdTimerFinished = Notification.Name("holdTimerFinished")
-}
-
 class TimerManager: ObservableObject {
     // Timer durations (defaults)
     @Published var holdDuration: TimeInterval = 5     // Timer A: 5 seconds default (debug)
@@ -51,8 +46,7 @@ class TimerManager: ObservableObject {
                 } else {
                     self.stopHoldTimer()
                     self.startNapTimer()
-                    
-                    // Post notification to trigger nap screen
+                    // Post notification when hold timer finishes
                     NotificationCenter.default.post(name: .holdTimerFinished, object: nil)
                 }
             }
@@ -61,7 +55,6 @@ class TimerManager: ObservableObject {
     func stopHoldTimer() {
         isHoldTimerRunning = false
         holdCancellable?.cancel()
-        holdTimer = holdDuration  // Reset to original duration when stopped
     }
     
     func startNapTimer() {
@@ -122,4 +115,9 @@ class TimerManager: ObservableObject {
         let decimal = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
     }
+}
+
+// Notification names
+extension NSNotification.Name {
+    static let holdTimerFinished = NSNotification.Name("holdTimerFinished")
 }

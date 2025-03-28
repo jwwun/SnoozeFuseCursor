@@ -11,46 +11,91 @@ struct NapScreen: View {
     
     var body: some View {
         ZStack {
-            // Background - dark mode
-            Color.black.ignoresSafeArea()
+            // Simple gradient background - no particles
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0.1, green: 0.1, blue: 0.2),
+                    Color(red: 0.05, green: 0.05, blue: 0.1)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             // Tap to position message
             if showPositionMessage {
                 Text("Tap anywhere to position your circle")
-                    .font(.system(size: 24, weight: .medium))
+                    .font(.system(size: 24, weight: .medium, design: .rounded))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
                     .padding(.vertical, 20)
-                    .background(Color.blue.opacity(0.2))
-                    .cornerRadius(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color.blue.opacity(0.2))
+                    )
             }
             
             // Timer display at top
             VStack {
-                Text(timerManager.formatTime(timerManager.holdTimer))
-                    .font(.system(size: 48, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                    .padding()
+                VStack(spacing: 0) {
+                    Text("HOLD TIMER")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(Color.blue.opacity(0.7))
+                        .tracking(3)
+                        .padding(.bottom, 5)
+                    
+                    Text(timerManager.formatTime(timerManager.holdTimer))
+                        .font(.system(size: 56, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                }
+                .padding(.top, 60)
+                .padding(.bottom, 10)
+                
+                if circlePosition != nil {
+                    // Session timer info
+                    HStack(spacing: 30) {
+                        VStack {
+                            Text("SESSION")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.gray)
+                            Text(timerManager.formatTime(timerManager.maxTimer))
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        
+                        VStack {
+                            Text("NAP")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.gray)
+                            Text(timerManager.formatTime(timerManager.napDuration))
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(10)
+                }
                 
                 Spacer()
             }
             
-            // Circle positioned at tap location
+            // Circle positioned at tap location - simplified
             if let position = circlePosition {
                 // Main circle with multi-touch handling
                 ZStack {
-                    // Visual circle
+                    // Visual circle - simplified
                     Circle()
                         .fill(
                             RadialGradient(
                                 gradient: Gradient(colors: [
-                                    isPressed ? Color.blue.opacity(0.7) : Color.blue.opacity(0.4),
-                                    isPressed ? Color.blue.opacity(0.3) : Color.blue.opacity(0.1)
+                                    isPressed ? Color.blue.opacity(0.8) : Color.blue.opacity(0.5),
+                                    isPressed ? Color.indigo.opacity(0.4) : Color.indigo.opacity(0.2)
                                 ]),
                                 center: .center,
                                 startRadius: 0,
-                                endRadius: circleSize / 2
+                                endRadius: circleSize / 1.5
                             )
                         )
                         .overlay(
@@ -59,6 +104,12 @@ struct NapScreen: View {
                         )
                         .scaleEffect(isPressed ? 0.95 : 1.0)
                         .animation(.spring(response: 0.3), value: isPressed)
+                    
+                    // Status text
+                    Text(isPressed ? "HOLDING" : "RELEASE TO START")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                        .tracking(2)
                     
                     // Multi-touch handler (invisible)
                     MultiTouchHandler(
@@ -103,7 +154,7 @@ struct NapScreen: View {
             }
         }
         .fullScreenCover(isPresented: $showSleepScreen) {
-            // Show sleep screen when timer reaches zero
+            // Simple transition - no fancy effects
             SleepScreen()
                 .environmentObject(timerManager)
         }
@@ -113,4 +164,4 @@ struct NapScreen: View {
 #Preview {
     NapScreen()
         .environmentObject(TimerManager())
-} 
+}

@@ -11,45 +11,94 @@ struct SleepScreen: View {
     
     var body: some View {
         ZStack {
-            // Background
-            Color.black.ignoresSafeArea()
+            // Simple dark background
+            Color(red: 0.02, green: 0.03, blue: 0.10)
+                .ignoresSafeArea()
             
             VStack {
                 // Wake up time display
-                VStack(spacing: 4) {
-                    Text("Wake up at")
-                        .font(.system(size: 18))
-                        .foregroundColor(.gray)
+                VStack(spacing: 8) {
+                    Text("WAKE UP AT")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(Color.blue.opacity(0.8))
+                        .tracking(5)
                     
                     Text(calculateWakeUpTime())
-                        .font(.system(size: 36, weight: .bold))
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     
-                    Text("No later than \(calculateMaxWakeUpTime())")
-                        .font(.system(size: 16))
-                        .foregroundColor(.gray.opacity(0.8))
-                        .padding(.top, 4)
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow.opacity(0.8))
+                            .font(.system(size: 14))
+                        
+                        Text("No later than \(calculateMaxWakeUpTime())")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(.top, 4)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color.black.opacity(0.3))
+                    )
                 }
+                .padding(.vertical)
+                .padding(.horizontal, 30)
+                .background(
+                    RoundedRectangle(cornerRadius: 25)
+                        .fill(Color.black.opacity(0.2))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 25)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                )
                 .padding(.top, 40)
                 
                 Spacer()
                 
-                // Sleep message
-                Text("Zzz... Taking a nap 😴")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                // Sleep message - simple
+                VStack(spacing: 15) {
+                    Text("😴")
+                        .font(.system(size: 50))
+                    
+                    Text("Taking a nap...")
+                        .font(.system(size: 28, weight: .medium, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    // Simple static Z's
+                    HStack(spacing: 10) {
+                        Text("Z")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        Text("Z")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        Text("Z")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                }
                 
                 Spacer()
                 
-                // Timer display
-                Text(timerManager.formatTime(timerManager.napTimer))
-                    .font(.system(size: 48, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
-                    .padding()
+                // Timer display - simple
+                VStack(spacing: 2) {
+                    Text("NAP TIMER")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(Color.blue.opacity(0.7))
+                        .tracking(4)
+                    
+                    Text(timerManager.formatTime(timerManager.napTimer))
+                        .font(.system(size: 48, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                }
+                .padding()
                 
-                // Button row with safety features
+                // Button row - simplified
                 HStack(spacing: 40) {
                     // Back button with confirmation
                     Button(action: {
@@ -74,12 +123,18 @@ struct SleepScreen: View {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 24))
                             Text(isBackConfirmationShowing ? "Confirm?" : "Back")
-                                .font(.system(size: 14))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
                         }
                         .frame(width: 80, height: 80)
                         .foregroundColor(.white)
-                        .background(isBackConfirmationShowing ? Color.red.opacity(0.5) : Color.blue.opacity(0.3))
-                        .cornerRadius(15)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(isBackConfirmationShowing ? Color.red.opacity(0.4) : Color.blue.opacity(0.3))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(isBackConfirmationShowing ? Color.red.opacity(0.5) : Color.blue.opacity(0.5), lineWidth: 1)
+                        )
                     }
                     
                     // Skip button with confirmation
@@ -105,12 +160,18 @@ struct SleepScreen: View {
                             Image(systemName: "forward.end")
                                 .font(.system(size: 24))
                             Text(isSkipConfirmationShowing ? "Confirm?" : "Skip")
-                                .font(.system(size: 14))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
                         }
                         .frame(width: 80, height: 80)
                         .foregroundColor(.white)
-                        .background(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.blue.opacity(0.3))
-                        .cornerRadius(15)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(isSkipConfirmationShowing ? Color.red.opacity(0.4) : Color.purple.opacity(0.3))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.purple.opacity(0.5), lineWidth: 1)
+                        )
                     }
                 }
                 .padding(.bottom, 40)
