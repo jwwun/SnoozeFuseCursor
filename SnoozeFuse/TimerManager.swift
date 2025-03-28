@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AVFoundation
 
 // Define notification names
 extension Notification.Name {
@@ -26,6 +27,10 @@ class TimerManager: ObservableObject {
     
     // Circle size (for visual representation)
     @Published var circleSize: CGFloat = 300
+    
+    // Alarm sound settings
+    @Published var selectedAlarmSound: AlarmSound = .warAmbience
+    private var audioPlayer: AVAudioPlayer?
     
     // Timer cancellables
     private var holdCancellable: AnyCancellable?
@@ -165,5 +170,62 @@ class TimerManager: ObservableObject {
         let seconds = Int(timeInterval) % 60
         let decimal = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
+    }
+    
+    // Available alarm sounds
+    enum AlarmSound: String, CaseIterable, Identifiable {
+        case warAmbience = "War Ambience"
+        // Other sounds will be added later
+        
+        var id: String { self.rawValue }
+        
+        var filename: String {
+            switch self {
+            case .warAmbience:
+                return "war ambience"
+            }
+        }
+        
+        var fileExtension: String {
+            switch self {
+            case .warAmbience:
+                return "ogg"
+            }
+        }
+    }
+    
+    // Play the selected alarm sound
+    func playAlarmSound() {
+        guard let url = Bundle.main.url(
+            forResource: selectedAlarmSound.filename,
+            withExtension: selectedAlarmSound.fileExtension
+        ) else {
+            print("Could not find alarm sound file")
+            return
+        }
+        
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.numberOfLoops = 2 // Play 3 times (0-based)
+            audioPlayer?.volume = 1.0
+            audioPlayer?.play()
+        } catch {
+            print("Could not play alarm sound: \(error.localizedDescription)")
+        }
+    }
+    
+    // Stop playing alarm sound
+    func stopAlarmSound() {
+        audioPlayer?.stop()
+    }
+    
+    // Test play alarm sound for preview
+    func previewAlarmSound() {
+        playAlarmSound()
+        
+        // Stop preview after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.stopAlarmSound()
+        }
     }
 }

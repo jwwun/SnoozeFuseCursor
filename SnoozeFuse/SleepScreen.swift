@@ -214,6 +214,7 @@ struct SleepScreen: View {
             ) { _ in
                 self.napFinished = true
                 // Play alarm sound here in the future
+                self.timerManager.playAlarmSound()
             }
         }
         .onDisappear {

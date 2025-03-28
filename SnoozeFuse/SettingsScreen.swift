@@ -259,6 +259,69 @@ struct TimerSettingsControl: View {
     }
 }
 
+// New component for alarm sound selection
+struct AlarmSoundSelector: View {
+    @Binding var selectedAlarm: TimerManager.AlarmSound
+    var onPreview: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 15) {
+            // Title
+            Text("ALARM SOUND")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(Color.blue.opacity(0.7))
+                .tracking(3)
+                .padding(.bottom, 5)
+                .frame(maxWidth: .infinity, alignment: .center)
+            
+            // Sound selection and preview
+            HStack {
+                // Current selection display (placeholder for future picker when more alarms are added)
+                HStack {
+                    Image(systemName: "speaker.wave.3.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.8))
+                    
+                    Text(selectedAlarm.rawValue)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.black.opacity(0.3))
+                )
+                
+                Spacer()
+                
+                // Preview button
+                Button(action: onPreview) {
+                    HStack {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 16))
+                        Text("Preview")
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.purple.opacity(0.6))
+                    )
+                    .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 10)
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 12)
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(15)
+        .padding(.horizontal, 8)
+    }
+}
+
 struct SettingsScreen: View {
     @EnvironmentObject var timerManager: TimerManager
     @State private var showPreview = false
@@ -303,6 +366,12 @@ struct SettingsScreen: View {
                                 holdDuration: $timerManager.holdDuration,
                                 napDuration: $timerManager.napDuration,
                                 maxDuration: $timerManager.maxDuration
+                            )
+                            
+                            // Alarm sound selection
+                            AlarmSoundSelector(
+                                selectedAlarm: $timerManager.selectedAlarmSound,
+                                onPreview: timerManager.previewAlarmSound
                             )
                             
                             // Start button
