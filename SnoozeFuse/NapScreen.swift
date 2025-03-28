@@ -131,8 +131,8 @@ struct NapScreen: View {
             
             // Subscribe to holdTimer reaching zero
             NotificationCenter.default.addObserver(
-                forName: .holdTimerFinished, 
-                object: nil, 
+                forName: .holdTimerFinished,
+                object: nil,
                 queue: .main
             ) { _ in
                 self.showSleepScreen = true

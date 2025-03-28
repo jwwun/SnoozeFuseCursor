@@ -175,7 +175,9 @@ class TimerManager: ObservableObject {
     // Available alarm sounds
     enum AlarmSound: String, CaseIterable, Identifiable {
         case warAmbience = "War Ambience"
-        // Other sounds will be added later
+        case testAlarm = "Test Alarm"
+        case firecracker = "Firecracker"
+        case vtuberAlarm = "Korone Alarm"
         
         var id: String { self.rawValue }
         
@@ -183,13 +185,25 @@ class TimerManager: ObservableObject {
             switch self {
             case .warAmbience:
                 return "war ambience"
+            case .testAlarm:
+                return "testalarm"
+            case .firecracker:
+                return "firecracker"
+            case .vtuberAlarm:
+                return "vtuberalarm"
             }
         }
         
         var fileExtension: String {
             switch self {
             case .warAmbience:
-                return "ogg"
+                return "wav"
+            case .testAlarm:
+                return "mp3"
+            case .firecracker:
+                return "wav"
+            case .vtuberAlarm:
+                return "mp3"
             }
         }
     }
@@ -206,7 +220,7 @@ class TimerManager: ObservableObject {
         
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: url)
-            audioPlayer?.numberOfLoops = 2 // Play 3 times (0-based)
+            audioPlayer?.numberOfLoops = -1 // Loop continuously (-1 means loop indefinitely)
             audioPlayer?.volume = 1.0
             audioPlayer?.play()
         } catch {

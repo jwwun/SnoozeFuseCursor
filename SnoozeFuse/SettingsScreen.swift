@@ -276,22 +276,41 @@ struct AlarmSoundSelector: View {
             
             // Sound selection and preview
             HStack {
-                // Current selection display (placeholder for future picker when more alarms are added)
-                HStack {
-                    Image(systemName: "speaker.wave.3.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    Text(selectedAlarm.rawValue)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.white)
+                // Dropdown menu for alarm selection
+                Menu {
+                    ForEach(TimerManager.AlarmSound.allCases) { sound in
+                        Button(action: {
+                            selectedAlarm = sound
+                        }) {
+                            HStack {
+                                Text(sound.rawValue)
+                                if sound == selectedAlarm {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "speaker.wave.3.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        Text(selectedAlarm.rawValue)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                        
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black.opacity(0.3))
+                    )
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.black.opacity(0.3))
-                )
                 
                 Spacer()
                 
