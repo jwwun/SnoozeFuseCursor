@@ -113,4 +113,4 @@ class TimerManager: ObservableObject {
         let decimal = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
     }
-} 
+}
