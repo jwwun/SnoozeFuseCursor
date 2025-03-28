@@ -112,6 +112,9 @@ struct NapScreen: View {
                 showPositionMessage = false
                 circlePosition = location
                 
+                // Reset all timers to their duration values
+                timerManager.resetTimers()
+                
                 // Start timers when circle appears
                 timerManager.startMaxTimer()
                 timerManager.startHoldTimer()
@@ -121,11 +124,23 @@ struct NapScreen: View {
             // Reset state when screen appears
             showPositionMessage = true
             circlePosition = nil
+            showSleepScreen = false
+            
+            // Reset timers to use the latest settings
+            timerManager.resetTimers()
             
             // Subscribe to holdTimer reaching zero
-            NotificationCenter.default.addObserver(forName: .holdTimerFinished, object: nil, queue: .main) { _ in
-                showSleepScreen = true
+            NotificationCenter.default.addObserver(
+                forName: .holdTimerFinished, 
+                object: nil, 
+                queue: .main
+            ) { _ in
+                self.showSleepScreen = true
             }
+        }
+        .onDisappear {
+            // Clean up notification observer
+            NotificationCenter.default.removeObserver(self)
         }
         .fullScreenCover(isPresented: $showSleepScreen) {
             // Simple transition - no fancy effects

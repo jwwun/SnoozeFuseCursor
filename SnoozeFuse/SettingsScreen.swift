@@ -76,6 +76,9 @@ struct CuteTimePicker: View {
     var timerField: TimerSettingsControl.TimerField
     var updateAction: () -> Void
     
+    // Internal state for the wheel picker
+    @State private var numericValue: Int = 0
+    
     var body: some View {
         VStack(alignment: .center, spacing: 5) {
             // Timer label without emoji
@@ -84,21 +87,24 @@ struct CuteTimePicker: View {
                 .foregroundColor(.white.opacity(0.8))
                 .padding(.bottom, 2)
             
-            // Time input field - make bigger
-            TextField("0", text: $value)
-                .keyboardType(.numberPad)
-                .font(.system(size: 32, weight: .medium))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, 12) // Bigger touch target
-                .padding(.horizontal, 16)
-                .background(Color.black.opacity(0.3))
-                .cornerRadius(12)
-                .frame(minWidth: 100)
-                .focused(focus, equals: timerField)
-                .onChange(of: value) { _ in
-                    updateAction()
+            // Replace TextField with wheel Picker
+            Picker("", selection: $numericValue) {
+                ForEach(0..<100) { number in
+                    Text("\(number)").tag(number)
                 }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 100)
+            .background(Color.black.opacity(0.3))
+            .cornerRadius(12)
+            .onChange(of: numericValue) { newValue in
+                value = "\(newValue)"
+                updateAction()
+            }
+            .onAppear {
+                // Initialize picker with current value
+                numericValue = Int(value) ?? 0
+            }
             
             // Unit selection picker with cute style
             Menu {
@@ -140,9 +146,9 @@ struct TimerSettingsControl: View {
     @Binding var napDuration: TimeInterval
     @Binding var maxDuration: TimeInterval
     
-    @State private var holdTime: String = "30"
-    @State private var napTime: String = "20"
-    @State private var maxTime: String = "30"
+    @State private var holdTime: String = "5"
+    @State private var napTime: String = "1"
+    @State private var maxTime: String = "2"
     
     @State private var holdUnit: TimeUnit = .seconds // Default seconds
     @State private var napUnit: TimeUnit = .minutes  // Default minutes
@@ -374,8 +380,8 @@ struct SettingsScreen: View {
         showPreview = true
         
         // Set timer to hide preview after 1 second for better visibility
-        previewTimer = Timer.scheduledTimer(withTimeInterval: .5, repeats: false) { _ in
-            withAnimation(.easeOut(duration: 0.1)) {
+        previewTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            withAnimation(.easeOut(duration: 0.5)) {
                 showPreview = false
             }
         }

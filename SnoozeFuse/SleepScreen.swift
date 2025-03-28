@@ -3,6 +3,7 @@ import SwiftUI
 struct SleepScreen: View {
     @EnvironmentObject var timerManager: TimerManager
     @Environment(\.dismiss) private var dismiss
+    @State private var napFinished = false
     
     // Confirmation state for safety buttons
     @State private var isBackConfirmationShowing = false
@@ -28,8 +29,8 @@ struct SleepScreen: View {
                         .foregroundColor(.white)
                     
                     HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.yellow.opacity(0.8))
+                        Image(systemName: "alarm")
+                            .foregroundColor(.white.opacity(0.8))
                             .font(.system(size: 14))
                         
                         Text("No later than \(calculateMaxWakeUpTime())")
@@ -58,28 +59,44 @@ struct SleepScreen: View {
                 
                 Spacer()
                 
-                // Sleep message - simple
-                VStack(spacing: 15) {
-                    Text("😴")
-                        .font(.system(size: 50))
-                    
-                    Text("Taking a nap...")
-                        .font(.system(size: 28, weight: .medium, design: .rounded))
-                        .foregroundColor(.white)
-                    
-                    // Simple static Z's
-                    HStack(spacing: 10) {
-                        Text("Z")
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.8))
+                // Sleep message or wake up message depending on state
+                if napFinished {
+                    VStack(spacing: 15) {
+                        Text("🔔")
+                            .font(.system(size: 50))
                         
-                        Text("Z")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.6))
+                        Text("Time to wake up!")
+                            .font(.system(size: 28, weight: .medium, design: .rounded))
+                            .foregroundColor(.white)
                         
-                        Text("Z")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.4))
+                        Text("Your nap is complete")
+                            .font(.system(size: 18, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                } else {
+                    // Sleep message - simple
+                    VStack(spacing: 15) {
+                        Text("😴")
+                            .font(.system(size: 50))
+                        
+                        Text("Taking a nap...")
+                            .font(.system(size: 28, weight: .medium, design: .rounded))
+                            .foregroundColor(.white)
+                        
+                        // Simple static Z's
+                        HStack(spacing: 10) {
+                            Text("Z")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white.opacity(0.8))
+                            
+                            Text("Z")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(.white.opacity(0.6))
+                            
+                            Text("Z")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(.white.opacity(0.4))
+                        }
                     }
                 }
                 
@@ -94,7 +111,7 @@ struct SleepScreen: View {
                     
                     Text(timerManager.formatTime(timerManager.napTimer))
                         .font(.system(size: 48, weight: .bold, design: .monospaced))
-                        .foregroundColor(.white)
+                        .foregroundColor(napFinished ? .green : .white)
                 }
                 .padding()
                 
@@ -120,9 +137,9 @@ struct SleepScreen: View {
                         }
                     }) {
                         VStack {
-                            Image(systemName: "arrow.left")
+                            Image(systemName: napFinished ? "house" : "arrow.left")
                                 .font(.system(size: 24))
-                            Text(isBackConfirmationShowing ? "Confirm?" : "Back")
+                            Text(isBackConfirmationShowing ? "Confirm?" : (napFinished ? "Home" : "Back"))
                                 .font(.system(size: 14, weight: .medium, design: .rounded))
                         }
                         .frame(width: 80, height: 80)
@@ -137,53 +154,72 @@ struct SleepScreen: View {
                         )
                     }
                     
-                    // Skip button with confirmation
-                    Button(action: {
-                        if isSkipConfirmationShowing {
-                            // Second press - confirm and skip nap
-                            timerManager.stopNapTimer()
-                            timerManager.napTimer = 0
-                            dismiss()
-                        } else {
-                            // First press - show confirmation
-                            isSkipConfirmationShowing = true
-                            isBackConfirmationShowing = false
-                            
-                            // Reset confirmation after 3 seconds
-                            confirmationTimer?.invalidate()
-                            confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                                isSkipConfirmationShowing = false
+                    // Skip button with confirmation (only show if nap not finished)
+                    if !napFinished {
+                        Button(action: {
+                            if isSkipConfirmationShowing {
+                                // Second press - confirm and skip nap
+                                timerManager.stopNapTimer()
+                                timerManager.napTimer = 0
+                                napFinished = true
+                            } else {
+                                // First press - show confirmation
+                                isSkipConfirmationShowing = true
+                                isBackConfirmationShowing = false
+                                
+                                // Reset confirmation after 3 seconds
+                                confirmationTimer?.invalidate()
+                                confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                                    isSkipConfirmationShowing = false
+                                }
                             }
+                        }) {
+                            VStack {
+                                Image(systemName: "forward.end")
+                                    .font(.system(size: 24))
+                                Text(isSkipConfirmationShowing ? "Confirm?" : "Skip")
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                            }
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(.white)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(isSkipConfirmationShowing ? Color.red.opacity(0.4) : Color.purple.opacity(0.3))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.purple.opacity(0.5), lineWidth: 1)
+                            )
                         }
-                    }) {
-                        VStack {
-                            Image(systemName: "forward.end")
-                                .font(.system(size: 24))
-                            Text(isSkipConfirmationShowing ? "Confirm?" : "Skip")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                        }
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.white)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(isSkipConfirmationShowing ? Color.red.opacity(0.4) : Color.purple.opacity(0.3))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.purple.opacity(0.5), lineWidth: 1)
-                        )
                     }
                 }
                 .padding(.bottom, 40)
             }
         }
         .onAppear {
+            // Reset nap state
+            napFinished = false
+            
+            // Reset timers to use the latest settings
+            timerManager.resetTimers()
+            
             // Start nap timer when screen appears
             timerManager.startNapTimer()
+            
+            // Listen for nap timer finished notification
+            NotificationCenter.default.addObserver(
+                forName: .napTimerFinished,
+                object: nil,
+                queue: .main
+            ) { _ in
+                self.napFinished = true
+                // Play alarm sound here in the future
+            }
         }
         .onDisappear {
             // Cleanup
             confirmationTimer?.invalidate()
+            NotificationCenter.default.removeObserver(self)
         }
     }
     

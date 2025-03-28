@@ -1,21 +1,31 @@
 import Foundation
 import Combine
 
+// Define notification names
+extension Notification.Name {
+    static let holdTimerFinished = Notification.Name("holdTimerFinished")
+    static let napTimerFinished = Notification.Name("napTimerFinished")
+    static let maxTimerFinished = Notification.Name("maxTimerFinished")
+}
+
 class TimerManager: ObservableObject {
     // Timer durations (defaults)
-    @Published var holdDuration: TimeInterval = 30    // Timer A: 30 seconds default
-    @Published var napDuration: TimeInterval = 1200   // Timer B: 20 minutes default
-    @Published var maxDuration: TimeInterval = 1800   // Timer C: 30 minutes default
+    @Published var holdDuration: TimeInterval = 5    // Timer A: 5 seconds default
+    @Published var napDuration: TimeInterval = 60   // Timer B: 1 minutes default
+    @Published var maxDuration: TimeInterval = 120   // Timer C: 2 minutes default
     
     // Current timer values
-    @Published var holdTimer: TimeInterval = 30
-    @Published var napTimer: TimeInterval = 1200
-    @Published var maxTimer: TimeInterval = 1800
+    @Published var holdTimer: TimeInterval = 5
+    @Published var napTimer: TimeInterval = 60
+    @Published var maxTimer: TimeInterval = 120
     
     // Timer states
     @Published var isHoldTimerRunning = false
     @Published var isNapTimerRunning = false
     @Published var isMaxTimerRunning = false
+    
+    // Circle size (for visual representation)
+    @Published var circleSize: CGFloat = 300
     
     // Timer cancellables
     private var holdCancellable: AnyCancellable?
@@ -25,7 +35,45 @@ class TimerManager: ObservableObject {
     init() {
         // Initialize timers with default values
         resetTimers()
+        
+        // Subscribe to changes in duration settings
+        setupDurationObservers()
     }
+    
+    private func setupDurationObservers() {
+        // When holdDuration changes, reset holdTimer if not running
+        $holdDuration
+            .sink { [weak self] newDuration in
+                guard let self = self else { return }
+                if !self.isHoldTimerRunning {
+                    self.holdTimer = newDuration
+                }
+            }
+            .store(in: &cancellables)
+        
+        // When napDuration changes, reset napTimer if not running
+        $napDuration
+            .sink { [weak self] newDuration in
+                guard let self = self else { return }
+                if !self.isNapTimerRunning {
+                    self.napTimer = newDuration
+                }
+            }
+            .store(in: &cancellables)
+        
+        // When maxDuration changes, reset maxTimer if not running
+        $maxDuration
+            .sink { [weak self] newDuration in
+                guard let self = self else { return }
+                if !self.isMaxTimerRunning {
+                    self.maxTimer = newDuration
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    // Storage for cancellables
+    private var cancellables = Set<AnyCancellable>()
     
     func resetTimers() {
         holdTimer = holdDuration
@@ -45,7 +93,8 @@ class TimerManager: ObservableObject {
                     self.holdTimer -= 0.1
                 } else {
                     self.stopHoldTimer()
-                    self.startNapTimer()
+                    // Post notification when hold timer reaches zero
+                    NotificationCenter.default.post(name: .holdTimerFinished, object: nil)
                 }
             }
     }
@@ -57,6 +106,7 @@ class TimerManager: ObservableObject {
     
     func startNapTimer() {
         isNapTimerRunning = true
+        napTimer = napDuration // Reset to full duration
         
         napCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
             .autoconnect()
@@ -66,7 +116,8 @@ class TimerManager: ObservableObject {
                     self.napTimer -= 0.1
                 } else {
                     self.stopNapTimer()
-                    // We'll add alarm logic here
+                    // Post notification when nap timer reaches zero
+                    NotificationCenter.default.post(name: .napTimerFinished, object: nil)
                 }
             }
     }
@@ -78,6 +129,7 @@ class TimerManager: ObservableObject {
     
     func startMaxTimer() {
         isMaxTimerRunning = true
+        maxTimer = maxDuration // Reset to full duration
         
         maxCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
             .autoconnect()
@@ -87,7 +139,8 @@ class TimerManager: ObservableObject {
                     self.maxTimer -= 0.1
                 } else {
                     self.stopMaxTimer()
-                    // We'll add force wake logic here
+                    // Post notification when max timer reaches zero
+                    NotificationCenter.default.post(name: .maxTimerFinished, object: nil)
                 }
             }
     }
