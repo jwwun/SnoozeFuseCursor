@@ -6,7 +6,7 @@ struct SnoozeFuseApp: App {
     
     var body: some Scene {
         WindowGroup {
-            NapScreen()
+            SettingsScreen()
                 .environmentObject(timerManager)
                 .preferredColorScheme(.dark) // Enforcing dark mode as per requirements
         }

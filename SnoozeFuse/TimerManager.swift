@@ -1,7 +1,18 @@
 import Foundation
 import Combine
+import SwiftUI
+
+// Define notification names
+extension Notification.Name {
+    static let holdTimerFinished = Notification.Name("holdTimerFinished")
+    static let napTimerFinished = Notification.Name("napTimerFinished")
+    static let maxTimerFinished = Notification.Name("maxTimerFinished")
+}
 
 class TimerManager: ObservableObject {
+    // UI Settings
+    @Published var circleSize: CGFloat = 200    // Default circle size
+    
     // Timer durations (defaults)
     @Published var holdDuration: TimeInterval = 30    // Timer A: 30 seconds default
     @Published var napDuration: TimeInterval = 1200   // Timer B: 20 minutes default
@@ -46,6 +57,8 @@ class TimerManager: ObservableObject {
                 } else {
                     self.stopHoldTimer()
                     self.startNapTimer()
+                    // Post notification
+                    NotificationCenter.default.post(name: .holdTimerFinished, object: nil)
                 }
             }
     }
@@ -66,7 +79,8 @@ class TimerManager: ObservableObject {
                     self.napTimer -= 0.1
                 } else {
                     self.stopNapTimer()
-                    // We'll add alarm logic here
+                    // Post notification
+                    NotificationCenter.default.post(name: .napTimerFinished, object: nil)
                 }
             }
     }
@@ -87,7 +101,8 @@ class TimerManager: ObservableObject {
                     self.maxTimer -= 0.1
                 } else {
                     self.stopMaxTimer()
-                    // We'll add force wake logic here
+                    // Post notification
+                    NotificationCenter.default.post(name: .maxTimerFinished, object: nil)
                 }
             }
     }

@@ -17,8 +17,8 @@ struct SettingsScreen: View {
                     
                     Spacer()
                     
-                    // Circle preview using shared component
-                    VStack {
+                    // Independent circle preview
+                    ZStack {
                         CircleView(size: min(timerManager.circleSize, 300))
                         
                         Text("Preview")
@@ -26,22 +26,24 @@ struct SettingsScreen: View {
                             .foregroundColor(.white.opacity(0.7))
                             .padding(.top, 5)
                     }
+                    .frame(height: 320)
                     .padding()
                     
-                    // Circle size setting
+                    // Circle size setting with slider
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Circle Size")
+                        Text("Circle Size: \(Int(timerManager.circleSize))")
                             .font(.headline)
                             .foregroundColor(.white)
                         
                         HStack {
-                            TextField("Size", value: $timerManager.circleSize, formatter: NumberFormatter())
-                                .keyboardType(.numberPad)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .padding(.horizontal)
+                            Text("10")
+                                .foregroundColor(.white.opacity(0.7))
                             
-                            Stepper("", value: $timerManager.circleSize, in: 50...1000, step: 10)
-                                .labelsHidden()
+                            Slider(value: $timerManager.circleSize, in: 10...666, step: 1)
+                                .accentColor(.blue)
+                            
+                            Text("666")
+                                .foregroundColor(.white.opacity(0.7))
                         }
                         .padding(.horizontal)
                     }
