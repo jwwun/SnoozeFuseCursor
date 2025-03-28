@@ -7,8 +7,6 @@ struct NapScreen: View {
     @State private var showPositionMessage = true
     @State private var circlePosition: CGPoint? = nil
     
-    private let circleSize: CGFloat = 200
-    
     var body: some View {
         ZStack {
             // Simple gradient background - no particles
@@ -81,37 +79,14 @@ struct NapScreen: View {
                 Spacer()
             }
             
-            // Circle positioned at tap location - simplified
+            // Circle positioned at tap location
             if let position = circlePosition {
-                // Main circle with multi-touch handling
+                // Use shared CircleView with MultiTouchHandler overlay
                 ZStack {
-                    // Visual circle - simplified
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                gradient: Gradient(colors: [
-                                    isPressed ? Color.blue.opacity(0.8) : Color.blue.opacity(0.5),
-                                    isPressed ? Color.indigo.opacity(0.4) : Color.indigo.opacity(0.2)
-                                ]),
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: circleSize / 1.5
-                            )
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color.blue.opacity(0.6), lineWidth: 2)
-                        )
-                        .scaleEffect(isPressed ? 0.95 : 1.0)
-                        .animation(.spring(response: 0.3), value: isPressed)
+                    // Shared CircleView
+                    CircleView(size: timerManager.circleSize, isPressed: isPressed, showStatusText: true)
                     
-                    // Status text
-                    Text(isPressed ? "HOLDING" : "RELEASE TO START")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.8))
-                        .tracking(2)
-                    
-                    // Multi-touch handler (invisible)
+                    // MultiTouchHandler (invisible)
                     MultiTouchHandler(
                         onTouchesChanged: { touchingCircle in
                             // Update visual state and timer
@@ -124,10 +99,9 @@ struct NapScreen: View {
                                 }
                             }
                         },
-                        circleRadius: circleSize / 2
+                        circleRadius: timerManager.circleSize / 2
                     )
                 }
-                .frame(width: circleSize, height: circleSize)
                 .position(position)
             }
         }
