@@ -54,7 +54,7 @@ struct NapScreen: View {
                     // Session timer info
                     HStack(spacing: 30) {
                         VStack {
-                            Text("SESSION")
+                            Text("MAX")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(.gray)
                             Text(timerManager.formatTime(timerManager.maxTimer))
