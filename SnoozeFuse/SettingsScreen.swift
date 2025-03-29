@@ -106,30 +106,26 @@ struct CuteTimePicker: View {
                 numericValue = Int(value) ?? 0
             }
             
-            // Unit selection picker with cute style
+            // Unit selection picker with compact style
             Menu {
-                Picker("Unit", selection: $unit) {
-                    ForEach(TimeUnit.allCases) { unit in
-                        Text(unit.rawValue.uppercased())
-                            .tag(unit)
+                ForEach(TimeUnit.allCases) { timeUnit in
+                    Button(action: {
+                        unit = timeUnit
+                        updateAction()
+                    }) {
+                        Text(timeUnit.rawValue.uppercased())
                     }
                 }
             } label: {
-                HStack {
-                    Text(unit.rawValue)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.blue)
-                    
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14))
-                        .foregroundColor(.blue)
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 18)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.blue.opacity(0.6), lineWidth: 1.5)
-                )
+                Text(unit.rawValue)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.blue)
+                    .frame(minWidth: 50)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue.opacity(0.6), lineWidth: 1.5)
+                    )
             }
         }
         .padding()
