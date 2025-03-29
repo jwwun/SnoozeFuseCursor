@@ -19,21 +19,22 @@ struct CircularBackButton: View {
                 }
             }
         }) {
-            Circle()
-                .fill(isConfirming ? Color.red.opacity(0.2) : Color.gray.opacity(0))
-                .frame(width: 77, height: 77)
-                .overlay(
-                    VStack(spacing: 0) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 25, weight: .medium))
-                            .foregroundColor(.white)
-                        Text("back")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.gray)
-                    }
-
-                )
+            ZStack {
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(isConfirming ? Color.red.opacity(0.2) : Color.gray.opacity(0))
+                    .frame(width: 85, height: 70)
+                
+                VStack(spacing: 0) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 25, weight: .medium))
+                        .foregroundColor(.white)
+                    Text("Back")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.gray)
+                }
+            }
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -109,15 +110,25 @@ struct NapScreen: View {
                     // Circle positioned at tap location
                     if let position = circlePosition {
                         ZStack {
-                            CircleView(size: timerManager.circleSize, isPressed: isPressed, showStatusText: true)
+                            CircleView(
+                                size: timerManager.circleSize,
+                                isPressed: isPressed,
+                                showStatusText: true,
+                                showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration
+                            )
                             
                             MultiTouchHandler(
                                 onTouchesChanged: { touchingCircle in
                                     if touchingCircle != isPressed {
                                         isPressed = touchingCircle
                                         if touchingCircle {
+                                            // User is pressing the circle, stop the hold timer
                                             timerManager.stopHoldTimer()
                                         } else {
+                                            // User has released the circle, start both timers if not already running
+                                            if timerManager.maxTimer == timerManager.maxDuration {
+                                                timerManager.startMaxTimer()
+                                            }
                                             timerManager.startHoldTimer()
                                         }
                                     }
@@ -148,8 +159,7 @@ struct NapScreen: View {
                         showPositionMessage = false
                         circlePosition = location
                         timerManager.resetTimers()
-                        timerManager.startMaxTimer()
-                        timerManager.startHoldTimer()
+                        // Don't start timers until user interacts with the placed circle
                     }
                 }
                 
@@ -164,7 +174,7 @@ struct NapScreen: View {
                         }
                         .padding(.leading, 5)
                         .padding(.top, -20)
-                        .contentShape(Circle())
+                        .contentShape(RoundedRectangle(cornerRadius: 15))
                         
                         Spacer()
                     }
@@ -183,6 +193,7 @@ struct NapScreen: View {
             
             // Reset timers to use the latest settings
             timerManager.resetTimers()
+            // Don't start timers until circle is placed
             
             // Subscribe to holdTimer reaching zero
             NotificationCenter.default.addObserver(

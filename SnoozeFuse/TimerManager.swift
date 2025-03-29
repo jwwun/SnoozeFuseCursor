@@ -37,6 +37,9 @@ class TimerManager: ObservableObject {
     private var napCancellable: AnyCancellable?
     private var maxCancellable: AnyCancellable?
     
+    // Custom sound URL
+    @Published var customSoundURL: URL? = nil
+    
     init() {
         // Initialize timers with default values
         resetTimers()
@@ -178,6 +181,7 @@ class TimerManager: ObservableObject {
         case firecracker = "Firecracker"
         case vtuberAlarm = "Korone Alarm"
         case warAmbience = "War Ambience"
+        case custom = "Custom Sound"
         
         var id: String { self.rawValue }
         
@@ -191,6 +195,8 @@ class TimerManager: ObservableObject {
                 return "vtuberalarm"
             case .warAmbience:
                 return "war ambience"
+            case .custom:
+                return "customSound"
             }
         }
         
@@ -204,12 +210,29 @@ class TimerManager: ObservableObject {
                 return "wav"
             case .vtuberAlarm:
                 return "mp3"
+            case .custom:
+                return "mp3" // Default, but we'll handle this differently for custom sounds
             }
         }
     }
     
     // Play the selected alarm sound
     func playAlarmSound() {
+        // For custom sounds, use the stored URL
+        if selectedAlarmSound == .custom, let customURL = customSoundURL {
+            do {
+                audioPlayer = try AVAudioPlayer(contentsOf: customURL)
+                audioPlayer?.numberOfLoops = -1 // Loop continuously
+                audioPlayer?.volume = 1.0
+                audioPlayer?.play()
+                return
+            } catch {
+                print("Could not play custom alarm sound: \(error.localizedDescription)")
+                // Fall back to default sound if custom fails
+            }
+        }
+        
+        // For built-in sounds or if custom fails
         guard let url = Bundle.main.url(
             forResource: selectedAlarmSound.filename,
             withExtension: selectedAlarmSound.fileExtension
@@ -236,5 +259,25 @@ class TimerManager: ObservableObject {
     // Test play alarm sound for preview
     func previewAlarmSound() {
         playAlarmSound()
+    }
+    
+    // Set a custom sound from a file URL
+    func setCustomSound(from url: URL) {
+        // Copy the file to the app's documents directory for persistence
+        let fileManager = FileManager.default
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let destinationURL = documentsDirectory.appendingPathComponent("customSound.\(url.pathExtension)")
+        
+        // Remove any existing custom sound file
+        try? fileManager.removeItem(at: destinationURL)
+        
+        do {
+            try fileManager.copyItem(at: url, to: destinationURL)
+            customSoundURL = destinationURL
+            selectedAlarmSound = .custom
+            print("Custom sound set successfully")
+        } catch {
+            print("Error copying custom sound: \(error.localizedDescription)")
+        }
     }
 }

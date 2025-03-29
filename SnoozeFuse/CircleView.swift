@@ -12,6 +12,7 @@ struct CircleView: View {
     var size: CGFloat
     var isPressed: Bool = false
     var showStatusText: Bool = false
+    var showInitialInstructions: Bool = false
     
     var body: some View {
         ZStack {
@@ -37,10 +38,18 @@ struct CircleView: View {
             
             // Status text (optional)
             if showStatusText {
-                Text(isPressed ? "HOLDING" : "RELEASE TO START")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.8))
-                    .tracking(2)
+                if showInitialInstructions && !isPressed {
+                    Text("TAP AND HOLD\nTO START")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                        .tracking(2)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text(isPressed ? "HOLDING" : "RELEASED")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                        .tracking(2)
+                }
             }
         }
         .frame(width: size, height: size)

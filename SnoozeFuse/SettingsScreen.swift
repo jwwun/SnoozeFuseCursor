@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // Breaking up the UI into smaller components
 struct CircleSizeControl: View {
@@ -9,6 +10,7 @@ struct CircleSizeControl: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
+
             HStack(spacing: 0) {
                 TextField("", text: $textInputValue)
                     .keyboardType(.numberPad)
@@ -31,8 +33,8 @@ struct CircleSizeControl: View {
                         }
                     }
                 HStack(spacing: 0) {
-                    Text("⌞⌝  ")
-                        .foregroundColor(.white.opacity(0.7))
+//                    Text("⌞⌝  ")
+//                        .foregroundColor(.white.opacity(0.7))
  
                     Slider(value: $circleSize, in: 100...1000, step: 1)
                         .accentColor(.blue)
@@ -305,6 +307,7 @@ struct AlarmSoundSelector: View {
     var onPreview: () -> Void
     @State private var isPlaying: Bool = false
     @EnvironmentObject var timerManager: TimerManager
+    @State private var showDocumentPicker = false
     
     var body: some View {
         VStack(alignment: .center, spacing: 3) {
@@ -381,12 +384,88 @@ struct AlarmSoundSelector: View {
                 }
             }
             .padding(.horizontal, 10)
+            
+            // Custom sound button
+            Button(action: {
+                showDocumentPicker = true
+            }) {
+                HStack {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 16))
+                    Text("Add a custom sound from files...")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.9))
+                .padding(.vertical, 12)
+                .padding(.horizontal, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.green.opacity(0.4))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.gray.opacity(0.6), lineWidth: 1)
+                        )
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
         .padding(.horizontal, 8)
+        .sheet(isPresented: $showDocumentPicker) {
+            DocumentPicker(selectedFileURL: { url in
+                timerManager.setCustomSound(from: url)
+            })
+        }
+    }
+}
+
+// Document Picker for selecting audio files
+struct DocumentPicker: UIViewControllerRepresentable {
+    var selectedFileURL: (URL) -> Void
+    
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        // Define the types of audio files we want to allow
+        let supportedTypes: [UTType] = [.audio, .mp3, .wav]
+        
+        // Create a document picker with these types
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: supportedTypes)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: DocumentPicker
+        
+        init(_ parent: DocumentPicker) {
+            self.parent = parent
+        }
+        
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else { return }
+            
+            // Start accessing the security-scoped resource
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
+            
+            // Call the callback with the selected URL
+            parent.selectedFileURL(url)
+            
+            // Stop accessing the security-scoped resource
+            if didStartAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
     }
 }
 
