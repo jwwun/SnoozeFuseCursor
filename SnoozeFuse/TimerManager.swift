@@ -236,10 +236,5 @@ class TimerManager: ObservableObject {
     // Test play alarm sound for preview
     func previewAlarmSound() {
         playAlarmSound()
-        
-        // Stop preview after 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-            self?.stopAlarmSound()
-        }
     }
 }

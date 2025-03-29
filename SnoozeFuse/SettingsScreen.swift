@@ -263,6 +263,8 @@ struct TimerSettingsControl: View {
 struct AlarmSoundSelector: View {
     @Binding var selectedAlarm: TimerManager.AlarmSound
     var onPreview: () -> Void
+    @State private var isPlaying: Bool = false
+    @EnvironmentObject var timerManager: TimerManager
     
     var body: some View {
         VStack(alignment: .center, spacing: 15) {
@@ -314,19 +316,26 @@ struct AlarmSoundSelector: View {
                 
                 Spacer()
                 
-                // Preview button
-                Button(action: onPreview) {
+                // Preview/Stop toggle button
+                Button(action: {
+                    isPlaying.toggle()
+                    if isPlaying {
+                        timerManager.playAlarmSound()
+                    } else {
+                        timerManager.stopAlarmSound()
+                    }
+                }) {
                     HStack {
-                        Image(systemName: "play.fill")
+                        Image(systemName: isPlaying ? "stop.fill" : "play.fill")
                             .font(.system(size: 16))
-                        Text("Preview")
+                        Text(isPlaying ? "Stop" : "Preview")
                             .font(.system(size: 16, weight: .medium))
                     }
                     .padding(.vertical, 12)
                     .padding(.horizontal, 20)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.purple.opacity(0.6))
+                            .fill(isPlaying ? Color.red.opacity(0.6) : Color.purple.opacity(0.6))
                     )
                     .foregroundColor(.white)
                 }
