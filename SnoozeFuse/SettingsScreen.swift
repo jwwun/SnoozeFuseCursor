@@ -7,10 +7,18 @@ struct CircleSizeControl: View {
     @Binding var textInputValue: String
     @FocusState private var isTextFieldFocused: Bool
     var onValueChanged: () -> Void
+    @EnvironmentObject var timerManager: TimerManager
     
     var body: some View {
-        VStack(alignment: .center, spacing: 0) {
-
+        VStack(alignment: .center, spacing: 3) {
+            // Title
+            Text("CIRCLE SIZE")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(Color.blue.opacity(0.7))
+                .tracking(3)
+                .padding(.bottom, 5)
+                .frame(maxWidth: .infinity, alignment: .center)
+                
             HStack(spacing: 0) {
                 TextField("", text: $textInputValue)
                     .keyboardType(.numberPad)
@@ -30,17 +38,16 @@ struct CircleSizeControl: View {
                         if let newSize = Int(newValue) {
                             circleSize = CGFloat(newSize)
                             onValueChanged()
+                            timerManager.saveSettings()
                         }
                     }
                 HStack(spacing: 0) {
-//                    Text("⌞⌝  ")
-//                        .foregroundColor(.white.opacity(0.7))
- 
                     Slider(value: $circleSize, in: 100...1000, step: 1)
                         .accentColor(.blue)
                         .onChange(of: circleSize) { _ in
                             textInputValue = "\(Int(circleSize))"
                             onValueChanged()
+                            timerManager.saveSettings()
                         }
                 }
                 .padding(.horizontal)
@@ -49,7 +56,7 @@ struct CircleSizeControl: View {
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.2))
-        .cornerRadius(10)
+        .cornerRadius(15)
         .padding(.horizontal, 8) // Reduced to prevent edge cutoff
     }
 }
@@ -153,6 +160,7 @@ struct TimerSettingsControl: View {
     @State private var maxUnit: TimeUnit = .minutes  // Default minutes
     
     @FocusState private var focusedField: TimerField?
+    @EnvironmentObject var timerManager: TimerManager
     
     // Warning states
     private var isMaxLessThanNap: Bool {
@@ -277,16 +285,22 @@ struct TimerSettingsControl: View {
     private func updateHoldTimer() {
         let value = Int(holdTime) ?? 0
         holdDuration = TimeInterval(value) * holdUnit.multiplier
+        // Save settings after update
+        timerManager.saveSettings()
     }
     
     private func updateNapTimer() {
         let value = Int(napTime) ?? 0
         napDuration = TimeInterval(value) * napUnit.multiplier
+        // Save settings after update
+        timerManager.saveSettings()
     }
     
     private func updateMaxTimer() {
         let value = Int(maxTime) ?? 0
         maxDuration = TimeInterval(value) * maxUnit.multiplier
+        // Save settings after update
+        timerManager.saveSettings()
     }
     
     // Helper function to format time with unit
@@ -308,6 +322,8 @@ struct AlarmSoundSelector: View {
     @State private var isPlaying: Bool = false
     @EnvironmentObject var timerManager: TimerManager
     @State private var showDocumentPicker = false
+    @State private var showingDeleteConfirmation = false
+    @State private var soundToDelete: UUID? = nil
     
     var body: some View {
         VStack(alignment: .center, spacing: 3) {
@@ -316,23 +332,68 @@ struct AlarmSoundSelector: View {
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundColor(Color.blue.opacity(0.7))
                 .tracking(3)
-                .padding(.bottom, 1)
+                .padding(.bottom, 5)
                 .frame(maxWidth: .infinity, alignment: .center)
             
             // Sound selection and preview
             HStack {
                 // Dropdown menu for alarm selection
                 Menu {
-                    ForEach(TimerManager.AlarmSound.allCases) { sound in
+                    // Built-in sounds
+                    ForEach(TimerManager.AlarmSound.allCases.filter { $0 != .custom }) { sound in
                         Button(action: {
                             selectedAlarm = sound
+                            timerManager.selectedCustomSoundID = nil
+                            timerManager.saveSettings()
                         }) {
                             HStack {
                                 Text(sound.rawValue)
-                                if sound == selectedAlarm {
+                                if sound == selectedAlarm && timerManager.selectedCustomSoundID == nil {
                                     Image(systemName: "checkmark")
                                 }
                             }
+                        }
+                    }
+                    
+                    if !timerManager.customSounds.isEmpty {
+                        Divider()
+                        
+                        // Custom sounds section
+                        ForEach(timerManager.customSounds) { customSound in
+                            Button(action: {
+                                selectedAlarm = .custom
+                                timerManager.selectedCustomSoundID = customSound.id
+                                timerManager.saveSettings()
+                            }) {
+                                HStack {
+                                    Text(customSound.name)
+                                    if selectedAlarm == .custom && timerManager.selectedCustomSoundID == customSound.id {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    soundToDelete = customSound.id
+                                    showingDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                        
+                        // Delete option menu section
+                        Menu {
+                            ForEach(timerManager.customSounds) { customSound in
+                                Button(role: .destructive, action: {
+                                    soundToDelete = customSound.id
+                                    showingDeleteConfirmation = true
+                                }) {
+                                    Label(customSound.name, systemImage: "trash")
+                                }
+                            }
+                        } label: {
+                            Label("Remove Custom Sounds", systemImage: "trash")
                         }
                     }
                 } label: {
@@ -341,16 +402,25 @@ struct AlarmSoundSelector: View {
                             .font(.system(size: 18))
                             .foregroundColor(.white.opacity(0.8))
                         
-                        Text(selectedAlarm.rawValue)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
+                        // Show the name of the selected sound (custom or built-in)
+                        if selectedAlarm == .custom, let id = timerManager.selectedCustomSoundID,
+                           let customSound = timerManager.customSounds.first(where: { $0.id == id }) {
+                            Text(customSound.name)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                        } else {
+                            Text(selectedAlarm.rawValue)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                        }
                         
                         Image(systemName: "chevron.down")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                     }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 15)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(Color.black.opacity(0.3))
@@ -368,58 +438,54 @@ struct AlarmSoundSelector: View {
                         timerManager.stopAlarmSound()
                     }
                 }) {
-                    HStack {
+                    HStack(spacing: 5) {
                         Image(systemName: isPlaying ? "stop.fill" : "play.fill")
                             .font(.system(size: 16))
-                        Text(isPlaying ? "Stop" : "Preview")
-                            .font(.system(size: 16, weight: .medium))
+                        Text(isPlaying ? "Stop" : "Play")
+                            .font(.system(size: 14, weight: .medium))
                     }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 15)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(isPlaying ? Color.red.opacity(0.6) : Color.purple.opacity(0.6))
                     )
                     .foregroundColor(.white)
                 }
-            }
-            .padding(.horizontal, 10)
-            
-            // Custom sound button
-            Button(action: {
-                showDocumentPicker = true
-            }) {
-                HStack {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 16))
-                    Text("Add a custom sound from files...")
-                        .font(.system(size: 14, weight: .medium))
+                
+                // Just a folder icon for adding custom sounds
+                Button(action: {
+                    showDocumentPicker = true
+                }) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
                 }
-                .foregroundColor(.white.opacity(0.9))
-                .padding(.vertical, 12)
-                .padding(.horizontal, 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.green.opacity(0.4))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.gray.opacity(0.6), lineWidth: 1)
-                        )
-                )
-                .frame(maxWidth: .infinity)
+                .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal, 10)
-            .padding(.top, 8)
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 14)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
         .padding(.horizontal, 8)
         .sheet(isPresented: $showDocumentPicker) {
             DocumentPicker(selectedFileURL: { url in
-                timerManager.setCustomSound(from: url)
+                timerManager.addCustomSound(from: url)
             })
+        }
+        .alert("Delete Custom Sound", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let id = soundToDelete {
+                    timerManager.removeCustomSound(id: id)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this custom sound?")
         }
     }
 }
@@ -494,14 +560,21 @@ struct SettingsScreen: View {
                     
                     // ScrollView with better spacing
                     ScrollView {
-                        VStack(spacing: 25) {
+                        VStack(spacing: 20) {
+                            // App title at the top
+                            Text("SNOOZEFUSE")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .tracking(3)
+                                .padding(.top, 25)
+                                .padding(.bottom, 10)
+                            
                             // Circle size control
                             CircleSizeControl(
                                 circleSize: $timerManager.circleSize,
                                 textInputValue: $textInputValue,
                                 onValueChanged: showPreviewBriefly
                             )
-                            .padding(.top, 20)
                             
                             // Timer settings
                             TimerSettingsControl(
@@ -518,7 +591,9 @@ struct SettingsScreen: View {
                             
                             // Start button
                             bottomButtonBar
+                                .padding(.top, 10)
                         }
+                        .padding(.horizontal, 5)
                     }
                     .focused($isAnyFieldFocused)
                     
@@ -533,12 +608,12 @@ struct SettingsScreen: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 18))
-                                    Text("Confirm Editing Circle Size")
+                                    Text("Confirm")
                                         .font(.system(size: 18, weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(.white)
                                 .padding(.vertical, 14)
-                                .frame(width: 180)
+                                .frame(width: 130)
                                 .background(
                                     LinearGradient(
                                         colors: [Color(hex: "66BB6A"), Color(hex: "43A047")],
@@ -580,7 +655,7 @@ struct SettingsScreen: View {
                         .font(.system(size: 14, weight: .medium))
                 }
                 .foregroundColor(.white.opacity(0.8))
-                .frame(width: 120, height: 80)
+                .frame(width: 100, height: 70)
                 .background(
                     RoundedRectangle(cornerRadius: 15)
                         .fill(Color.gray.opacity(0.2))
@@ -606,21 +681,21 @@ struct SettingsScreen: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 180, height: 180)
+                        .frame(width: 160, height: 160)
                         .shadow(color: Color.blue.opacity(0.5), radius: 10, x: 0, y: 5)
                     
                     VStack(spacing: 5) {
                         Image(systemName: "play.fill")
-                            .font(.system(size: 77))
+                            .font(.system(size: 50))
                         Text("Start")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                     }
                     .foregroundColor(.white)
                 }
             }
         }
-        .padding(.horizontal, 30)
-        .padding(.bottom, 40)
+        .padding(.horizontal, 25)
+        .padding(.bottom, 30)
         .fullScreenCover(isPresented: $showNapScreen) {
             NapScreen()
                 .environmentObject(timerManager)

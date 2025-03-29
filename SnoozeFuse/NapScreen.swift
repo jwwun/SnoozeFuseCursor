@@ -122,13 +122,19 @@ struct NapScreen: View {
                                     if touchingCircle != isPressed {
                                         isPressed = touchingCircle
                                         if touchingCircle {
-                                            // User is pressing the circle, stop the hold timer
-                                            timerManager.stopHoldTimer()
-                                        } else {
-                                            // User has released the circle, start both timers if not already running
+                                            // User is pressing the circle
+                                            
+                                            // If this is the first interaction (timers haven't started yet),
+                                            // start the max timer when user first holds down
                                             if timerManager.maxTimer == timerManager.maxDuration {
                                                 timerManager.startMaxTimer()
                                             }
+                                            
+                                            // Stop the hold timer when holding
+                                            timerManager.stopHoldTimer()
+                                        } else {
+                                            // User has released the circle
+                                            // Start/resume the hold timer
                                             timerManager.startHoldTimer()
                                         }
                                     }
