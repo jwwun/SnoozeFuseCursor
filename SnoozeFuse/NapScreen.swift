@@ -20,12 +20,18 @@ struct CircularBackButton: View {
             }
         }) {
             Circle()
-                .fill(isConfirming ? Color.red.opacity(0.2) : Color.gray.opacity(0.2))
-                .frame(width: 44, height: 44)
+                .fill(isConfirming ? Color.red.opacity(0.2) : Color.gray.opacity(0))
+                .frame(width: 77, height: 77)
                 .overlay(
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.white)
+                    VStack(spacing: 0) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 25, weight: .medium))
+                            .foregroundColor(.white)
+                        Text("back")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.gray)
+                    }
+
                 )
         }
     }
@@ -156,8 +162,8 @@ struct NapScreen: View {
                             timerManager.stopAlarmSound()
                             presentationMode.wrappedValue.dismiss()
                         }
-                        .padding(.leading, 20)
-                        .padding(.top, 20)
+                        .padding(.leading, 5)
+                        .padding(.top, -20)
                         .contentShape(Circle())
                         
                         Spacer()
