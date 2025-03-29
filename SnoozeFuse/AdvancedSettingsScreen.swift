@@ -3,6 +3,7 @@ import SwiftUI
 struct AdvancedSettingsScreen: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var hapticManager = HapticManager.shared
+    @ObservedObject var orientationManager = OrientationManager.shared
     
     var body: some View {
         NavigationView {
@@ -51,6 +52,9 @@ struct AdvancedSettingsScreen: View {
                         .cornerRadius(15)
                         .padding(.horizontal, 8)
                         
+                        // Orientation Settings
+                        OrientationSettings()
+                        
                         // More advanced settings can be added here
                         
                     }
@@ -68,6 +72,11 @@ struct AdvancedSettingsScreen: View {
             })
         }
         .navigationViewStyle(StackNavigationViewStyle())
+        .lockToOrientation(orientationManager)
+        .onAppear {
+            // Lock orientation when screen appears
+            orientationManager.lockOrientation()
+        }
     }
 }
 
