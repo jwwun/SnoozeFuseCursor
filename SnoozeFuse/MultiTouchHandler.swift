@@ -7,15 +7,15 @@ struct MultiTouchHandler: UIViewRepresentable {
     var onTouchesChanged: (Bool) -> Void
     var circleRadius: CGFloat
     
-    func makeUIView(context: Context) -> TouchView {
-        let view = TouchView()
-        view.delegate = context.coordinator
+    func makeUIView(context: Context) -> TouchDetectionView {
+        let view = TouchDetectionView(frame: .zero)
+        view.onTouchesChanged = onTouchesChanged
         view.circleRadius = circleRadius
-        view.isMultipleTouchEnabled = true
         return view
     }
     
-    func updateUIView(_ uiView: TouchView, context: Context) {
+    func updateUIView(_ uiView: TouchDetectionView, context: Context) {
+        uiView.onTouchesChanged = onTouchesChanged
         uiView.circleRadius = circleRadius
     }
     
@@ -129,5 +129,67 @@ class TouchView: UIView {
     
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         delegate?.touchesCancelled(touches, with: event, in: self)
+    }
+}
+
+class TouchDetectionView: UIView {
+    var onTouchesChanged: ((Bool) -> Void)?
+    var circleRadius: CGFloat = 0
+    private var isTouching = false
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isMultipleTouchEnabled = true
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func updateTouchState(_ newState: Bool) {
+        if isTouching != newState {
+            isTouching = newState
+            onTouchesChanged?(newState)
+            
+            // Trigger haptic feedback on state change
+            if newState {
+                HapticManager.shared.trigger()
+            }
+        }
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        checkTouches(touches, with: event)
+    }
+    
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        checkTouches(touches, with: event)
+    }
+    
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        checkTouches(touches, with: event)
+    }
+    
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        updateTouchState(false)
+    }
+    
+    private func checkTouches(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // Get all touches including the ones that just ended
+        var allTouches = Set<UITouch>()
+        if let eventTouches = event?.allTouches {
+            allTouches = allTouches.union(eventTouches)
+        }
+        allTouches = allTouches.union(touches)
+        
+        // Check if any touch is within the circle
+        let touchingCircle = allTouches.contains { touch in
+            let location = touch.location(in: self)
+            let center = CGPoint(x: bounds.midX, y: bounds.midY)
+            let distance = hypot(location.x - center.x, location.y - center.y)
+            return distance <= circleRadius && touch.phase != UITouch.Phase.ended && touch.phase != UITouch.Phase.cancelled
+        }
+        
+        updateTouchState(touchingCircle)
     }
 } 

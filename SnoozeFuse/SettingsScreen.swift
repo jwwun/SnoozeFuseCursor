@@ -491,14 +491,12 @@ struct SettingsScreen: View {
     
     private var bottomButtonBar: some View {
         HStack {
-            // More Settings button (placeholder)
-            Button(action: {
-                // Placeholder for future advanced settings
-            }) {
+            // More Settings button now links to Advanced Settings
+            NavigationLink(destination: AdvancedSettingsScreen()) {
                 VStack(spacing: 8) {
                     Image(systemName: "gearshape.2.fill")
                         .font(.system(size: 20))
-                    Text("More Settings")
+                    Text("Advanced")
                         .font(.system(size: 14, weight: .medium))
                 }
                 .foregroundColor(.white.opacity(0.8))
