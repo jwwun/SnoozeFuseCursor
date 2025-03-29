@@ -166,7 +166,7 @@ struct TimerSettingsControl: View {
     }
     
     var body: some View {
-        VStack(alignment: .center, spacing: 15) {
+        VStack(alignment: .center, spacing: 1) {
             Text("TIMER SETTINGS")
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundColor(Color.blue.opacity(0.7))
@@ -307,13 +307,13 @@ struct AlarmSoundSelector: View {
     @EnvironmentObject var timerManager: TimerManager
     
     var body: some View {
-        VStack(alignment: .center, spacing: 15) {
+        VStack(alignment: .center, spacing: 3) {
             // Title
             Text("ALARM SOUND")
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundColor(Color.blue.opacity(0.7))
                 .tracking(3)
-                .padding(.bottom, 5)
+                .padding(.bottom, 1)
                 .frame(maxWidth: .infinity, alignment: .center)
             
             // Sound selection and preview
