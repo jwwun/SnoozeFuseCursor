@@ -396,6 +396,7 @@ struct SettingsScreen: View {
     @State private var previewTimer: Timer?
     @State private var textInputValue: String = ""
     @FocusState private var isAnyFieldFocused: Bool
+    @State private var showNapScreen = false  // New state for showing nap screen
     
     var body: some View {
         ZStack {
@@ -514,7 +515,9 @@ struct SettingsScreen: View {
             Spacer()
             
             // Circular Start button
-            NavigationLink(destination: NapScreen().environmentObject(timerManager)) {
+            Button(action: {
+                showNapScreen = true
+            }) {
                 ZStack {
                     Circle()
                         .fill(
@@ -539,6 +542,10 @@ struct SettingsScreen: View {
         }
         .padding(.horizontal, 30)
         .padding(.bottom, 40)
+        .fullScreenCover(isPresented: $showNapScreen) {
+            NapScreen()
+                .environmentObject(timerManager)
+        }
     }
     
     private func showPreviewBriefly() {
