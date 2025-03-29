@@ -10,6 +10,12 @@ struct SleepScreen: View {
     @State private var isSkipConfirmationShowing = false
     @State private var confirmationTimer: Timer? = nil
     
+    // Computed property to determine which timer to use
+    private var effectiveNapDuration: TimeInterval {
+        // If max timer is less than nap timer, use max timer
+        return timerManager.maxTimer < timerManager.napTimer ? timerManager.maxTimer : timerManager.napTimer
+    }
+    
     var body: some View {
         ZStack {
             // Simple dark background
@@ -109,7 +115,7 @@ struct SleepScreen: View {
                         .foregroundColor(Color.blue.opacity(0.7))
                         .tracking(4)
                     
-                    Text(timerManager.formatTime(timerManager.napTimer))
+                    Text(timerManager.formatTime(effectiveNapDuration))
                         .font(.system(size: 48, weight: .bold, design: .monospaced))
                         .foregroundColor(napFinished ? .green : .white)
                 }
@@ -203,6 +209,11 @@ struct SleepScreen: View {
             // Reset timers to use the latest settings
             timerManager.resetTimers()
             
+            // If max timer is less than nap timer, use max timer's value
+            if timerManager.maxTimer < timerManager.napTimer {
+                timerManager.napTimer = timerManager.maxTimer
+            }
+            
             // Start nap timer when screen appears
             timerManager.startNapTimer()
             
@@ -213,7 +224,16 @@ struct SleepScreen: View {
                 queue: .main
             ) { _ in
                 self.napFinished = true
-                // Play alarm sound here in the future
+                self.timerManager.playAlarmSound()
+            }
+            
+            // Listen for max timer finished notification
+            NotificationCenter.default.addObserver(
+                forName: .maxTimerFinished,
+                object: nil,
+                queue: .main
+            ) { _ in
+                self.napFinished = true
                 self.timerManager.playAlarmSound()
             }
         }
@@ -224,9 +244,9 @@ struct SleepScreen: View {
         }
     }
     
-    // Calculate wake up time based on current time + nap duration
+    // Calculate wake up time based on effective nap duration
     private func calculateWakeUpTime() -> String {
-        let wakeTime = Date().addingTimeInterval(timerManager.napTimer)
+        let wakeTime = Date().addingTimeInterval(effectiveNapDuration)
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: wakeTime)

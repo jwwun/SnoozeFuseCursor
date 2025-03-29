@@ -152,6 +152,15 @@ struct TimerSettingsControl: View {
     
     @FocusState private var focusedField: TimerField?
     
+    // Warning states
+    private var isMaxLessThanNap: Bool {
+        maxDuration < napDuration
+    }
+    
+    private var isHoldTooLong: Bool {
+        holdDuration > (maxDuration - napDuration)
+    }
+    
     enum TimerField {
         case hold, nap, max
     }
@@ -176,6 +185,10 @@ struct TimerSettingsControl: View {
                     timerField: .hold,
                     updateAction: updateHoldTimer
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(isHoldTooLong ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+                )
                 
                 // Nap Timer (Timer B)
                 CuteTimePicker(
@@ -185,6 +198,10 @@ struct TimerSettingsControl: View {
                     focus: $focusedField,
                     timerField: .nap,
                     updateAction: updateNapTimer
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
                 
                 // Max Timer (Timer C)
@@ -196,13 +213,29 @@ struct TimerSettingsControl: View {
                     timerField: .max,
                     updateAction: updateMaxTimer
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+                )
+            }
+            
+            // Subtle warning messages
+            if isMaxLessThanNap || isHoldTooLong {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                    Text(isMaxLessThanNap ? "<Max> should be greater than <Nap> (add autoassist later, this just for debug)" : "<Release> + <Nap> should be less than <Max> ")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundColor(Color.orange.opacity(0.8))
+                .padding(.top, 8)
             }
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
-        .padding(.horizontal, 8) // Reduced to prevent edge cutoff
+        .padding(.horizontal, 8)
         .onAppear {
             // Initialize units and values
             setupInitialValues()
@@ -252,6 +285,17 @@ struct TimerSettingsControl: View {
     private func updateMaxTimer() {
         let value = Int(maxTime) ?? 0
         maxDuration = TimeInterval(value) * maxUnit.multiplier
+    }
+    
+    // Helper function to format time with unit
+    private func formatTimeWithUnit(_ time: String, _ unit: TimeUnit) -> String {
+        if let value = Int(time) {
+            if value == 1 {
+                return "1 " + unit.rawValue.dropLast() // Remove 's' for singular
+            }
+            return "\(value) " + unit.rawValue
+        }
+        return "0 " + unit.rawValue
     }
 }
 
@@ -355,7 +399,6 @@ struct SettingsScreen: View {
     
     var body: some View {
         ZStack {
-            // Actual content view
             NavigationView {
                 ZStack {
                     // Background
@@ -372,18 +415,13 @@ struct SettingsScreen: View {
                     // ScrollView with better spacing
                     ScrollView {
                         VStack(spacing: 25) {
-                            // App title
-                            Text("SnoozeFuse")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .padding(.top, 50)
-                            
                             // Circle size control
                             CircleSizeControl(
                                 circleSize: $timerManager.circleSize,
                                 textInputValue: $textInputValue,
                                 onValueChanged: showPreviewBriefly
                             )
+                            .padding(.top, 20)
                             
                             // Timer settings
                             TimerSettingsControl(
@@ -415,7 +453,7 @@ struct SettingsScreen: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 18))
-                                    Text("Confirm")
+                                    Text("Confirm Editing Circle Size")
                                         .font(.system(size: 18, weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(.white)
