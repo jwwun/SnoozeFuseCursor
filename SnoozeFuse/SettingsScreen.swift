@@ -1,4 +1,4 @@
-import SwiftUI //note: this app is for iOS 18+
+import SwiftUI
 import UIKit
 import Combine
 

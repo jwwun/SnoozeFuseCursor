@@ -97,7 +97,6 @@ struct AdvancedSettingsScreen: View {
             // Lock orientation when screen appears
             orientationManager.lockOrientation()
         }
-        .navigationBarHidden(true)
     }
 }
 

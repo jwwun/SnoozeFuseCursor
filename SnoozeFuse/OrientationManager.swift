@@ -60,7 +60,6 @@ class OrientationManager: ObservableObject {
     @Published var orientation: DeviceOrientation = .portrait
     @Published var isLockEnabled: Bool = true
     @Published var orientationChangeSuccess: Bool = false
-    @Published var isFirstLaunch: Bool = true
     
     private let userDefaultsKey = "orientationSettings"
     private var cancellables = Set<AnyCancellable>()
@@ -73,25 +72,16 @@ class OrientationManager: ObservableObject {
         
         // Set up observers
         setupObservers()
-        
-        // Default to portrait on first launch regardless of saved setting
-        if isFirstLaunch {
-            orientation = .portrait
-        }
     }
     
     private func loadSavedSettings() {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            // No saved settings - this is first launch
-            isFirstLaunch = true
             return
         }
         
         if let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
-            // Only load saved orientation if not first launch
             self.orientation = savedSettings.orientation
             self.isLockEnabled = savedSettings.isLockEnabled
-            self.isFirstLaunch = false
         }
     }
     
@@ -124,20 +114,7 @@ class OrientationManager: ObservableObject {
     }
     
     func lockOrientation() {
-        // On first launch, always use portrait regardless of saved setting
-        if isFirstLaunch {
-            let savedOrientation = orientation
-            orientation = .portrait
-            
-            // Force the device to portrait orientation
-            forciblyRotateDevice()
-            
-            // Restore the saved orientation for later use
-            orientation = savedOrientation
-            return
-        }
-        
-        // For subsequent launches, use the saved orientation
+        // Force the device to the desired orientation
         forciblyRotateDevice()
         
         // Show success feedback
@@ -170,17 +147,11 @@ class OrientationManager: ObservableObject {
         // This is a direct way to force orientation change
         UIDevice.current.setValue(orientation.deviceOrientationValue, forKey: "orientation")
         
-        // For iOS 16 and later, use the more modern approach with explicit UIInterfaceOrientation
+        // For iOS 16 and later, use the more modern approach
         if #available(iOS 16.0, *) {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                let interfaceOrientations: UIInterfaceOrientationMask = orientation.orientationMask
                 do {
-                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: interfaceOrientations))
-                    
-                    // Additional fallback for iPhone on first launch - force portrait
-                    if isFirstLaunch {
-                        try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
-                    }
+                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientation.orientationMask))
                 } catch {
                     print("Could not update orientation: \(error)")
                     orientationChangeSuccess = false
@@ -211,16 +182,12 @@ class OrientationManager: ObservableObject {
     
     // MARK: - Persistence
     
-    struct SavedSettings: Codable {
+    private struct SavedSettings: Codable {
         let orientation: DeviceOrientation
         let isLockEnabled: Bool
     }
     
     private func saveSettings() {
-        saveSettingsToDefaults()
-    }
-    
-    func saveSettingsToDefaults() {
         let settings = SavedSettings(
             orientation: orientation,
             isLockEnabled: isLockEnabled
@@ -228,16 +195,10 @@ class OrientationManager: ObservableObject {
         
         if let encoded = try? JSONEncoder().encode(settings) {
             UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-            // After saving settings, we're no longer on first launch
-            isFirstLaunch = false
         }
     }
     
     private func loadSettings() -> SavedSettings? {
-        return loadSettingsFromDefaults()
-    }
-    
-    func loadSettingsFromDefaults() -> SavedSettings? {
         guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
             return nil
         }
