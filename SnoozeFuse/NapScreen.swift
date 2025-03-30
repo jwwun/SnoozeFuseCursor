@@ -219,6 +219,9 @@ struct NapScreen: View {
             SleepScreen()
                 .environmentObject(timerManager)
         }
+        // Hide status bar and extend to edges
+        .statusBar(hidden: true)
+        .edgesIgnoringSafeArea(.all)
     }
 }
 

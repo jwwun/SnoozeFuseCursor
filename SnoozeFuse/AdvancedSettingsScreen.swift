@@ -6,10 +6,40 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var orientationManager = OrientationManager.shared
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                Color.black.opacity(0.9).ignoresSafeArea()
+        ZStack {
+            // Background
+            Color.black.opacity(0.9).ignoresSafeArea()
+            
+            VStack {
+                // Custom header with close button
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: 2) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.leading, 10)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("Advanced Settings")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    // Balance empty space
+                    Text("")
+                        .frame(width: 60)
+                }
+                .padding(.top, 10)
+                .padding(.bottom, 5)
                 
                 ScrollView {
                     VStack(spacing: 25) {
@@ -58,20 +88,10 @@ struct AdvancedSettingsScreen: View {
                         // More advanced settings can be added here
                         
                     }
-                    .padding(.top, 20)
+                    .padding(.top, 10)
                 }
             }
-            .navigationBarTitle("Advanced Settings", displayMode: .inline)
-            .navigationBarItems(leading: Button(action: {
-                presentationMode.wrappedValue.dismiss()
-            }) {
-                Image(systemName: "chevron.left")
-                    .foregroundColor(.white)
-                Text("Back")
-                    .foregroundColor(.white)
-            })
         }
-        .navigationViewStyle(StackNavigationViewStyle())
         .lockToOrientation(orientationManager)
         .onAppear {
             // Lock orientation when screen appears
@@ -82,4 +102,4 @@ struct AdvancedSettingsScreen: View {
 
 #Preview {
     AdvancedSettingsScreen()
-} 
+}

@@ -192,4 +192,4 @@ class TouchDetectionView: UIView {
         
         updateTouchState(touchingCircle)
     }
-} 
+}

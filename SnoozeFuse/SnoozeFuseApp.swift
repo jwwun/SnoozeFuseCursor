@@ -10,7 +10,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     // Support all orientations by default
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         // Use orientation manager setting
-        return OrientationManager.shared.isLockEnabled ? 
+        return OrientationManager.shared.isLockEnabled ?
             OrientationManager.shared.orientation.orientationMask : .all
     }
 }

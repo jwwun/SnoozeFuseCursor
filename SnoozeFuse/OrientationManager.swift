@@ -1,342 +1,231 @@
 import SwiftUI
-import UIKit
-import Combine
 
-// Enum for the different orientation options
-enum DeviceOrientation: String, CaseIterable, Identifiable, Codable {
-    case portrait = "Portrait"
-    case portraitUpsideDown = "Upside Down"
-    case landscapeLeft = "Landscape Left"
-    case landscapeRight = "Landscape Right"
+struct CircularBackButton: View {
+    var action: () -> Void
+    @State private var isConfirming = false
+    @State private var confirmationTimer: Timer?
     
-    var id: String { self.rawValue }
-    
-    // Convert to UIInterfaceOrientationMask
-    var orientationMask: UIInterfaceOrientationMask {
-        switch self {
-        case .portrait:
-            return .portrait
-        case .portraitUpsideDown:
-            return .portraitUpsideDown
-        case .landscapeLeft:
-            return .landscapeLeft
-        case .landscapeRight:
-            return .landscapeRight
-        }
-    }
-    
-    // Get appropriate device orientation value
-    var deviceOrientationValue: Int {
-        switch self {
-        case .portrait:
-            return UIDeviceOrientation.portrait.rawValue
-        case .portraitUpsideDown:
-            return UIDeviceOrientation.portraitUpsideDown.rawValue
-        case .landscapeLeft:
-            return UIDeviceOrientation.landscapeLeft.rawValue
-        case .landscapeRight:
-            return UIDeviceOrientation.landscapeRight.rawValue
-        }
-    }
-    
-    // Icon name for visual representation
-    var iconName: String {
-        switch self {
-        case .portrait:
-            return "iphone"
-        case .portraitUpsideDown:
-            return "iphone"
-        case .landscapeLeft:
-            return "iphone.landscape"
-        case .landscapeRight:
-            return "iphone.landscape"
-        }
-    }
-}
-
-class OrientationManager: ObservableObject {
-    static let shared = OrientationManager()
-    
-    @Published var orientation: DeviceOrientation = .portrait
-    @Published var isLockEnabled: Bool = true
-    @Published var orientationChangeSuccess: Bool = false
-    
-    private let userDefaultsKey = "orientationSettings"
-    private var cancellables = Set<AnyCancellable>()
-    
-    private init() {
-        // First initialize all properties with defaults (already done above)
-        
-        // Then load saved settings if available
-        loadSavedSettings()
-        
-        // Set up observers
-        setupObservers()
-    }
-    
-    private func loadSavedSettings() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return
-        }
-        
-        if let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
-            self.orientation = savedSettings.orientation
-            self.isLockEnabled = savedSettings.isLockEnabled
-        }
-    }
-    
-    private func setupObservers() {
-        // Observe orientation changes
-        self.$orientation
-            .dropFirst() // Skip the initial value
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.isLockEnabled {
-                    self.lockOrientation()
-                }
-                self.saveSettings()
-            }
-            .store(in: &cancellables)
-        
-        // Observe lock enabled changes
-        self.$isLockEnabled
-            .dropFirst() // Skip the initial value
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if newValue {
-                    self.lockOrientation()
-                } else {
-                    self.unlockOrientation()
-                }
-                self.saveSettings()
-            }
-            .store(in: &cancellables)
-    }
-    
-    func lockOrientation() {
-        // Force the device to the desired orientation
-        forciblyRotateDevice()
-        
-        // Show success feedback
-        showSuccessFeedback()
-        
-        // Force UI update on all scenes
-        for scene in UIApplication.shared.connectedScenes {
-            if let windowScene = scene as? UIWindowScene {
-                windowScene.windows.forEach { window in
-                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+    var body: some View {
+        Button(action: {
+            if isConfirming {
+                action()
+                isConfirming = false
+                confirmationTimer?.invalidate()
+            } else {
+                isConfirming = true
+                confirmationTimer?.invalidate()
+                confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                    isConfirming = false
                 }
             }
-        }
-    }
-    
-    func unlockOrientation() {
-        // Update orientation on controllers to allow free rotation
-        for scene in UIApplication.shared.connectedScenes {
-            if let windowScene = scene as? UIWindowScene {
-                windowScene.windows.forEach { window in
-                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-                }
-            }
-        }
-        
-        UIViewController.attemptRotationToDeviceOrientation()
-    }
-    
-    private func forciblyRotateDevice() {
-        // This is a direct way to force orientation change
-        UIDevice.current.setValue(orientation.deviceOrientationValue, forKey: "orientation")
-        
-        // For iOS 16 and later, use the more modern approach
-        if #available(iOS 16.0, *) {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                do {
-                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientation.orientationMask))
-                } catch {
-                    print("Could not update orientation: \(error)")
-                    orientationChangeSuccess = false
-                    return
-                }
-            }
-        }
-        
-        // Force rotation for all iOS versions
-        UIViewController.attemptRotationToDeviceOrientation()
-        
-        // Indicate success
-        orientationChangeSuccess = true
-        
-        // Reset success indicator after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.orientationChangeSuccess = false
-        }
-    }
-    
-    private func showSuccessFeedback() {
-        // Visual feedback is managed by the orientationChangeSuccess property
-        
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
-    
-    // MARK: - Persistence
-    
-    private struct SavedSettings: Codable {
-        let orientation: DeviceOrientation
-        let isLockEnabled: Bool
-    }
-    
-    private func saveSettings() {
-        let settings = SavedSettings(
-            orientation: orientation,
-            isLockEnabled: isLockEnabled
-        )
-        
-        if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-        }
-    }
-    
-    private func loadSettings() -> SavedSettings? {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return nil
-        }
-        
-        return try? JSONDecoder().decode(SavedSettings.self, from: data)
-    }
-}
-
-// A SwiftUI View that embeds the orientation controller
-struct OrientationLockingView: UIViewControllerRepresentable {
-    @ObservedObject var orientationManager = OrientationManager.shared
-    
-    func makeUIViewController(context: Context) -> UIViewController {
-        return OrientationAwareViewController()
-    }
-    
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        uiViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
-    }
-    
-    class OrientationAwareViewController: UIViewController {
-        override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-            let manager = OrientationManager.shared
-            return manager.isLockEnabled ? manager.orientation.orientationMask : .all
-        }
-        
-        override var shouldAutorotate: Bool {
-            return !OrientationManager.shared.isLockEnabled
-        }
-    }
-}
-
-// View modifier to apply orientation locking
-extension View {
-    func lockToOrientation(_ manager: OrientationManager) -> some View {
-        self.background(OrientationLockingView().frame(width: 0, height: 0))
-    }
-}
-
-// Extension to add orientation settings to AdvancedSettingsScreen
-extension AdvancedSettingsScreen {
-    struct OrientationSettings: View {
-        @ObservedObject var orientationManager = OrientationManager.shared
-        
-        var body: some View {
-            VStack(alignment: .center, spacing: 15) {
-                Text("ORIENTATION LOCK")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
-                    .padding(.bottom, 5)
-                    .frame(maxWidth: .infinity, alignment: .center)
+        }) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(isConfirming ? Color.red.opacity(0.2) : Color.gray.opacity(0))
+                    .frame(width: 85, height: 70)
                 
-                // Orientation lock toggle
-                Toggle("Enable Orientation Lock", isOn: $orientationManager.isLockEnabled)
-                    .padding(.horizontal)
-                    .padding(.bottom, 5)
-                
-                if orientationManager.isLockEnabled {
-                    // Orientation picker
-                    Picker("Orientation", selection: $orientationManager.orientation) {
-                        ForEach(DeviceOrientation.allCases) { orientation in
-                            Text(orientation.rawValue).tag(orientation)
-                        }
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .padding(.horizontal)
-                    
-                    // Visual indicator of selected orientation with success feedback
-                    ZStack {
-                        // Background shape
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(orientationManager.orientationChangeSuccess ? 
-                                  Color.green.opacity(0.2) : Color.black.opacity(0.2))
-                            .frame(width: 100, height: 150)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(orientationManager.orientationChangeSuccess ? 
-                                            Color.green.opacity(0.6) : Color.gray.opacity(0.2), 
-                                            lineWidth: 2)
-                            )
-                        
-                        // iPhone icon
-                        Image(systemName: orientationManager.orientation.iconName)
-                            .font(.system(size: 50))
-                            .foregroundColor(.white.opacity(0.7))
-                            .rotationEffect(.degrees(
-                                orientationManager.orientation == .portrait ? 0 :
-                                orientationManager.orientation == .portraitUpsideDown ? 180 :
-                                orientationManager.orientation == .landscapeLeft ? 0 :
-                                0
-                            ))
-                            .overlay(
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.green)
-                                    .opacity(orientationManager.orientationChangeSuccess ? 1.0 : 0.0)
-                                    .offset(x: 30, y: -30)
-                            )
-                        
-                        // Lock icon
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.white.opacity(0.7))
-                            .padding(6)
-                            .background(Color.blue.opacity(0.5))
-                            .clipShape(Circle())
-                            .offset(x: 30, y: 30)
-                    }
-                    .padding(.top, 15)
-                    .animation(.easeInOut(duration: 0.3), value: orientationManager.orientation)
-                    .animation(.easeInOut(duration: 0.3), value: orientationManager.orientationChangeSuccess)
-                    
-                    // Help text
-                    Text("The app will stay in \(orientationManager.orientation.rawValue) mode until you change it. iPhoneX and above do not support Upside Down.")
-                        .font(.system(size: 12))
+                VStack(spacing: 0) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 25, weight: .medium))
+                        .foregroundColor(.white)
+                    Text("Back")
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 10)
-                        .padding(.horizontal)
-                } else {
-                    // Disabled state message
-                    HStack(spacing: 10) {
-                        Image(systemName: "arrow.left.arrow.right.circle")
-                            .font(.system(size: 24))
-                        Text("Orientation lock is disabled.\nYour device will rotate freely.")
-                            .font(.system(size: 14))
-                            .multilineTextAlignment(.leading)
-                    }
-                    .foregroundColor(.gray)
-                    .padding(.vertical, 20)
                 }
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 12)
-            .background(Color.gray.opacity(0.2))
-            .cornerRadius(15)
-            .padding(.horizontal, 8)
         }
+        .buttonStyle(PlainButtonStyle())
     }
-} 
+}
+
+struct NapScreen: View {
+    @EnvironmentObject var timerManager: TimerManager
+    @Environment(\.presentationMode) var presentationMode
+    @State private var isPressed = false
+    @State private var showSleepScreen = false
+    @State private var showPositionMessage = true
+    @State private var circlePosition: CGPoint? = nil
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 0.1, green: 0.1, blue: 0.2),
+                        Color(red: 0.05, green: 0.05, blue: 0.1)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                // Main content
+                ZStack {
+                    // Timer display at top
+                    VStack {
+                        VStack(spacing: 0) {
+                            Text("RELEASE TIMER")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(Color.blue.opacity(0.7))
+                                .tracking(3)
+                                .padding(.bottom, 5)
+                            
+                            Text(timerManager.formatTime(timerManager.holdTimer))
+                                .font(.system(size: 56, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.top, 60)
+                        .padding(.bottom, 10)
+                        
+                        if circlePosition != nil {
+                            // Session timer info
+                            HStack(spacing: 30) {
+                                VStack {
+                                    Text("MAX")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.gray)
+                                    Text(timerManager.formatTime(timerManager.maxTimer))
+                                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                
+                                VStack {
+                                    Text("NAP")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.gray)
+                                    Text(timerManager.formatTime(timerManager.napDuration))
+                                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.black.opacity(0.2))
+                            .cornerRadius(10)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    // Circle positioned at tap location
+                    if let position = circlePosition {
+                        ZStack {
+                            CircleView(
+                                size: timerManager.circleSize,
+                                isPressed: isPressed,
+                                showStatusText: true,
+                                showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration
+                            )
+                            
+                            MultiTouchHandler(
+                                onTouchesChanged: { touchingCircle in
+                                    if touchingCircle != isPressed {
+                                        isPressed = touchingCircle
+                                        if touchingCircle {
+                                            // User is pressing the circle
+                                            
+                                            // If this is the first interaction (timers haven't started yet),
+                                            // start the max timer when user first holds down
+                                            if timerManager.maxTimer == timerManager.maxDuration {
+                                                timerManager.startMaxTimer()
+                                            }
+                                            
+                                            // Stop the hold timer when holding
+                                            timerManager.stopHoldTimer()
+                                        } else {
+                                            // User has released the circle
+                                            // Start/resume the hold timer
+                                            timerManager.startHoldTimer()
+                                        }
+                                    }
+                                },
+                                circleRadius: timerManager.circleSize / 2
+                            )
+                        }
+                        .position(position)
+                    }
+                    
+                    // Initial message
+                    if showPositionMessage {
+                        Text("Tap anywhere to position your circle")
+                            .font(.system(size: 24, weight: .medium, design: .rounded))
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                            .padding(.vertical, 20)
+                            .background(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(Color.blue.opacity(0.2))
+                            )
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    if showPositionMessage {
+                        showPositionMessage = false
+                        circlePosition = location
+                        timerManager.resetTimers()
+                        // Don't start timers until user interacts with the placed circle
+                    }
+                }
+                
+                // Back button overlay (always on top)
+                VStack {
+                    HStack {
+                        CircularBackButton {
+                            timerManager.stopHoldTimer()
+                            timerManager.stopMaxTimer()
+                            timerManager.stopAlarmSound()
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                        .padding(.leading, 5)
+                        .padding(.top, -20)
+                        .contentShape(RoundedRectangle(cornerRadius: 15))
+                        
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .allowsHitTesting(true)
+            }
+            .navigationBarHidden(true)
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .onAppear {
+            // Reset state when screen appears
+            showPositionMessage = true
+            circlePosition = nil
+            showSleepScreen = false
+            
+            // Reset timers to use the latest settings
+            timerManager.resetTimers()
+            // Don't start timers until circle is placed
+            
+            // Subscribe to holdTimer reaching zero
+            NotificationCenter.default.addObserver(
+                forName: .holdTimerFinished,
+                object: nil,
+                queue: .main
+            ) { _ in
+                self.showSleepScreen = true
+            }
+        }
+        .onDisappear {
+            // Clean up notification observer
+            NotificationCenter.default.removeObserver(self)
+        }
+        .fullScreenCover(isPresented: $showSleepScreen) {
+            // Simple transition - no fancy effects
+            SleepScreen()
+                .environmentObject(timerManager)
+        }
+        // Hide status bar and extend to edges
+        .statusBar(hidden: true)
+        .edgesIgnoringSafeArea(.all)
+    }
+}
+
+#Preview {
+    NapScreen()
+        .environmentObject(TimerManager())
+}

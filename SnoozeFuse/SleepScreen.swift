@@ -223,6 +223,9 @@ struct SleepScreen: View {
             // Start nap timer when screen appears
             timerManager.startNapTimer()
             
+            // Stop hold timer
+            timerManager.stopHoldTimer()
+            
             // Listen for nap timer finished notification
             NotificationCenter.default.addObserver(
                 forName: .napTimerFinished,
@@ -249,6 +252,9 @@ struct SleepScreen: View {
             NotificationCenter.default.removeObserver(self)
             timerManager.stopAlarmSound() // Ensure alarm is stopped
         }
+        // Hide status bar and extend to edges
+        .statusBar(hidden: true)
+        .edgesIgnoringSafeArea(.all)
     }
     
     // Calculate wake up time based on effective nap duration
