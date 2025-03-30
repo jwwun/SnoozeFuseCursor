@@ -67,4 +67,4 @@ extension SettingsScreen {
             .padding(.horizontal, 8)
         }
     }
-}
+} 

@@ -1,67 +1,105 @@
-//
-//  CircleView.swift
-//  SnoozeFuse
-//
-//  Created by Jonathan Truong on 3/28/25.
-//
-
-
 import SwiftUI
 
-struct CircleView: View {
-    var size: CGFloat
-    var isPressed: Bool = false
-    var showStatusText: Bool = false
-    var showInitialInstructions: Bool = false
+struct AdvancedSettingsScreen: View {
+    @Environment(\.presentationMode) var presentationMode
+    @ObservedObject var hapticManager = HapticManager.shared
+    @ObservedObject var orientationManager = OrientationManager.shared
     
     var body: some View {
         ZStack {
-            // Visual circle
-            Circle()
-                .fill(
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            isPressed ? Color.blue.opacity(0.8) : Color.blue.opacity(0.5),
-                            isPressed ? Color.indigo.opacity(0.4) : Color.indigo.opacity(0.2)
-                        ]),
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: size / 1.5
-                    )
-                )
-                .overlay(
-                    Circle()
-                        .stroke(Color.blue.opacity(0.6), lineWidth: 2)
-                )
-                .scaleEffect(isPressed ? 0.95 : 1.0)
-                .animation(.spring(response: 0.3), value: isPressed)
+            // Background
+            Color.black.opacity(0.9).ignoresSafeArea()
             
-            // Status text (optional)
-            if showStatusText {
-                if showInitialInstructions && !isPressed {
-                    Text("TAP AND HOLD\nTO START")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.8))
-                        .tracking(2)
-                        .multilineTextAlignment(.center)
-                } else {
-                    Text(isPressed ? "HOLDING" : "RELEASED")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.8))
-                        .tracking(2)
+            VStack {
+                // Custom header with close button
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: 2) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.leading, 10)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("Advanced Settings")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    // Balance empty space
+                    Text("")
+                        .frame(width: 60)
+                }
+                .padding(.top, 10)
+                .padding(.bottom, 5)
+                
+                ScrollView {
+                    VStack(spacing: 25) {
+                        // Haptic Settings Section
+                        VStack(alignment: .center, spacing: 15) {
+                            Text("HAPTIC FEEDBACK")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(Color.blue.opacity(0.7))
+                                .tracking(3)
+                                .padding(.bottom, 5)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            
+                            Toggle("Enable Haptics", isOn: $hapticManager.isHapticEnabled)
+                                .padding(.horizontal)
+                            
+                            if hapticManager.isHapticEnabled {
+                                Picker("Intensity", selection: $hapticManager.hapticStyle) {
+                                    Text("Light").tag(UIImpactFeedbackGenerator.FeedbackStyle.light)
+                                    Text("Medium").tag(UIImpactFeedbackGenerator.FeedbackStyle.medium)
+                                    Text("Heavy").tag(UIImpactFeedbackGenerator.FeedbackStyle.heavy)
+                                }
+                                .pickerStyle(SegmentedPickerStyle())
+                                .padding(.horizontal)
+                                
+                                Button(action: {
+                                    hapticManager.trigger()
+                                }) {
+                                    Text("Test Haptic")
+                                        .foregroundColor(.white)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 16)
+                                        .background(Color.blue.opacity(0.6))
+                                        .cornerRadius(8)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 12)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(15)
+                        .padding(.horizontal, 8)
+                        
+                        // Orientation Settings
+                        OrientationSettings()
+                        
+                        // More advanced settings can be added here
+                        
+                    }
+                    .padding(.top, 10)
                 }
             }
         }
-        .frame(width: size, height: size)
+        .lockToOrientation(orientationManager)
+        .onAppear {
+            // Lock orientation when screen appears
+            orientationManager.lockOrientation()
+        }
     }
 }
 
 #Preview {
-    VStack(spacing: 20) {
-        CircleView(size: 200)
-        CircleView(size: 200, isPressed: true, showStatusText: true)
-    }
-    .preferredColorScheme(.dark)
-    .padding()
-    .background(Color.black)
-}
+    AdvancedSettingsScreen()
+} 
