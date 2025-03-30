@@ -348,6 +348,7 @@ struct AlarmSoundSelector: View {
                         }) {
                             HStack {
                                 Text(sound.rawValue)
+                                    .lineLimit(1)
                                 if sound == selectedAlarm && timerManager.selectedCustomSoundID == nil {
                                     Image(systemName: "checkmark")
                                 }
@@ -367,6 +368,7 @@ struct AlarmSoundSelector: View {
                             }) {
                                 HStack {
                                     Text(customSound.name)
+                                        .lineLimit(1)
                                     if selectedAlarm == .custom && timerManager.selectedCustomSoundID == customSound.id {
                                         Image(systemName: "checkmark")
                                     }
@@ -378,6 +380,7 @@ struct AlarmSoundSelector: View {
                                     showingDeleteConfirmation = true
                                 } label: {
                                     Label("Delete", systemImage: "trash")
+                                        .lineLimit(1)
                                 }
                             }
                         }
@@ -390,6 +393,7 @@ struct AlarmSoundSelector: View {
                                     showingDeleteConfirmation = true
                                 }) {
                                     Label(customSound.name, systemImage: "trash")
+                                        .lineLimit(1)
                                 }
                             }
                         } label: {
@@ -420,15 +424,23 @@ struct AlarmSoundSelector: View {
                             .foregroundColor(.white.opacity(0.8))
                     }
                     .padding(.vertical, 10)
-                    .padding(.horizontal, 15)
+                    .padding(.horizontal, 33)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(Color.black.opacity(0.3))
                     )
                 }
-                
-                Spacer()
-                
+                // Just a folder icon for adding custom sounds
+                Button(action: {
+                    showDocumentPicker = true
+                }) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                }
+                .buttonStyle(PlainButtonStyle())
                 // Preview/Stop toggle button
                 Button(action: {
                     isPlaying.toggle()
@@ -438,7 +450,7 @@ struct AlarmSoundSelector: View {
                         timerManager.stopAlarmSound()
                     }
                 }) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 7) {
                         Image(systemName: isPlaying ? "stop.fill" : "play.fill")
                             .font(.system(size: 16))
                         Text(isPlaying ? "Stop" : "Play")
@@ -452,20 +464,11 @@ struct AlarmSoundSelector: View {
                     )
                     .foregroundColor(.white)
                 }
-                
-                // Just a folder icon for adding custom sounds
-                Button(action: {
-                    showDocumentPicker = true
-                }) {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white.opacity(0.7))
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                }
-                .buttonStyle(PlainButtonStyle())
             }
-            .padding(.horizontal, 10)
+                
+ 
+                
+
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 12)
@@ -562,7 +565,7 @@ struct SettingsScreen: View {
                     ScrollView {
                         VStack(spacing: 20) {
                             // App title at the top
-                            Text("SNOOZEFUSE")
+                            Text("SNOOZEFUZE")
                                 .font(.system(size: 24, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .tracking(3)
