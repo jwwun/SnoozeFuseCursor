@@ -1,420 +1,813 @@
 import SwiftUI
-import UIKit
-import Combine
+import UniformTypeIdentifiers
 
-// Enum for the different orientation options
-enum DeviceOrientation: String, CaseIterable, Identifiable, Codable {
-    case portrait = "Portrait"
-    case portraitUpsideDown = "Upside Down"
-    case landscapeLeft = "Landscape Left"
-    case landscapeRight = "Landscape Right"
+// Breaking up the UI into smaller components
+struct CircleSizeControl: View {
+    @Binding var circleSize: CGFloat
+    @Binding var textInputValue: String
+    @FocusState private var isTextFieldFocused: Bool
+    var onValueChanged: () -> Void
+    @EnvironmentObject var timerManager: TimerManager
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 3) {
+            // Title
+            Text("CIRCLE SIZE")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(Color.blue.opacity(0.7))
+                .tracking(3)
+                .padding(.bottom, 5)
+                .frame(maxWidth: .infinity, alignment: .center)
+                
+            HStack(spacing: 0) {
+                TextField("", text: $textInputValue)
+                    .keyboardType(.numberPad)
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                    )
+                    .frame(width: CGFloat(max(textInputValue.count, 1) * 20 + 28))
+                    .focused($isTextFieldFocused)
+                    .onChange(of: textInputValue) { newValue in
+                        if let newSize = Int(newValue) {
+                            circleSize = CGFloat(newSize)
+                            onValueChanged()
+                            timerManager.saveSettings()
+                        }
+                    }
+                HStack(spacing: 0) {
+                    Slider(value: $circleSize, in: 100...1000, step: 1)
+                        .accentColor(.blue)
+                        .onChange(of: circleSize) { _ in
+                            textInputValue = "\(Int(circleSize))"
+                            onValueChanged()
+                            timerManager.saveSettings()
+                        }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 12)
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(15)
+        .padding(.horizontal, 8) // Reduced to prevent edge cutoff
+    }
+}
+
+// Time unit selection for each timer
+enum TimeUnit: String, CaseIterable, Identifiable {
+    case seconds = "sec"
+    case minutes = "min"
     
     var id: String { self.rawValue }
     
-    // Convert to UIInterfaceOrientationMask
-    var orientationMask: UIInterfaceOrientationMask {
+    var multiplier: TimeInterval {
         switch self {
-        case .portrait:
-            return .portrait
-        case .portraitUpsideDown:
-            return .portraitUpsideDown
-        case .landscapeLeft:
-            return .landscapeLeft
-        case .landscapeRight:
-            return .landscapeRight
-        }
-    }
-    
-    // Get appropriate device orientation value
-    var deviceOrientationValue: Int {
-        switch self {
-        case .portrait:
-            return UIDeviceOrientation.portrait.rawValue
-        case .portraitUpsideDown:
-            return UIDeviceOrientation.portraitUpsideDown.rawValue
-        case .landscapeLeft:
-            return UIDeviceOrientation.landscapeLeft.rawValue
-        case .landscapeRight:
-            return UIDeviceOrientation.landscapeRight.rawValue
-        }
-    }
-    
-    // Icon name for visual representation
-    var iconName: String {
-        switch self {
-        case .portrait:
-            return "iphone"
-        case .portraitUpsideDown:
-            return "iphone"
-        case .landscapeLeft:
-            return "iphone.landscape"
-        case .landscapeRight:
-            return "iphone.landscape"
+        case .seconds: return 1
+        case .minutes: return 60
         }
     }
 }
 
-class OrientationManager: ObservableObject {
-    static let shared = OrientationManager()
+// Cute time picker with unit selection
+struct CuteTimePicker: View {
+    @Binding var value: String
+    @Binding var unit: TimeUnit
+    var label: String
+    var focus: FocusState<TimerSettingsControl.TimerField?>.Binding
+    var timerField: TimerSettingsControl.TimerField
+    var updateAction: () -> Void
     
-    @Published var orientation: DeviceOrientation = .portrait
-    @Published var isLockEnabled: Bool = true
-    @Published var orientationChangeSuccess: Bool = false
+    // Internal state for the wheel picker
+    @State private var numericValue: Int = 0
     
-    private let userDefaultsKey = "orientationSettings"
-    private var cancellables = Set<AnyCancellable>()
-    
-    private init() {
-        // First initialize all properties with defaults (already done above)
-        
-        // Then load saved settings if available
-        loadSavedSettings()
-        
-        // Set up observers
-        setupObservers()
-    }
-    
-    private func loadSavedSettings() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return
-        }
-        
-        if let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
-            self.orientation = savedSettings.orientation
-            self.isLockEnabled = savedSettings.isLockEnabled
-        }
-    }
-    
-    private func setupObservers() {
-        // Observe orientation changes
-        self.$orientation
-            .dropFirst() // Skip the initial value
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.isLockEnabled {
-                    self.lockOrientation()
-                }
-                self.saveSettings()
-            }
-            .store(in: &cancellables)
-        
-        // Observe lock enabled changes
-        self.$isLockEnabled
-            .dropFirst() // Skip the initial value
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if newValue {
-                    self.lockOrientation()
-                } else {
-                    self.unlockOrientation()
-                }
-                self.saveSettings()
-            }
-            .store(in: &cancellables)
-    }
-    
-    func lockOrientation() {
-        // Force the device to the desired orientation
-        forciblyRotateDevice()
-        
-        // Show success feedback
-        showSuccessFeedback()
-        
-        // Force UI update on all scenes
-        for scene in UIApplication.shared.connectedScenes {
-            if let windowScene = scene as? UIWindowScene {
-                windowScene.windows.forEach { window in
-                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+    var body: some View {
+        VStack(alignment: .center, spacing: 5) {
+            // Timer label without emoji
+            Text(label)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white.opacity(0.8))
+                .padding(.bottom, 2)
+            
+            // Replace TextField with wheel Picker
+            Picker("", selection: $numericValue) {
+                ForEach(0..<100) { number in
+                    Text("\(number)").tag(number)
                 }
             }
-        }
-    }
-    
-    func unlockOrientation() {
-        // Update orientation on controllers to allow free rotation
-        for scene in UIApplication.shared.connectedScenes {
-            if let windowScene = scene as? UIWindowScene {
-                windowScene.windows.forEach { window in
-                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            .pickerStyle(.wheel)
+            .frame(height: 100)
+            .background(Color.black.opacity(0.3))
+            .cornerRadius(12)
+            .onChange(of: numericValue) { newValue in
+                value = "\(newValue)"
+                updateAction()
+            }
+            .onAppear {
+                // Initialize picker with current value
+                numericValue = Int(value) ?? 0
+            }
+            
+            // Unit selection picker with compact style
+            Menu {
+                ForEach(TimeUnit.allCases) { timeUnit in
+                    Button(action: {
+                        unit = timeUnit
+                        updateAction()
+                    }) {
+                        Text(timeUnit.rawValue.uppercased())
+                    }
                 }
+            } label: {
+                Text(unit.rawValue)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.blue)
+                    .frame(minWidth: 50)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.blue.opacity(0.6), lineWidth: 1.5)
+                    )
             }
         }
-        
-        UIViewController.attemptRotationToDeviceOrientation()
-    }
-    
-    private func forciblyRotateDevice() {
-        // This is a direct way to force orientation change
-        UIDevice.current.setValue(orientation.deviceOrientationValue, forKey: "orientation")
-        
-        // For iOS 16 and later, use the more modern approach
-        if #available(iOS 16.0, *) {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                do {
-                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientation.orientationMask))
-                } catch {
-                    print("Could not update orientation: \(error)")
-                    orientationChangeSuccess = false
-                    return
-                }
-            }
-        }
-        
-        // Force rotation for all iOS versions
-        UIViewController.attemptRotationToDeviceOrientation()
-        
-        // Indicate success
-        orientationChangeSuccess = true
-        
-        // Reset success indicator after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.orientationChangeSuccess = false
-        }
-    }
-    
-    private func showSuccessFeedback() {
-        // Visual feedback is managed by the orientationChangeSuccess property
-        
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
-    
-    // MARK: - Persistence
-    
-    private struct SavedSettings: Codable {
-        let orientation: DeviceOrientation
-        let isLockEnabled: Bool
-    }
-    
-    private func saveSettings() {
-        let settings = SavedSettings(
-            orientation: orientation,
-            isLockEnabled: isLockEnabled
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color.gray.opacity(0.15))
         )
-        
-        if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-        }
-    }
-    
-    private func loadSettings() -> SavedSettings? {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return nil
-        }
-        
-        return try? JSONDecoder().decode(SavedSettings.self, from: data)
     }
 }
 
-// A SwiftUI View that embeds the orientation controller
-struct OrientationLockingView: UIViewControllerRepresentable {
-    @ObservedObject var orientationManager = OrientationManager.shared
+// New component for timer settings
+struct TimerSettingsControl: View {
+    @Binding var holdDuration: TimeInterval
+    @Binding var napDuration: TimeInterval
+    @Binding var maxDuration: TimeInterval
     
-    func makeUIViewController(context: Context) -> UIViewController {
-        return OrientationAwareViewController()
+    @State private var holdTime: String = "5"
+    @State private var napTime: String = "1"
+    @State private var maxTime: String = "2"
+    
+    @State private var holdUnit: TimeUnit = .seconds // Default seconds
+    @State private var napUnit: TimeUnit = .minutes  // Default minutes
+    @State private var maxUnit: TimeUnit = .minutes  // Default minutes
+    
+    @FocusState private var focusedField: TimerField?
+    @EnvironmentObject var timerManager: TimerManager
+    
+    // Warning states
+    private var isMaxLessThanNap: Bool {
+        maxDuration < napDuration
     }
     
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        uiViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
+    private var isHoldTooLong: Bool {
+        holdDuration > (maxDuration - napDuration)
     }
     
-    class OrientationAwareViewController: UIViewController {
-        override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-            let manager = OrientationManager.shared
-            return manager.isLockEnabled ? manager.orientation.orientationMask : .all
-        }
-        
-        override var shouldAutorotate: Bool {
-            return !OrientationManager.shared.isLockEnabled
-        }
+    enum TimerField {
+        case hold, nap, max
     }
-}
-
-// View modifier to apply orientation locking
-extension View {
-    func lockToOrientation(_ manager: OrientationManager) -> some View {
-        self.background(OrientationLockingView().frame(width: 0, height: 0))
-    }
-}
-
-// Extension to add orientation settings to AdvancedSettingsScreen
-extension AdvancedSettingsScreen {
-    struct OrientationSettings: View {
-        @ObservedObject var orientationManager = OrientationManager.shared
-        @State private var showUpsideDownWarning = false
-        
-        var body: some View {
-            VStack(alignment: .center, spacing: 15) {
-                Text("ORIENTATION LOCK")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
-                    .padding(.bottom, 5)
-                    .frame(maxWidth: .infinity, alignment: .center)
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 1) {
+            Text("TIMER SETTINGS")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(Color.blue.opacity(0.7))
+                .tracking(3)
+                .padding(.bottom, 5)
+                .frame(maxWidth: .infinity, alignment: .center)
+            
+            // Timer grid layout - reduced spacings to prevent edge cutoff
+            HStack(alignment: .top, spacing: 8) {
+                // Hold Timer (Timer A)
+                CuteTimePicker(
+                    value: $holdTime,
+                    unit: $holdUnit,
+                    label: "RELEASE",
+                    focus: $focusedField,
+                    timerField: .hold,
+                    updateAction: updateHoldTimer
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(isHoldTooLong ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+                )
                 
-                // Orientation lock toggle
-                Toggle("Enable Orientation Lock", isOn: $orientationManager.isLockEnabled)
-                    .padding(.horizontal)
-                    .padding(.bottom, 5)
+                // Nap Timer (Timer B)
+                CuteTimePicker(
+                    value: $napTime,
+                    unit: $napUnit,
+                    label: "NAP",
+                    focus: $focusedField,
+                    timerField: .nap,
+                    updateAction: updateNapTimer
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+                )
                 
-                if orientationManager.isLockEnabled {
-                    // Orientation buttons instead of picker
-                    VStack(spacing: 10) {
-                        // Portrait button
-                        Button(action: {
-                            orientationManager.orientation = .portrait
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone")
-                                    .font(.system(size: 20))
-                                    .padding(.trailing, 5)
-                                Text("Portrait")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .portrait {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .portrait ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
-                        
-                        // Upside Down button with warning
-                        Button(action: {
-                            showUpsideDownWarning = true
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone")
-                                    .font(.system(size: 20))
-                                    .rotationEffect(.degrees(180))
-                                    .padding(.trailing, 5)
-                                Text("Upside Down")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .portraitUpsideDown {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                } else {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundColor(.yellow)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .portraitUpsideDown ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
-                        .alert("Warning: Upside Down Not Recommended", isPresented: $showUpsideDownWarning) {
-                            Button("Cancel", role: .cancel) {}
-                            Button("Use Anyway") {
-                                orientationManager.orientation = .portraitUpsideDown
-                            }
-                        } message: {
-                            Text("iPhoneX and newer models do not support Upside Down orientation. It's recommended to use Portrait mode only on these devices since the home indicator needs to be visible.")
-                        }
-                        
-                        // Landscape Left button
-                        Button(action: {
-                            orientationManager.orientation = .landscapeLeft
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone.landscape")
-                                    .font(.system(size: 20))
-                                    .padding(.trailing, 5)
-                                Text("Landscape Left")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .landscapeLeft {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .landscapeLeft ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
-                        
-                        // Landscape Right button
-                        Button(action: {
-                            orientationManager.orientation = .landscapeRight
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone.landscape")
-                                    .font(.system(size: 20))
-                                    .padding(.trailing, 5)
-                                Text("Landscape Right")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .landscapeRight {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .landscapeRight ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Visual success indication
-                    if orientationManager.orientationChangeSuccess {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Orientation changed successfully!")
-                                .foregroundColor(.green)
-                        }
-                        .padding(.top, 8)
-                    }
-                    
-                    // Recommendation text
-                    Text("It's recommended to use Portrait mode on iPhoneX and newer devices.")
+                // Max Timer (Timer C)
+                CuteTimePicker(
+                    value: $maxTime,
+                    unit: $maxUnit,
+                    label: "MAX",
+                    focus: $focusedField,
+                    timerField: .max,
+                    updateAction: updateMaxTimer
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
+                )
+            }
+            
+            // Subtle warning messages
+            if isMaxLessThanNap || isHoldTooLong {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 10)
-                        .padding(.horizontal)
-                } else {
-                    // Disabled state message
-                    HStack(spacing: 10) {
-                        Image(systemName: "arrow.left.arrow.right.circle")
-                            .font(.system(size: 24))
-                        Text("Orientation lock is disabled.\nYour device will rotate freely.")
-                            .font(.system(size: 14))
-                            .multilineTextAlignment(.leading)
+                    Text(isMaxLessThanNap ? "<Max> should be greater than <Nap> (add autoassist later, this just for debug)" : "<Release> + <Nap> should be less than <Max> ")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundColor(Color.orange.opacity(0.8))
+                .padding(.top, 8)
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 12)
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(15)
+        .padding(.horizontal, 8)
+        .onAppear {
+            // Initialize units and values
+            setupInitialValues()
+        }
+    }
+    
+    // Setup initial values based on the existing durations
+    private func setupInitialValues() {
+        let hold = Int(holdDuration)
+        if hold >= 60 && hold % 60 == 0 {
+            holdUnit = .minutes
+            holdTime = "\(hold / 60)"
+        } else {
+            holdUnit = .seconds
+            holdTime = "\(hold)"
+        }
+        
+        let nap = Int(napDuration)
+        if nap >= 60 && nap % 60 == 0 {
+            napUnit = .minutes
+            napTime = "\(nap / 60)"
+        } else {
+            napUnit = .seconds
+            napTime = "\(nap)"
+        }
+        
+        let max = Int(maxDuration)
+        if max >= 60 && max % 60 == 0 {
+            maxUnit = .minutes
+            maxTime = "\(max / 60)"
+        } else {
+            maxUnit = .seconds
+            maxTime = "\(max)"
+        }
+    }
+    
+    private func updateHoldTimer() {
+        let value = Int(holdTime) ?? 0
+        holdDuration = TimeInterval(value) * holdUnit.multiplier
+        // Save settings after update
+        timerManager.saveSettings()
+    }
+    
+    private func updateNapTimer() {
+        let value = Int(napTime) ?? 0
+        napDuration = TimeInterval(value) * napUnit.multiplier
+        // Save settings after update
+        timerManager.saveSettings()
+    }
+    
+    private func updateMaxTimer() {
+        let value = Int(maxTime) ?? 0
+        maxDuration = TimeInterval(value) * maxUnit.multiplier
+        // Save settings after update
+        timerManager.saveSettings()
+    }
+    
+    // Helper function to format time with unit
+    private func formatTimeWithUnit(_ time: String, _ unit: TimeUnit) -> String {
+        if let value = Int(time) {
+            if value == 1 {
+                return "1 " + unit.rawValue.dropLast() // Remove 's' for singular
+            }
+            return "\(value) " + unit.rawValue
+        }
+        return "0 " + unit.rawValue
+    }
+}
+
+// New component for alarm sound selection
+struct AlarmSoundSelector: View {
+    @Binding var selectedAlarm: TimerManager.AlarmSound
+    var onPreview: () -> Void
+    @State private var isPlaying: Bool = false
+    @EnvironmentObject var timerManager: TimerManager
+    @State private var showDocumentPicker = false
+    @State private var showingDeleteConfirmation = false
+    @State private var soundToDelete: UUID? = nil
+    
+    var body: some View {
+        VStack(alignment: .center, spacing: 3) {
+            // Title
+            Text("ALARM SOUND")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(Color.blue.opacity(0.7))
+                .tracking(3)
+                .padding(.bottom, 5)
+                .frame(maxWidth: .infinity, alignment: .center)
+            
+            // Sound selection and preview
+            HStack {
+                // Dropdown menu for alarm selection
+                Menu {
+                    // Built-in sounds
+                    ForEach(TimerManager.AlarmSound.allCases.filter { $0 != .custom }) { sound in
+                        Button(action: {
+                            selectedAlarm = sound
+                            timerManager.selectedCustomSoundID = nil
+                            timerManager.saveSettings()
+                        }) {
+                            HStack {
+                                Text(sound.rawValue)
+                                if sound == selectedAlarm && timerManager.selectedCustomSoundID == nil {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
                     }
-                    .foregroundColor(.gray)
-                    .padding(.vertical, 20)
+                    
+                    if !timerManager.customSounds.isEmpty {
+                        Divider()
+                        
+                        // Custom sounds section
+                        ForEach(timerManager.customSounds) { customSound in
+                            Button(action: {
+                                selectedAlarm = .custom
+                                timerManager.selectedCustomSoundID = customSound.id
+                                timerManager.saveSettings()
+                            }) {
+                                HStack {
+                                    Text(customSound.name)
+                                    if selectedAlarm == .custom && timerManager.selectedCustomSoundID == customSound.id {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    soundToDelete = customSound.id
+                                    showingDeleteConfirmation = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                        
+                        // Delete option menu section
+                        Menu {
+                            ForEach(timerManager.customSounds) { customSound in
+                                Button(role: .destructive, action: {
+                                    soundToDelete = customSound.id
+                                    showingDeleteConfirmation = true
+                                }) {
+                                    Label(customSound.name, systemImage: "trash")
+                                }
+                            }
+                        } label: {
+                            Label("Remove Custom Sounds", systemImage: "trash")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "speaker.wave.3.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        // Show the name of the selected sound (custom or built-in)
+                        if selectedAlarm == .custom, let id = timerManager.selectedCustomSoundID,
+                           let customSound = timerManager.customSounds.first(where: { $0.id == id }) {
+                            Text(customSound.name)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text(selectedAlarm.rawValue)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black.opacity(0.3))
+                    )
+                }
+                // Just a folder icon for adding custom sounds
+                Button(action: {
+                    showDocumentPicker = true
+                }) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.7))
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                }
+                .buttonStyle(PlainButtonStyle())
+                // Preview/Stop toggle button
+                Button(action: {
+                    isPlaying.toggle()
+                    if isPlaying {
+                        timerManager.playAlarmSound()
+                    } else {
+                        timerManager.stopAlarmSound()
+                    }
+                }) {
+                    HStack(spacing: 7) {
+                        Image(systemName: isPlaying ? "stop.fill" : "play.fill")
+                            .font(.system(size: 16))
+                        Text(isPlaying ? "Stop" : "Test")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 15)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(isPlaying ? Color.red.opacity(0.6) : Color.purple.opacity(0.6))
+                    )
+                    .foregroundColor(.white)
                 }
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 12)
-            .background(Color.gray.opacity(0.2))
-            .cornerRadius(15)
-            .padding(.horizontal, 8)
+                
+ 
+                
+
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 12)
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(15)
+        .padding(.horizontal, 8)
+        .sheet(isPresented: $showDocumentPicker) {
+            DocumentPicker(selectedFileURL: { url in
+                timerManager.addCustomSound(from: url)
+            })
+        }
+        .alert("Delete Custom Sound", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                if let id = soundToDelete {
+                    timerManager.removeCustomSound(id: id)
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this custom sound?")
         }
     }
-} 
+}
+
+// Document Picker for selecting audio files
+struct DocumentPicker: UIViewControllerRepresentable {
+    var selectedFileURL: (URL) -> Void
+    
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        // Define the types of audio files we want to allow
+        let supportedTypes: [UTType] = [.audio, .mp3, .wav]
+        
+        // Create a document picker with these types
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: supportedTypes)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: DocumentPicker
+        
+        init(_ parent: DocumentPicker) {
+            self.parent = parent
+        }
+        
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else { return }
+            
+            // Start accessing the security-scoped resource
+            let didStartAccessing = url.startAccessingSecurityScopedResource()
+            
+            // Call the callback with the selected URL
+            parent.selectedFileURL(url)
+            
+            // Stop accessing the security-scoped resource
+            if didStartAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+    }
+}
+
+struct SettingsScreen: View {
+    @EnvironmentObject var timerManager: TimerManager
+    @State private var showPreview = false
+    @State private var previewTimer: Timer?
+    @State private var textInputValue: String = ""
+    @FocusState private var isAnyFieldFocused: Bool
+    @State private var showNapScreen = false  // New state for showing nap screen
+    
+    var body: some View {
+        ZStack {
+            NavigationView {
+                ZStack {
+                    // Background
+                    Color.black.opacity(0.9).ignoresSafeArea()
+                    
+                    // Dismiss keyboard when tapping background
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            isAnyFieldFocused = false
+                            hideKeyboard()
+                        }
+                    
+                    // ScrollView with better spacing
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // App title at the top
+                            Text("SNOOZEFUZE")
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .tracking(3)
+                                .padding(.top, 25)
+                                .padding(.bottom, 10)
+                            
+                            // Circle size control
+                            CircleSizeControl(
+                                circleSize: $timerManager.circleSize,
+                                textInputValue: $textInputValue,
+                                onValueChanged: showPreviewBriefly
+                            )
+                            
+                            // Timer settings
+                            TimerSettingsControl(
+                                holdDuration: $timerManager.holdDuration,
+                                napDuration: $timerManager.napDuration,
+                                maxDuration: $timerManager.maxDuration
+                            )
+                            
+                            // Alarm sound selection
+                            AlarmSoundSelector(
+                                selectedAlarm: $timerManager.selectedAlarmSound,
+                                onPreview: timerManager.previewAlarmSound
+                            )
+                            
+                            // Start button
+                            bottomButtonBar
+                                .padding(.top, 10)
+                        }
+                        .padding(.horizontal, 5)
+                    }
+                    .focused($isAnyFieldFocused)
+                    
+                    // Global keyboard dismissal button - now green and cuter
+                    VStack {
+                        Spacer()
+                        if isAnyFieldFocused {
+                            Button(action: {
+                                isAnyFieldFocused = false
+                                hideKeyboard()
+                            }) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 18))
+                                    Text("Confirm")
+                                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.vertical, 14)
+                                .frame(width: 130)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color(hex: "66BB6A"), Color(hex: "43A047")],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .cornerRadius(25)
+                                .shadow(color: Color(hex: "43A047").opacity(0.5), radius: 8, x: 0, y: 4)
+                            }
+                            .padding(.bottom, 25)
+                        }
+                    }
+                }
+                .navigationBarHidden(true)
+            }
+            
+            // Completely separate preview overlay that doesn't affect layout
+            if showPreview {
+                CirclePreviewOverlay(
+                    circleSize: timerManager.circleSize,
+                    isVisible: $showPreview
+                )
+            }
+        }
+        .onAppear {
+            textInputValue = "\(Int(timerManager.circleSize))"
+        }
+    }
+    
+    private var bottomButtonBar: some View {
+        HStack {
+            // More Settings button now links to Advanced Settings
+            NavigationLink(destination: AdvancedSettingsScreen()) {
+                VStack(spacing: 8) {
+                    Image(systemName: "gearshape.2.fill")
+                        .font(.system(size: 20))
+                    Text("Advanced")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.8))
+                .frame(width: 100, height: 70)
+                .background(
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.gray.opacity(0.2))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 1)
+                )
+            }
+            
+            Spacer()
+            
+            // Circular Start button
+            Button(action: {
+                showNapScreen = true
+            }) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue, Color.blue.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 160, height: 160)
+                        .shadow(color: Color.blue.opacity(0.5), radius: 10, x: 0, y: 5)
+                    
+                    VStack(spacing: 5) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 50))
+                        Text("Start")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+        .padding(.horizontal, 25)
+        .padding(.bottom, 30)
+        .fullScreenCover(isPresented: $showNapScreen) {
+            NapScreen()
+                .environmentObject(timerManager)
+        }
+    }
+    
+    private func showPreviewBriefly() {
+        // Cancel existing timer if any
+        previewTimer?.invalidate()
+        
+        // Show preview
+        showPreview = true
+        
+        // Set timer to hide preview after 1 second for better visibility
+        previewTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            withAnimation(.easeOut(duration: 0.5)) {
+                showPreview = false
+            }
+        }
+    }
+    
+    // Helper function to hide keyboard
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+
+// Completely separate preview overlay structure
+struct CirclePreviewOverlay: View {
+    let circleSize: CGFloat
+    @Binding var isVisible: Bool
+    
+    var body: some View {
+        GeometryReader { fullScreen in
+            ZStack {
+                // Overlay background with tap to dismiss
+                Color.black.opacity(0.8)
+                    .edgesIgnoringSafeArea(.all)
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isVisible = false
+                        }
+                    }
+                
+                // Circle display
+                ZStack {
+                    // Real-sized circle
+                    CircleView(size: circleSize)
+                        // Don't constrain the size at all
+                        .frame(width: circleSize, height: circleSize)
+                        .position(
+                            x: fullScreen.size.width / 2,
+                            y: fullScreen.size.height / 2 - 50
+                        )
+                    
+                    // Size indicator
+                    Text("HOLD CIRCLE SIZE: \(Int(circleSize))")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .tracking(2)
+                        .padding(.vertical, 18)
+                        .padding(.horizontal, 30)
+                        .background(
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(Color.blue.opacity(0.3))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .stroke(Color.blue.opacity(0.5), lineWidth: 1.5)
+                                )
+                        )
+                        .position(
+                            x: fullScreen.size.width / 2,
+                            y: min(fullScreen.size.height - 100, fullScreen.size.height / 2 + circleSize / 2 + 40)
+                        )
+                }
+            }
+        }
+        .transition(.opacity)
+        .zIndex(999) // Ensure it's above everything
+    }
+}
+
+// Helper extension for hex colors
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+}
+
+#Preview {
+    SettingsScreen()
+        .environmentObject(TimerManager())
+        .preferredColorScheme(.dark)
+}

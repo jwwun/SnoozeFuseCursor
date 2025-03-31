@@ -1,420 +1,280 @@
 import SwiftUI
-import UIKit
-import Combine
 
-// Enum for the different orientation options
-enum DeviceOrientation: String, CaseIterable, Identifiable, Codable {
-    case portrait = "Portrait"
-    case portraitUpsideDown = "Upside Down"
-    case landscapeLeft = "Landscape Left"
-    case landscapeRight = "Landscape Right"
+struct SleepScreen: View {
+    @EnvironmentObject var timerManager: TimerManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var napFinished = false
+    @Environment(\.presentationMode) var presentationMode
     
-    var id: String { self.rawValue }
+    // Confirmation state for safety buttons
+    @State private var isBackConfirmationShowing = false
+    @State private var isSkipConfirmationShowing = false
+    @State private var confirmationTimer: Timer? = nil
     
-    // Convert to UIInterfaceOrientationMask
-    var orientationMask: UIInterfaceOrientationMask {
-        switch self {
-        case .portrait:
-            return .portrait
-        case .portraitUpsideDown:
-            return .portraitUpsideDown
-        case .landscapeLeft:
-            return .landscapeLeft
-        case .landscapeRight:
-            return .landscapeRight
-        }
+    // Computed property to determine which timer to use
+    private var effectiveNapDuration: TimeInterval {
+        // If max timer is less than nap timer, use max timer
+        return timerManager.maxTimer < timerManager.napTimer ? timerManager.maxTimer : timerManager.napTimer
     }
     
-    // Get appropriate device orientation value
-    var deviceOrientationValue: Int {
-        switch self {
-        case .portrait:
-            return UIDeviceOrientation.portrait.rawValue
-        case .portraitUpsideDown:
-            return UIDeviceOrientation.portraitUpsideDown.rawValue
-        case .landscapeLeft:
-            return UIDeviceOrientation.landscapeLeft.rawValue
-        case .landscapeRight:
-            return UIDeviceOrientation.landscapeRight.rawValue
-        }
-    }
-    
-    // Icon name for visual representation
-    var iconName: String {
-        switch self {
-        case .portrait:
-            return "iphone"
-        case .portraitUpsideDown:
-            return "iphone"
-        case .landscapeLeft:
-            return "iphone.landscape"
-        case .landscapeRight:
-            return "iphone.landscape"
-        }
-    }
-}
-
-class OrientationManager: ObservableObject {
-    static let shared = OrientationManager()
-    
-    @Published var orientation: DeviceOrientation = .portrait
-    @Published var isLockEnabled: Bool = true
-    @Published var orientationChangeSuccess: Bool = false
-    
-    private let userDefaultsKey = "orientationSettings"
-    private var cancellables = Set<AnyCancellable>()
-    
-    private init() {
-        // First initialize all properties with defaults (already done above)
-        
-        // Then load saved settings if available
-        loadSavedSettings()
-        
-        // Set up observers
-        setupObservers()
-    }
-    
-    private func loadSavedSettings() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return
-        }
-        
-        if let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
-            self.orientation = savedSettings.orientation
-            self.isLockEnabled = savedSettings.isLockEnabled
-        }
-    }
-    
-    private func setupObservers() {
-        // Observe orientation changes
-        self.$orientation
-            .dropFirst() // Skip the initial value
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.isLockEnabled {
-                    self.lockOrientation()
-                }
-                self.saveSettings()
-            }
-            .store(in: &cancellables)
-        
-        // Observe lock enabled changes
-        self.$isLockEnabled
-            .dropFirst() // Skip the initial value
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if newValue {
-                    self.lockOrientation()
-                } else {
-                    self.unlockOrientation()
-                }
-                self.saveSettings()
-            }
-            .store(in: &cancellables)
-    }
-    
-    func lockOrientation() {
-        // Force the device to the desired orientation
-        forciblyRotateDevice()
-        
-        // Show success feedback
-        showSuccessFeedback()
-        
-        // Force UI update on all scenes
-        for scene in UIApplication.shared.connectedScenes {
-            if let windowScene = scene as? UIWindowScene {
-                windowScene.windows.forEach { window in
-                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-                }
-            }
-        }
-    }
-    
-    func unlockOrientation() {
-        // Update orientation on controllers to allow free rotation
-        for scene in UIApplication.shared.connectedScenes {
-            if let windowScene = scene as? UIWindowScene {
-                windowScene.windows.forEach { window in
-                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-                }
-            }
-        }
-        
-        UIViewController.attemptRotationToDeviceOrientation()
-    }
-    
-    private func forciblyRotateDevice() {
-        // This is a direct way to force orientation change
-        UIDevice.current.setValue(orientation.deviceOrientationValue, forKey: "orientation")
-        
-        // For iOS 16 and later, use the more modern approach
-        if #available(iOS 16.0, *) {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                do {
-                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientation.orientationMask))
-                } catch {
-                    print("Could not update orientation: \(error)")
-                    orientationChangeSuccess = false
-                    return
-                }
-            }
-        }
-        
-        // Force rotation for all iOS versions
-        UIViewController.attemptRotationToDeviceOrientation()
-        
-        // Indicate success
-        orientationChangeSuccess = true
-        
-        // Reset success indicator after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.orientationChangeSuccess = false
-        }
-    }
-    
-    private func showSuccessFeedback() {
-        // Visual feedback is managed by the orientationChangeSuccess property
-        
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-    }
-    
-    // MARK: - Persistence
-    
-    private struct SavedSettings: Codable {
-        let orientation: DeviceOrientation
-        let isLockEnabled: Bool
-    }
-    
-    private func saveSettings() {
-        let settings = SavedSettings(
-            orientation: orientation,
-            isLockEnabled: isLockEnabled
-        )
-        
-        if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
-        }
-    }
-    
-    private func loadSettings() -> SavedSettings? {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return nil
-        }
-        
-        return try? JSONDecoder().decode(SavedSettings.self, from: data)
-    }
-}
-
-// A SwiftUI View that embeds the orientation controller
-struct OrientationLockingView: UIViewControllerRepresentable {
-    @ObservedObject var orientationManager = OrientationManager.shared
-    
-    func makeUIViewController(context: Context) -> UIViewController {
-        return OrientationAwareViewController()
-    }
-    
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        uiViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
-    }
-    
-    class OrientationAwareViewController: UIViewController {
-        override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-            let manager = OrientationManager.shared
-            return manager.isLockEnabled ? manager.orientation.orientationMask : .all
-        }
-        
-        override var shouldAutorotate: Bool {
-            return !OrientationManager.shared.isLockEnabled
-        }
-    }
-}
-
-// View modifier to apply orientation locking
-extension View {
-    func lockToOrientation(_ manager: OrientationManager) -> some View {
-        self.background(OrientationLockingView().frame(width: 0, height: 0))
-    }
-}
-
-// Extension to add orientation settings to AdvancedSettingsScreen
-extension AdvancedSettingsScreen {
-    struct OrientationSettings: View {
-        @ObservedObject var orientationManager = OrientationManager.shared
-        @State private var showUpsideDownWarning = false
-        
-        var body: some View {
-            VStack(alignment: .center, spacing: 15) {
-                Text("ORIENTATION LOCK")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
-                    .padding(.bottom, 5)
-                    .frame(maxWidth: .infinity, alignment: .center)
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // Simple dark background
+                Color(red: 0.02, green: 0.03, blue: 0.10)
+                    .ignoresSafeArea()
                 
-                // Orientation lock toggle
-                Toggle("Enable Orientation Lock", isOn: $orientationManager.isLockEnabled)
-                    .padding(.horizontal)
-                    .padding(.bottom, 5)
-                
-                if orientationManager.isLockEnabled {
-                    // Orientation buttons instead of picker
-                    VStack(spacing: 10) {
-                        // Portrait button
-                        Button(action: {
-                            orientationManager.orientation = .portrait
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone")
-                                    .font(.system(size: 20))
-                                    .padding(.trailing, 5)
-                                Text("Portrait")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .portrait {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .portrait ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
+                VStack {
+                    // Wake up time display
+                    VStack(spacing: 8) {
+                        Text("WAKE UP AT")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundColor(Color.blue.opacity(0.8))
+                            .tracking(5)
                         
-                        // Upside Down button with warning
-                        Button(action: {
-                            showUpsideDownWarning = true
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone")
-                                    .font(.system(size: 20))
-                                    .rotationEffect(.degrees(180))
-                                    .padding(.trailing, 5)
-                                Text("Upside Down")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .portraitUpsideDown {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                } else {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundColor(.yellow)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .portraitUpsideDown ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
+                        Text(calculateWakeUpTime())
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-                        }
-                        .alert("Warning: Upside Down Not Recommended", isPresented: $showUpsideDownWarning) {
-                            Button("Cancel", role: .cancel) {}
-                            Button("Use Anyway") {
-                                orientationManager.orientation = .portraitUpsideDown
-                            }
-                        } message: {
-                            Text("iPhoneX and newer models do not support Upside Down orientation. It's recommended to use Portrait mode only on these devices since the home indicator needs to be visible.")
-                        }
                         
-                        // Landscape Left button
-                        Button(action: {
-                            orientationManager.orientation = .landscapeLeft
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone.landscape")
-                                    .font(.system(size: 20))
-                                    .padding(.trailing, 5)
-                                Text("Landscape Left")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .landscapeLeft {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .landscapeLeft ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
-                        
-                        // Landscape Right button
-                        Button(action: {
-                            orientationManager.orientation = .landscapeRight
-                        }) {
-                            HStack {
-                                Image(systemName: "iphone.landscape")
-                                    .font(.system(size: 20))
-                                    .padding(.trailing, 5)
-                                Text("Landscape Right")
-                                    .font(.system(size: 16))
-                                Spacer()
-                                if orientationManager.orientation == .landscapeRight {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                }
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(orientationManager.orientation == .landscapeRight ?
-                                          Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                            )
-                            .foregroundColor(.white)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Visual success indication
-                    if orientationManager.orientationChangeSuccess {
                         HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Orientation changed successfully!")
-                                .foregroundColor(.green)
+                            Image(systemName: "alarm")
+                                .foregroundColor(.white.opacity(0.8))
+                                .font(.system(size: 14))
+                            
+                            Text("No later than \(calculateMaxWakeUpTime())")
+                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.8))
                         }
-                        .padding(.top, 8)
+                        .padding(.top, 4)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.3))
+                        )
+                    }
+                    .padding(.vertical)
+                    .padding(.horizontal, 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.black.opacity(0.2))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 25)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+                    .padding(.top, 40)
+                    
+                    Spacer()
+                    
+                    // Sleep message or wake up message depending on state
+                    if napFinished {
+                        VStack(spacing: 15) {
+                            Text("🔔")
+                                .font(.system(size: 50))
+                            
+                            Text("Time to wake up!")
+                                .font(.system(size: 28, weight: .medium, design: .rounded))
+                                .foregroundColor(.white)
+                            
+                            Text("Your nap is complete")
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    } else {
+                        // Sleep message - simple
+                        VStack(spacing: 15) {
+                            Text("😴")
+                                .font(.system(size: 50))
+                            
+                            Text("Taking a nap...")
+                                .font(.system(size: 28, weight: .medium, design: .rounded))
+                                .foregroundColor(.white)
+                            
+                            // Simple static Z's
+                            HStack(spacing: 10) {
+                                Text("Z")
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.8))
+                                
+                                Text("Z")
+                                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.6))
+                                
+                                Text("Z")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.4))
+                            }
+                        }
                     }
                     
-                    // Recommendation text
-                    Text("It's recommended to use Portrait mode on iPhoneX and newer devices.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 10)
-                        .padding(.horizontal)
-                } else {
-                    // Disabled state message
-                    HStack(spacing: 10) {
-                        Image(systemName: "arrow.left.arrow.right.circle")
-                            .font(.system(size: 24))
-                        Text("Orientation lock is disabled.\nYour device will rotate freely.")
-                            .font(.system(size: 14))
-                            .multilineTextAlignment(.leading)
+                    Spacer()
+                    
+                    // Timer display - simple
+                    VStack(spacing: 2) {
+                        Text("NAP TIMER")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(Color.blue.opacity(0.7))
+                            .tracking(4)
+                        
+                        Text(timerManager.formatTime(effectiveNapDuration))
+                            .font(.system(size: 48, weight: .bold, design: .monospaced))
+                            .foregroundColor(napFinished ? .green : .white)
                     }
-                    .foregroundColor(.gray)
-                    .padding(.vertical, 20)
+                    .padding()
+                    
+                    // Button row - simplified
+                    HStack(spacing: 40) {
+                        // Back button with confirmation
+                        Button(action: {
+                            if isBackConfirmationShowing {
+                                // Second press - confirm and go back
+                                timerManager.stopAlarmSound()
+                                dismiss()
+                                timerManager.stopNapTimer()
+                                timerManager.startHoldTimer()
+                            } else {
+                                // First press - show confirmation
+                                isBackConfirmationShowing = true
+                                isSkipConfirmationShowing = false
+                                
+                                // Reset confirmation after 3 seconds
+                                confirmationTimer?.invalidate()
+                                confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                                    isBackConfirmationShowing = false
+                                }
+                            }
+                        }) {
+                            VStack {
+                                Image(systemName: napFinished ? "house" : "arrow.left")
+                                    .font(.system(size: 24))
+                                Text(isBackConfirmationShowing ? "Confirm?" : (napFinished ? "Home" : "Back"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                            }
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(.white)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(isBackConfirmationShowing ? Color.red.opacity(0.4) : Color.blue.opacity(0.3))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(isBackConfirmationShowing ? Color.red.opacity(0.5) : Color.blue.opacity(0.5), lineWidth: 1)
+                            )
+                        }
+                        
+                        // Skip button with confirmation (only show if nap not finished)
+                        if !napFinished {
+                            Button(action: {
+                                if isSkipConfirmationShowing {
+                                    // Second press - confirm and skip nap
+                                    timerManager.stopNapTimer()
+                                    timerManager.napTimer = 0
+                                    napFinished = true
+                                } else {
+                                    // First press - show confirmation
+                                    isSkipConfirmationShowing = true
+                                    isBackConfirmationShowing = false
+                                    
+                                    // Reset confirmation after 3 seconds
+                                    confirmationTimer?.invalidate()
+                                    confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                                        isSkipConfirmationShowing = false
+                                    }
+                                }
+                            }) {
+                                VStack {
+                                    Image(systemName: "forward.end")
+                                        .font(.system(size: 24))
+                                    Text(isSkipConfirmationShowing ? "Confirm?" : "Skip")
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                }
+                                .frame(width: 80, height: 80)
+                                .foregroundColor(.white)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(isSkipConfirmationShowing ? Color.red.opacity(0.4) : Color.purple.opacity(0.3))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.purple.opacity(0.5), lineWidth: 1)
+                                )
+                            }
+                        }
+                    }
+                    .padding(.bottom, 40)
                 }
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 12)
-            .background(Color.gray.opacity(0.2))
-            .cornerRadius(15)
-            .padding(.horizontal, 8)
+            .navigationBarHidden(true)
         }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .onAppear {
+            // Reset nap state
+            napFinished = false
+            
+            // Reset timers to use the latest settings
+            timerManager.resetTimers()
+            
+            // If max timer is less than nap timer, use max timer's value
+            if timerManager.maxTimer < timerManager.napTimer {
+                timerManager.napTimer = timerManager.maxTimer
+            }
+            
+            // Start nap timer when screen appears
+            timerManager.startNapTimer()
+            
+            // Stop hold timer
+            timerManager.stopHoldTimer()
+            
+            // Listen for nap timer finished notification
+            NotificationCenter.default.addObserver(
+                forName: .napTimerFinished,
+                object: nil,
+                queue: .main
+            ) { _ in
+                self.napFinished = true
+                self.timerManager.playAlarmSound()
+            }
+            
+            // Listen for max timer finished notification
+            NotificationCenter.default.addObserver(
+                forName: .maxTimerFinished,
+                object: nil,
+                queue: .main
+            ) { _ in
+                self.napFinished = true
+                self.timerManager.playAlarmSound()
+            }
+        }
+        .onDisappear {
+            // Cleanup
+            confirmationTimer?.invalidate()
+            NotificationCenter.default.removeObserver(self)
+            timerManager.stopAlarmSound() // Ensure alarm is stopped
+        }
+        // Hide status bar and extend to edges
+        .statusBar(hidden: true)
+        .edgesIgnoringSafeArea(.all)
     }
-} 
+    
+    // Calculate wake up time based on effective nap duration
+    private func calculateWakeUpTime() -> String {
+        let wakeTime = Date().addingTimeInterval(effectiveNapDuration)
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: wakeTime)
+    }
+    
+    // Calculate max possible wake up time
+    private func calculateMaxWakeUpTime() -> String {
+        let maxWakeTime = Date().addingTimeInterval(timerManager.maxTimer)
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: maxWakeTime)
+    }
+}
+
+#Preview {
+    SleepScreen()
+        .environmentObject(TimerManager())
+}
