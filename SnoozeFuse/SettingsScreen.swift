@@ -561,14 +561,17 @@ struct SettingsScreen: View {
                     
                     // ScrollView with better spacing
                     ScrollView {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 25) {
                             // App title at the top
-                            Text("SNOOZEFUZE")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .tracking(3)
-                                .padding(.top, 25)
-                                .padding(.bottom, 10)
+                            Image("logotransparent") // <-- Use the name you gave your image in Assets.xcassets
+                                .resizable() // Allows the image to be resized
+                                .scaledToFit() // Scales the image to fit the frame while maintaining aspect ratio
+                                .frame(width: 132, height: 66)
+                                .scaleEffect(0.8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.leading, -8)//topleft corner
+                                .padding(.top, -33) // have to make it go into the ui status boundary
+                                .padding(.bottom, 0)
                             
                             // Circle size control
                             CircleSizeControl(
