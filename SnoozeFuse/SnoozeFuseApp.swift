@@ -3,7 +3,7 @@ import UIKit
 
 // Version tracking for app updates
 fileprivate let appVersionKey = "appVersion"
-fileprivate let currentAppVersion = "1.0.1" // Increment when making orientation fixes
+fileprivate let currentAppVersion = "1.0.2" // Increment when making orientation fixes
 
 // App delegate to handle orientation
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -19,6 +19,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             
             // Save current version
             UserDefaults.standard.set(currentAppVersion, forKey: appVersionKey)
+            UserDefaults.standard.synchronize()
+            
+            print("App updated to version \(currentAppVersion), orientation settings reset")
         }
         
         // Force portrait orientation at launch
@@ -27,6 +30,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Reset first launch flag after a longer delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             OrientationManager.shared.isFirstLaunch = false
+            print("First launch flag set to false")
         }
         
         return true
@@ -50,6 +54,7 @@ struct SnoozeFuseApp: App {
     @StateObject private var timerManager = TimerManager()
     @StateObject private var orientationManager = OrientationManager.shared
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
+    @Environment(\.scenePhase) private var scenePhase
     
     var body: some Scene {
         WindowGroup {
@@ -61,12 +66,14 @@ struct SnoozeFuseApp: App {
                     // Force portrait orientation immediately
                     UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
                     
+                    // We're not saving orientation settings anymore, so remove this
                     // Apply saved orientation setting after a longer delay to ensure portrait on first launch
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                        if orientationManager.isLockEnabled && !orientationManager.isFirstLaunch && !orientationManager.forcedInitialPortrait {
-                            orientationManager.lockOrientation()
-                        }
-                    }
+                    // DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    //     if orientationManager.isLockEnabled && !orientationManager.isFirstLaunch && !orientationManager.forcedInitialPortrait {
+                    //         orientationManager.lockOrientation()
+                    //         print("Applied saved orientation: \(orientationManager.orientation.rawValue)")
+                    //     }
+                    // }
                 }
         }
     }

@@ -11,32 +11,15 @@ struct AdvancedSettingsScreen: View {
             Color.black.opacity(0.9).ignoresSafeArea()
             
             VStack {
-                // Custom header with close button
+                // Header - using system back button
                 HStack {
-                    Button(action: {
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        HStack(spacing: 2) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("Back")
-                                .font(.system(size: 16, weight: .medium))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.leading, 10)
-                    }
+                    Spacer()
+                    // we already have navigationtitle so this is redundant
+                    // Text("Advanced Settings") 
+                    //     .font(.system(size: 18, weight: .semibold))
+                    //     .foregroundColor(.white)
                     
                     Spacer()
-                    
-                    Text("Advanced Settings")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    // Balance empty space
-                    Text("")
-                        .frame(width: 60)
                 }
                 .padding(.top, 10)
                 .padding(.bottom, 5)
@@ -92,6 +75,11 @@ struct AdvancedSettingsScreen: View {
                 }
             }
         }
+        // Allow native back button to show
+        // .navigationBarBackButtonHidden(true)  
+        // .navigationBarHidden(true)
+        .navigationTitle("Advanced Settings")
+        .navigationBarTitleDisplayMode(.inline)
         .lockToOrientation(orientationManager)
         .onAppear {
             // Lock orientation when screen appears

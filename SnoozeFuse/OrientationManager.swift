@@ -33,11 +33,11 @@ enum DeviceOrientation: String, CaseIterable, Identifiable, Codable {
         case .portraitUpsideDown:
             return UIDeviceOrientation.portraitUpsideDown.rawValue
         case .landscapeLeft:
-            // Swap left and right to match visual perception
-            return UIDeviceOrientation.landscapeRight.rawValue
-        case .landscapeRight:
-            // Swap left and right to match visual perception
+            // Original mapping - do not change
             return UIDeviceOrientation.landscapeLeft.rawValue
+        case .landscapeRight:
+            // Original mapping - do not change
+            return UIDeviceOrientation.landscapeRight.rawValue
         }
     }
     
@@ -65,7 +65,8 @@ class OrientationManager: ObservableObject {
     @Published var isFirstLaunch: Bool = true
     @Published var forcedInitialPortrait: Bool = false  // New flag to track forced portrait mode
     
-    private let userDefaultsKey = "orientationSettings"
+    // IMPORTANT! Make the userDefaultsKey static and public so it can be accessed consistently
+    static let userDefaultsKey = "orientationSettings"
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
@@ -84,6 +85,10 @@ class OrientationManager: ObservableObject {
         // Set up observers
         setupObservers()
         
+        // No need to save orientation settings anymore
+        // Set up app state notifications
+        // setupAppStateNotifications()
+        
         // Schedule a check to reset the forced portrait flag after a longer delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
             self.forcedInitialPortrait = false
@@ -93,7 +98,8 @@ class OrientationManager: ObservableObject {
     // Reset settings to force fresh start with portrait mode
     func resetSavedOrientationSettings() {
         // Clear any saved orientation settings
-        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: OrientationManager.userDefaultsKey)
+        UserDefaults.standard.synchronize()
         
         // Manually set defaults
         self.orientation = .portrait
@@ -101,7 +107,7 @@ class OrientationManager: ObservableObject {
     }
     
     private func loadSavedSettings() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
+        guard let data = UserDefaults.standard.data(forKey: OrientationManager.userDefaultsKey) else {
             return
         }
         
@@ -122,8 +128,8 @@ class OrientationManager: ObservableObject {
                 guard let self = self else { return }
                 if self.isLockEnabled {
                     self.lockOrientation()
+                    print("Orientation changed to: \(newValue.rawValue)")
                 }
-                self.saveSettings()
             }
             .store(in: &cancellables)
         
@@ -137,7 +143,7 @@ class OrientationManager: ObservableObject {
                 } else {
                     self.unlockOrientation()
                 }
-                self.saveSettings()
+                print("Orientation lock changed to: \(newValue)")
             }
             .store(in: &cancellables)
     }
@@ -181,17 +187,43 @@ class OrientationManager: ObservableObject {
         // If we're in the forced initial portrait state, only allow portrait
         if isFirstLaunch || forcedInitialPortrait {
             UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+            print("Forcing portrait orientation during first launch")
             return
         }
         
+        // Determine the correct orientation value based on visual appearance
+        var targetValue: Int
+        switch orientation {
+        case .portrait:
+            targetValue = UIDeviceOrientation.portrait.rawValue
+            print("Setting orientation to portrait")
+        case .portraitUpsideDown:
+            targetValue = UIDeviceOrientation.portraitUpsideDown.rawValue
+            print("Setting orientation to portrait upside down")
+        case .landscapeLeft:
+            targetValue = UIDeviceOrientation.landscapeLeft.rawValue
+            print("Setting orientation to Landscape Left (UIDevice.landscapeLeft)")
+        case .landscapeRight:
+            targetValue = UIDeviceOrientation.landscapeRight.rawValue
+            print("Setting orientation to Landscape Right (UIDevice.landscapeRight)")
+        }
+        
         // This is a direct way to force orientation change
-        UIDevice.current.setValue(orientation.deviceOrientationValue, forKey: "orientation")
+        UIDevice.current.setValue(targetValue, forKey: "orientation")
         
         // For iOS 16 and later, use the more modern approach
         if #available(iOS 16.0, *) {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
                 do {
-                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientation.orientationMask))
+                    // Map our orientation to the correct mask
+                    let mask = orientation.orientationMask
+                    print("Requesting geometry update with mask: \(mask)")
+                    
+                    // Always use the correct orientation mask
+                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: mask))
+                    
+                    // Force the preferred orientation
+                    windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
                 } catch {
                     print("Could not update orientation: \(error)")
                     orientationChangeSuccess = false
@@ -205,6 +237,7 @@ class OrientationManager: ObservableObject {
         
         // Indicate success
         orientationChangeSuccess = true
+        print("Orientation change successful")
         
         // Reset success indicator after delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -229,18 +262,30 @@ class OrientationManager: ObservableObject {
     }
     
     private func saveSettings() {
+        // Ensure we're not in first launch mode when saving settings
+        if isFirstLaunch || forcedInitialPortrait {
+            // Don't save settings during first launch or forced portrait state
+            // This prevents overwriting user preferences with initial startup values
+            return
+        }
+        
+        // Use synchronize to ensure settings are saved immediately
         let settings = SavedSettings(
             orientation: orientation,
             isLockEnabled: isLockEnabled
         )
         
         if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+            UserDefaults.standard.set(encoded, forKey: OrientationManager.userDefaultsKey)
+            UserDefaults.standard.synchronize() // Force immediate save
+            
+            // Debug print to verify settings were saved
+            print("Saved orientation settings: \(orientation.rawValue), lock enabled: \(isLockEnabled)")
         }
     }
     
     private func loadSettings() -> SavedSettings? {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
+        guard let data = UserDefaults.standard.data(forKey: OrientationManager.userDefaultsKey) else {
             return nil
         }
         
@@ -432,7 +477,7 @@ extension AdvancedSettingsScreen {
                     }
                     
                     // Recommendation text
-                    Text("It's recommended to use Portrait mode on iPhoneX and newer devices.")
+                    Text("This is in-app so you don't need to use your own devices built in orientation lock. It's mainly for iPad. Note: This setting will not be saved between app launches.")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
