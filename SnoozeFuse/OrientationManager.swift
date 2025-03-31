@@ -33,9 +33,11 @@ enum DeviceOrientation: String, CaseIterable, Identifiable, Codable {
         case .portraitUpsideDown:
             return UIDeviceOrientation.portraitUpsideDown.rawValue
         case .landscapeLeft:
-            return UIDeviceOrientation.landscapeLeft.rawValue
-        case .landscapeRight:
+            // Swap left and right to match visual perception
             return UIDeviceOrientation.landscapeRight.rawValue
+        case .landscapeRight:
+            // Swap left and right to match visual perception
+            return UIDeviceOrientation.landscapeLeft.rawValue
         }
     }
     
@@ -60,18 +62,42 @@ class OrientationManager: ObservableObject {
     @Published var orientation: DeviceOrientation = .portrait
     @Published var isLockEnabled: Bool = true
     @Published var orientationChangeSuccess: Bool = false
+    @Published var isFirstLaunch: Bool = true
+    @Published var forcedInitialPortrait: Bool = false  // New flag to track forced portrait mode
     
     private let userDefaultsKey = "orientationSettings"
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
-        // First initialize all properties with defaults (already done above)
+        // Force portrait mode at initialization
+        forcedInitialPortrait = true
         
-        // Then load saved settings if available
+        // First try to clear any problematic saved settings (if this is a new version with fixes)
+        resetSavedOrientationSettings()
+        
+        // Then load saved settings if available (now with defaults to portrait)
         loadSavedSettings()
+        
+        // Force portrait mode explicitly, regardless of settings
+        UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
         
         // Set up observers
         setupObservers()
+        
+        // Schedule a check to reset the forced portrait flag after a longer delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.forcedInitialPortrait = false
+        }
+    }
+    
+    // Reset settings to force fresh start with portrait mode
+    func resetSavedOrientationSettings() {
+        // Clear any saved orientation settings
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        
+        // Manually set defaults
+        self.orientation = .portrait
+        self.isLockEnabled = true
     }
     
     private func loadSavedSettings() {
@@ -82,6 +108,9 @@ class OrientationManager: ObservableObject {
         if let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
             self.orientation = savedSettings.orientation
             self.isLockEnabled = savedSettings.isLockEnabled
+            
+            // On first launch, we've loaded the settings but won't apply them immediately
+            // The app will use portrait until isFirstLaunch is set to false
         }
     }
     
@@ -114,6 +143,11 @@ class OrientationManager: ObservableObject {
     }
     
     func lockOrientation() {
+        // Don't apply user orientation during first launch or when forcedInitialPortrait is active
+        if isFirstLaunch || forcedInitialPortrait {
+            return
+        }
+        
         // Force the device to the desired orientation
         forciblyRotateDevice()
         
@@ -144,6 +178,12 @@ class OrientationManager: ObservableObject {
     }
     
     private func forciblyRotateDevice() {
+        // If we're in the forced initial portrait state, only allow portrait
+        if isFirstLaunch || forcedInitialPortrait {
+            UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+            return
+        }
+        
         // This is a direct way to force orientation change
         UIDevice.current.setValue(orientation.deviceOrientationValue, forKey: "orientation")
         
@@ -185,6 +225,7 @@ class OrientationManager: ObservableObject {
     private struct SavedSettings: Codable {
         let orientation: DeviceOrientation
         let isLockEnabled: Bool
+        // Note: We don't persist isFirstLaunch as it should always be true when app starts fresh
     }
     
     private func saveSettings() {
