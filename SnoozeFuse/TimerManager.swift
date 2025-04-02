@@ -51,6 +51,47 @@ struct CustomSound: Identifiable, Codable, Equatable {
     }
 }
 
+// Available alarm sounds
+enum AlarmSound: String, CaseIterable, Identifiable {
+    case testAlarm = "Test Alarm"
+    case firecracker = "Firecracker"
+    case vtuberAlarm = "Korone Alarm"
+    case warAmbience = "War Ambience"
+    case custom = "Custom Sound"
+    
+    var id: String { self.rawValue }
+    
+    var filename: String {
+        switch self {
+        case .testAlarm: return "testalarm"
+        case .firecracker: return "firecracker"
+        case .vtuberAlarm: return "vtuberalarm"
+        case .warAmbience: return "war ambience"
+        case .custom: return "customSound"
+        }
+    }
+    
+    var fileExtension: String {
+        switch self {
+        case .warAmbience, .firecracker: return "wav"
+        case .testAlarm, .vtuberAlarm, .custom: return "mp3"
+        }
+    }
+}
+
+// Timer type for code reuse
+enum TimerType {
+    case hold, nap, max
+    
+    var notificationName: Notification.Name {
+        switch self {
+        case .hold: return .holdTimerFinished
+        case .nap: return .napTimerFinished
+        case .max: return .maxTimerFinished
+        }
+    }
+}
+
 class TimerManager: ObservableObject {
     // Timer durations (defaults)
     @Published var holdDuration: TimeInterval = 5    // Timer A: 5 seconds default
@@ -81,6 +122,20 @@ class TimerManager: ObservableObject {
     private var napCancellable: AnyCancellable?
     private var maxCancellable: AnyCancellable?
     
+    // Storage for cancellables
+    private var cancellables = Set<AnyCancellable>()
+    
+    // UserDefaults keys
+    private enum UserDefaultsKeys {
+        static let holdDuration = "holdDuration"
+        static let napDuration = "napDuration"
+        static let maxDuration = "maxDuration"
+        static let circleSize = "circleSize"
+        static let selectedAlarmSound = "selectedAlarmSound"
+        static let selectedCustomSoundID = "selectedCustomSoundID"
+        static let customSounds = "customSounds"
+    }
+    
     init() {
         // Initialize timers with default values
         resetTimers()
@@ -96,36 +151,27 @@ class TimerManager: ObservableObject {
         // When holdDuration changes, reset holdTimer if not running
         $holdDuration
             .sink { [weak self] newDuration in
-                guard let self = self else { return }
-                if !self.isHoldTimerRunning {
-                    self.holdTimer = newDuration
-                }
+                guard let self = self, !self.isHoldTimerRunning else { return }
+                self.holdTimer = newDuration
             }
             .store(in: &cancellables)
         
         // When napDuration changes, reset napTimer if not running
         $napDuration
             .sink { [weak self] newDuration in
-                guard let self = self else { return }
-                if !self.isNapTimerRunning {
-                    self.napTimer = newDuration
-                }
+                guard let self = self, !self.isNapTimerRunning else { return }
+                self.napTimer = newDuration
             }
             .store(in: &cancellables)
         
         // When maxDuration changes, reset maxTimer if not running
         $maxDuration
             .sink { [weak self] newDuration in
-                guard let self = self else { return }
-                if !self.isMaxTimerRunning {
-                    self.maxTimer = newDuration
-                }
+                guard let self = self, !self.isMaxTimerRunning else { return }
+                self.maxTimer = newDuration
             }
             .store(in: &cancellables)
     }
-    
-    // Storage for cancellables
-    private var cancellables = Set<AnyCancellable>()
     
     func resetTimers() {
         holdTimer = holdDuration
@@ -133,73 +179,97 @@ class TimerManager: ObservableObject {
         maxTimer = maxDuration
     }
     
-    func startHoldTimer() {
-        isHoldTimerRunning = true
-        holdTimer = holdDuration // Reset to full duration
-        
-        holdCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
+    // Generic timer start function
+    private func startTimer(type: TimerType) {
+        switch type {
+        case .hold:
+            isHoldTimerRunning = true
+            holdTimer = holdDuration
+            
+            holdCancellable = createTimerPublisher { [weak self] in
                 guard let self = self else { return }
                 if self.holdTimer > 0 {
                     self.holdTimer -= 0.1
                 } else {
-                    self.stopHoldTimer()
-                    // Post notification when hold timer reaches zero
-                    NotificationCenter.default.post(name: .holdTimerFinished, object: nil)
+                    self.stopTimer(type: .hold)
+                    NotificationCenter.default.post(name: type.notificationName, object: nil)
                 }
             }
-    }
-    
-    func stopHoldTimer() {
-        isHoldTimerRunning = false
-        holdCancellable?.cancel()
-    }
-    
-    func startNapTimer() {
-        isNapTimerRunning = true
-        napTimer = napDuration // Reset to full duration
-        
-        napCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
+            
+        case .nap:
+            isNapTimerRunning = true
+            napTimer = napDuration
+            
+            napCancellable = createTimerPublisher { [weak self] in
                 guard let self = self else { return }
                 if self.napTimer > 0 {
                     self.napTimer -= 0.1
                 } else {
-                    self.stopNapTimer()
-                    // Post notification when nap timer reaches zero
-                    NotificationCenter.default.post(name: .napTimerFinished, object: nil)
+                    self.stopTimer(type: .nap)
+                    NotificationCenter.default.post(name: type.notificationName, object: nil)
                 }
             }
-    }
-    
-    func stopNapTimer() {
-        isNapTimerRunning = false
-        napCancellable?.cancel()
-    }
-    
-    func startMaxTimer() {
-        isMaxTimerRunning = true
-        maxTimer = maxDuration // Reset to full duration
-        
-        maxCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
+            
+        case .max:
+            isMaxTimerRunning = true
+            maxTimer = maxDuration
+            
+            maxCancellable = createTimerPublisher { [weak self] in
                 guard let self = self else { return }
                 if self.maxTimer > 0 {
                     self.maxTimer -= 0.1
                 } else {
-                    self.stopMaxTimer()
-                    // Post notification when max timer reaches zero
-                    NotificationCenter.default.post(name: .maxTimerFinished, object: nil)
+                    self.stopTimer(type: .max)
+                    NotificationCenter.default.post(name: type.notificationName, object: nil)
                 }
             }
+        }
+    }
+    
+    private func createTimerPublisher(action: @escaping () -> Void) -> AnyCancellable {
+        return Timer.publish(every: 0.1, on: .main, in: .common)
+            .autoconnect()
+            .sink { _ in action() }
+    }
+    
+    // Generic timer stop function
+    private func stopTimer(type: TimerType) {
+        switch type {
+        case .hold:
+            isHoldTimerRunning = false
+            holdCancellable?.cancel()
+        case .nap:
+            isNapTimerRunning = false
+            napCancellable?.cancel()
+        case .max:
+            isMaxTimerRunning = false
+            maxCancellable?.cancel()
+        }
+    }
+    
+    // Public timer control functions
+    func startHoldTimer() {
+        startTimer(type: .hold)
+    }
+    
+    func stopHoldTimer() {
+        stopTimer(type: .hold)
+    }
+    
+    func startNapTimer() {
+        startTimer(type: .nap)
+    }
+    
+    func stopNapTimer() {
+        stopTimer(type: .nap)
+    }
+    
+    func startMaxTimer() {
+        startTimer(type: .max)
     }
     
     func stopMaxTimer() {
-        isMaxTimerRunning = false
-        maxCancellable?.cancel()
+        stopTimer(type: .max)
     }
     
     // Validation
@@ -217,47 +287,6 @@ class TimerManager: ObservableObject {
         let seconds = Int(timeInterval) % 60
         let decimal = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
-    }
-    
-    // Available alarm sounds
-    enum AlarmSound: String, CaseIterable, Identifiable {
-        case testAlarm = "Test Alarm"
-        case firecracker = "Firecracker"
-        case vtuberAlarm = "Korone Alarm"
-        case warAmbience = "War Ambience"
-        case custom = "Custom Sound"
-        
-        var id: String { self.rawValue }
-        
-        var filename: String {
-            switch self {
-            case .testAlarm:
-                return "testalarm"
-            case .firecracker:
-                return "firecracker"
-            case .vtuberAlarm:
-                return "vtuberalarm"
-            case .warAmbience:
-                return "war ambience"
-            case .custom:
-                return "customSound"
-            }
-        }
-        
-        var fileExtension: String {
-            switch self {
-            case .warAmbience:
-                return "wav"
-            case .testAlarm:
-                return "mp3"
-            case .firecracker:
-                return "wav"
-            case .vtuberAlarm:
-                return "mp3"
-            case .custom:
-                return "mp3" // Default, but we'll handle this differently for custom sounds
-            }
-        }
     }
     
     // Play the selected alarm sound
@@ -367,26 +396,26 @@ class TimerManager: ObservableObject {
         let defaults = UserDefaults.standard
         
         // Save timer durations
-        defaults.set(holdDuration, forKey: "holdDuration")
-        defaults.set(napDuration, forKey: "napDuration")
-        defaults.set(maxDuration, forKey: "maxDuration")
+        defaults.set(holdDuration, forKey: UserDefaultsKeys.holdDuration)
+        defaults.set(napDuration, forKey: UserDefaultsKeys.napDuration)
+        defaults.set(maxDuration, forKey: UserDefaultsKeys.maxDuration)
         
         // Save circle size
-        defaults.set(circleSize, forKey: "circleSize")
+        defaults.set(circleSize, forKey: UserDefaultsKeys.circleSize)
         
         // Save selected alarm type
-        defaults.set(selectedAlarmSound.rawValue, forKey: "selectedAlarmSound")
+        defaults.set(selectedAlarmSound.rawValue, forKey: UserDefaultsKeys.selectedAlarmSound)
         
         // Save selected custom sound ID
         if let id = selectedCustomSoundID {
-            defaults.set(id.uuidString, forKey: "selectedCustomSoundID")
+            defaults.set(id.uuidString, forKey: UserDefaultsKeys.selectedCustomSoundID)
         } else {
-            defaults.removeObject(forKey: "selectedCustomSoundID")
+            defaults.removeObject(forKey: UserDefaultsKeys.selectedCustomSoundID)
         }
         
         // Save custom sounds list
         if let encodedSounds = try? JSONEncoder().encode(customSounds) {
-            defaults.set(encodedSounds, forKey: "customSounds")
+            defaults.set(encodedSounds, forKey: UserDefaultsKeys.customSounds)
         }
     }
     
@@ -395,41 +424,41 @@ class TimerManager: ObservableObject {
         let defaults = UserDefaults.standard
         
         // Load timer durations
-        if let hold = defaults.object(forKey: "holdDuration") as? TimeInterval {
+        if let hold = defaults.object(forKey: UserDefaultsKeys.holdDuration) as? TimeInterval {
             holdDuration = hold
             holdTimer = hold
         }
         
-        if let nap = defaults.object(forKey: "napDuration") as? TimeInterval {
+        if let nap = defaults.object(forKey: UserDefaultsKeys.napDuration) as? TimeInterval {
             napDuration = nap
             napTimer = nap
         }
         
-        if let max = defaults.object(forKey: "maxDuration") as? TimeInterval {
+        if let max = defaults.object(forKey: UserDefaultsKeys.maxDuration) as? TimeInterval {
             maxDuration = max
             maxTimer = max
         }
         
         // Load circle size
-        if let size = defaults.object(forKey: "circleSize") as? CGFloat {
+        if let size = defaults.object(forKey: UserDefaultsKeys.circleSize) as? CGFloat {
             circleSize = size
         }
         
         // Load custom sounds list
-        if let savedSounds = defaults.data(forKey: "customSounds") {
+        if let savedSounds = defaults.data(forKey: UserDefaultsKeys.customSounds) {
             if let decodedSounds = try? JSONDecoder().decode([CustomSound].self, from: savedSounds) {
                 customSounds = decodedSounds
             }
         }
         
         // Load selected custom sound ID
-        if let idString = defaults.string(forKey: "selectedCustomSoundID"),
+        if let idString = defaults.string(forKey: UserDefaultsKeys.selectedCustomSoundID),
            let id = UUID(uuidString: idString) {
             selectedCustomSoundID = id
         }
         
         // Load selected alarm type
-        if let soundValue = defaults.string(forKey: "selectedAlarmSound"),
+        if let soundValue = defaults.string(forKey: UserDefaultsKeys.selectedAlarmSound),
            let sound = AlarmSound(rawValue: soundValue) {
             selectedAlarmSound = sound
         }

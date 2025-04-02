@@ -317,7 +317,7 @@ struct TimerSettingsControl: View {
 
 // New component for alarm sound selection
 struct AlarmSoundSelector: View {
-    @Binding var selectedAlarm: TimerManager.AlarmSound
+    @Binding var selectedAlarm: AlarmSound
     var onPreview: () -> Void
     @State private var isPlaying: Bool = false
     @EnvironmentObject var timerManager: TimerManager
@@ -340,7 +340,7 @@ struct AlarmSoundSelector: View {
                 // Dropdown menu for alarm selection
                 Menu {
                     // Built-in sounds
-                    ForEach(TimerManager.AlarmSound.allCases.filter { $0 != .custom }) { sound in
+                    ForEach(AlarmSound.allCases.filter { $0 != .custom }) { sound in
                         Button(action: {
                             selectedAlarm = sound
                             timerManager.selectedCustomSoundID = nil

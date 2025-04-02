@@ -1,13 +1,28 @@
 import SwiftUI
 
+// MARK: - Haptic Feedback Manager
 class HapticManager: ObservableObject {
+    // MARK: - Published Properties
     @Published var isHapticEnabled = true
     @Published var hapticStyle: UIImpactFeedbackGenerator.FeedbackStyle = .medium
     
+    // MARK: - Singleton Instance
     static let shared = HapticManager()
     
-    private init() {}
+    // MARK: - UserDefaults Keys
+    private enum UserDefaultsKeys {
+        static let isHapticEnabled = "isHapticEnabled"
+        static let hapticStyle = "hapticStyle"
+    }
     
+    // MARK: - Initialization
+    private init() {
+        loadSettings()
+    }
+    
+    // MARK: - Haptic Feedback Methods
+    
+    /// Triggers impact haptic feedback with the current style
     func trigger() {
         guard isHapticEnabled else { return }
         let generator = UIImpactFeedbackGenerator(style: hapticStyle)
@@ -15,15 +30,40 @@ class HapticManager: ObservableObject {
         generator.impactOccurred()
     }
     
+    /// Triggers notification haptic feedback
+    /// - Parameter type: The type of notification feedback
     func triggerNotification(type: UINotificationFeedbackGenerator.FeedbackType) {
         guard isHapticEnabled else { return }
         let generator = UINotificationFeedbackGenerator()
         generator.prepare()
         generator.notificationOccurred(type)
     }
+    
+    // MARK: - Settings Persistence
+    
+    /// Saves haptic settings to UserDefaults
+    func saveSettings() {
+        let defaults = UserDefaults.standard
+        defaults.set(isHapticEnabled, forKey: UserDefaultsKeys.isHapticEnabled)
+        defaults.set(hapticStyle.rawValue, forKey: UserDefaultsKeys.hapticStyle)
+    }
+    
+    /// Loads haptic settings from UserDefaults
+    private func loadSettings() {
+        let defaults = UserDefaults.standard
+        
+        if defaults.object(forKey: UserDefaultsKeys.isHapticEnabled) != nil {
+            isHapticEnabled = defaults.bool(forKey: UserDefaultsKeys.isHapticEnabled)
+        }
+        
+        if let styleRawValue = defaults.object(forKey: UserDefaultsKeys.hapticStyle) as? Int,
+           let style = UIImpactFeedbackGenerator.FeedbackStyle(rawValue: styleRawValue) {
+            hapticStyle = style
+        }
+    }
 }
 
-// Extension to add haptic settings to SettingsScreen
+// MARK: - SettingsScreen Extension for Haptic Settings UI
 extension SettingsScreen {
     struct HapticSettings: View {
         @ObservedObject var hapticManager = HapticManager.shared
@@ -39,6 +79,9 @@ extension SettingsScreen {
                 
                 Toggle("Enable Haptics", isOn: $hapticManager.isHapticEnabled)
                     .padding(.horizontal)
+                    .onChange(of: hapticManager.isHapticEnabled) { _ in
+                        hapticManager.saveSettings()
+                    }
                 
                 if hapticManager.isHapticEnabled {
                     Picker("Intensity", selection: $hapticManager.hapticStyle) {
@@ -48,6 +91,9 @@ extension SettingsScreen {
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .padding(.horizontal)
+                    .onChange(of: hapticManager.hapticStyle) { _ in
+                        hapticManager.saveSettings()
+                    }
                     
                     Button(action: {
                         hapticManager.trigger()
