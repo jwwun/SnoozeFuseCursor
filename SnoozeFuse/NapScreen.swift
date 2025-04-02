@@ -182,9 +182,9 @@ struct NapScreen: View {
                             requiredSwipes: 2,
                             direction: .leading,
                             label: "Swipe to exit",
-                            confirmLabel: "Swipe again to exit",
-                            finalLabel: "Release to exit",
-                            isTimerActive: timerManager.maxTimer < timerManager.maxDuration || timerManager.holdTimer < timerManager.holdDuration
+                            confirmLabel: "Swipe once more",
+                            finalLabel: "Swipe again to confirm",
+                            requireMultipleSwipes: timerManager.isAnyTimerActive
                         )
                         .padding(.leading, 5)
                         .padding(.top, 10)
@@ -227,7 +227,6 @@ struct NapScreen: View {
                 .environmentObject(timerManager)
         }
         // Hide home indicator but keep status bar visible
-        .hideHomeIndicator(true)
         .edgesIgnoringSafeArea(.all)
     }
 }

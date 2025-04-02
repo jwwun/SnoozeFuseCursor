@@ -139,12 +139,12 @@ Used for managers that need global access:
 
 ## UI Improvements
 
-### Status Bar and Home Indicator Management
+### Status Bar Management
 - **Status Bar**: Always visible on all screens to maintain system context
-- **Home Indicator**: Hidden only on NapScreen and SleepScreen for immersive experience
-- **Custom UI Component**: `HomeIndicatorHider` component created to manage home indicator visibility
-- **Complete Home Indicator Removal**: Enhanced to fully remove home indicator from NapScreen and SleepScreen using screen edge deferring system gestures for ALL edges
-- **Exit Prevention**: Implemented aggressive edge deferring to prevent accidental exits with home indicator swipes
+
+### Home Indicator
+- **Home Indicator**: Removed attempts to hide the Home Indicator since iOS restricts fully hiding it
+- **Edge-to-edge Layout**: Maintained edge-to-edge content layout using `.edgesIgnoringSafeArea(.all)` for immersive experience
 
 ### Multi-Swipe Exit Protection
 - **MultiSwipeConfirmation Component**: Requires multiple consecutive swipes to exit NapScreen or SleepScreen
@@ -153,29 +153,27 @@ Used for managers that need global access:
 - **Haptic Feedback**: Triggers haptic feedback on each successful swipe
 - **Timeout Protection**: Swipe count resets after 3 seconds of inactivity
 - **Improved Safety**: Prevents accidental exits from sleep screens
-- **Conditional Swipe Requirement**: Only requires two swipes when timer is active; single swipe/tap when timer is inactive
-- **Redesigned SleepScreen Buttons**: Added separate buttons for returning to SettingsScreen (resetting timers) and NapScreen (keeping settings)
+- **Conditional Swipe Requirement**: Only requires two swipes when timer is active; single swipe when timer is inactive
+- **Redesigned SleepScreen Buttons**: Added separate buttons for returning to NapScreen (left) and SettingsScreen (right)
 - **Tap-Only Mode**: When timer ends, both buttons change to tap-only versions instead of requiring swipes
-- **Enhanced Button Design**: Improved button aesthetics with gradients, shadows, and visual depth
+- **Consistent Design**: Swipe buttons and tap buttons maintain consistent visual design
 
 ### SleepScreen UI Enhancements
-- **Clear Navigation**: Distinct visual styling for Settings and Nap buttons
-- **Proper Destination Paths**: Fixed navigation to ensure Settings button returns to SettingsScreen and Nap button returns to NapScreen
+- **Clear Navigation Path**: 'Back to Nap' button on left, 'Back to Settings' button on right
+- **Proper Destination Paths**: Back to Nap button returns to NapScreen while keeping settings, Back to Settings button returns to SettingsScreen and resets timers
 - **Visual Aesthetics**: Enhanced button design with gradients, shadows, and visual depth
 - **Proper Spacing**: Improved layout and spacing for buttons and UI elements
-- **Clearer Labels**: Updated button labels to clearly indicate their function
-- **Color Differentiation**: Used different colors to distinguish button functions (indigo for Settings, purple for Nap)
+- **Clearer Labels**: Updated button labels to clearly indicate their function ('Back to Nap' and 'Back to Settings')
+- **Color Differentiation**: Used different colors to distinguish button functions (purple for Nap, indigo for Settings)
+- **Consistent Visuals**: Swipe buttons use same visual design as tap buttons for consistent UX
 
 ### Implementation Details
-- Created `HomeIndicatorHider` as a UIViewControllerRepresentable to hide home indicator
-- Added `hideHomeIndicator` view modifier for easy use throughout the app
 - Implemented `MultiSwipeConfirmation` component to replace confirmation buttons
 - Updated NapScreen and SleepScreen to require multiple swipes before exit
-- Removed status bar hiding while maintaining edge-to-edge layout
-- Enhanced `HomeIndicatorHider` with `preferredScreenEdgesDeferringSystemGestures` to completely remove home indicator
+- Maintained edge-to-edge layout while keeping status bar visible
 - Updated `MultiSwipeConfirmation` to conditionally require swipes based on timer status
 - Redesigned SleepScreen buttons to provide clear navigation options
-- Enhanced edge deferring by using ALL edges to prevent accidental exits
-- Added immediate auto-hiding for home indicator on view controller load
 - Fixed button logic to properly navigate to intended destinations
 - Enhanced button design with layered gradients, shadows, and visual polish
+- Unified design language between swipe controls and tap buttons
+- Properly positioned buttons with Back to Nap on left and Back to Settings on right

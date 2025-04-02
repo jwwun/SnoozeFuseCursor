@@ -236,70 +236,6 @@ struct MultiTouchHandler: UIViewRepresentable {
     }
 }
 
-// MARK: - HomeIndicatorHider
-
-/// SwiftUI view modifier for hiding the home indicator
-struct HomeIndicatorHider: UIViewControllerRepresentable {
-    var prefersHidden: Bool
-    
-    func makeUIViewController(context: Context) -> HomeIndicatorViewController {
-        HomeIndicatorViewController(prefersHidden: prefersHidden)
-    }
-    
-    func updateUIViewController(_ uiViewController: HomeIndicatorViewController, context: Context) {
-        uiViewController.prefersHidden = prefersHidden
-        uiViewController.setNeedsUpdateOfHomeIndicatorAutoHidden()
-        uiViewController.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
-    }
-    
-    class HomeIndicatorViewController: UIViewController {
-        var prefersHidden: Bool
-        
-        init(prefersHidden: Bool) {
-            self.prefersHidden = prefersHidden
-            super.init(nibName: nil, bundle: nil)
-        }
-        
-        required init?(coder: NSCoder) {
-            fatalError("init(coder:) has not been implemented")
-        }
-        
-        override var prefersHomeIndicatorAutoHidden: Bool {
-            return prefersHidden
-        }
-        
-        override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
-            // Defer ALL edges to make it much harder to exit with home indicator
-            return [.bottom, .top, .left, .right]
-        }
-        
-        override var prefersStatusBarHidden: Bool {
-            return false
-        }
-        
-        // Add this to make the home indicator truly hidden
-        override func viewDidLoad() {
-            super.viewDidLoad()
-            
-            // Set the home indicator to auto-hide immediately
-            if #available(iOS 16.0, *) {
-                // iOS 16 and later
-                self.setNeedsUpdateOfHomeIndicatorAutoHidden()
-            } else {
-                // Earlier iOS versions
-                UIViewController.attemptRotationToDeviceOrientation()
-            }
-        }
-    }
-}
-
-// Extension to add a modifier for hiding the home indicator
-extension View {
-    func hideHomeIndicator(_ hidden: Bool = true) -> some View {
-        self.background(HomeIndicatorHider(prefersHidden: hidden).frame(width: 0, height: 0))
-    }
-}
-
 // MARK: - MultiSwipeConfirmation
 
 /// A component that requires multiple consecutive swipes to confirm an action
@@ -310,7 +246,7 @@ struct MultiSwipeConfirmation: View {
     var label: String = "Swipe to exit"
     var confirmLabel: String = "Swipe again to confirm"
     var finalLabel: String = "Final swipe to confirm"
-    var isTimerActive: Bool = true
+    var requireMultipleSwipes: Bool = true
     
     @State private var swipeCount: Int = 0
     @State private var resetTimer: Timer? = nil
@@ -333,7 +269,7 @@ struct MultiSwipeConfirmation: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(swipeCount == 0 ? Color.blue.opacity(0.3) : 
-                          swipeCount < effectiveRequiredSwipes - 1 ? Color.orange.opacity(0.4) : 
+                          swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.4) : 
                           Color.red.opacity(0.4))
             )
             .gesture(
@@ -350,8 +286,8 @@ struct MultiSwipeConfirmation: View {
                             swipeCount += 1
                             HapticManager.shared.trigger()
                             
-                            // If reached required count, perform action
-                            if swipeCount >= effectiveRequiredSwipes {
+                            // If we don't require multiple swipes or we reached the required count, perform action
+                            if !requireMultipleSwipes || swipeCount >= requiredSwipes {
                                 action()
                                 swipeCount = 0
                             } else {
@@ -363,12 +299,6 @@ struct MultiSwipeConfirmation: View {
                         }
                     }
             )
-            .onTapGesture {
-                // If timer is not active, allow tap to complete action directly
-                if !isTimerActive {
-                    action()
-                }
-            }
             
             if direction == .leading {
                 Spacer()
@@ -376,21 +306,15 @@ struct MultiSwipeConfirmation: View {
         }
     }
     
-    // Returns the effective number of swipes required based on timer status
-    private var effectiveRequiredSwipes: Int {
-        return isTimerActive ? requiredSwipes : 1
-    }
-    
     private var swipeText: String {
-        // If timer is not active, show tap label
-        if !isTimerActive {
-            return "Tap to exit"
+        if !requireMultipleSwipes {
+            return label // Just show the base label if we don't need multiple swipes
         }
         
         switch swipeCount {
         case 0:
             return label
-        case effectiveRequiredSwipes - 1:
+        case requiredSwipes - 1:
             return finalLabel
         default:
             return confirmLabel

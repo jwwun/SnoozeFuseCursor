@@ -396,6 +396,11 @@ class TimerManager: ObservableObject {
     
     // MARK: - Settings persistence
     
+    // Computed property to check if any timer is active
+    var isAnyTimerActive: Bool {
+        return isHoldTimerRunning || isNapTimerRunning || isMaxTimerRunning
+    }
+    
     // Save all settings to UserDefaults
     func saveSettings() {
         let defaults = UserDefaults.standard
