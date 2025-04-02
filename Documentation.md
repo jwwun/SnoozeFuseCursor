@@ -136,3 +136,25 @@ Used for managers that need global access:
 3. In Advanced Settings, user can tap "Show in Main Settings" to move it back
 4. Setting is persisted in UserDefaults so it remembers user preference across app launches
 5. When notifications are enabled, the warning UI disappears from both screens automatically
+
+## UI Improvements
+
+### Status Bar and Home Indicator Management
+- **Status Bar**: Always visible on all screens to maintain system context
+- **Home Indicator**: Hidden only on NapScreen and SleepScreen for immersive experience
+- **Custom UI Component**: `HomeIndicatorHider` component created to manage home indicator visibility
+
+### Multi-Swipe Exit Protection
+- **MultiSwipeConfirmation Component**: Requires multiple consecutive swipes to exit NapScreen or SleepScreen
+- **Configurable Settings**: Swipe count, direction, and labels can be customized
+- **Visual Feedback**: Color changes provide visual indication of progression
+- **Haptic Feedback**: Triggers haptic feedback on each successful swipe
+- **Timeout Protection**: Swipe count resets after 3 seconds of inactivity
+- **Improved Safety**: Prevents accidental exits from sleep screens
+
+### Implementation Details
+- Created `HomeIndicatorHider` as a UIViewControllerRepresentable to hide home indicator
+- Added `hideHomeIndicator` view modifier for easy use throughout the app
+- Implemented `MultiSwipeConfirmation` component to replace confirmation buttons
+- Updated NapScreen and SleepScreen to require multiple swipes before exit
+- Removed status bar hiding while maintaining edge-to-edge layout

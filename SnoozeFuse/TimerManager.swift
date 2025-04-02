@@ -110,7 +110,7 @@ class TimerManager: ObservableObject {
     @Published var isMaxTimerRunning = false
     
     // Circle size (for visual representation)
-    @Published var circleSize: CGFloat = 300
+    @Published var circleSize: CGFloat = 250
     
     // Alarm sound settings
     @Published var selectedAlarmSound: AlarmSound = .testAlarm

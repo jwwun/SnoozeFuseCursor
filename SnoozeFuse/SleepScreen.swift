@@ -8,8 +8,7 @@ struct SleepScreen: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject private var notificationManager = NotificationManager.shared
     
-    // Confirmation state for safety buttons
-    @State private var isBackConfirmationShowing = false
+    // Confirmation state for skip button
     @State private var isSkipConfirmationShowing = false
     @State private var confirmationTimer: Timer? = nil
     
@@ -127,43 +126,21 @@ struct SleepScreen: View {
                     
                     // Button row - simplified
                     HStack(spacing: 40) {
-                        // Back button with confirmation
-                        Button(action: {
-                            if isBackConfirmationShowing {
-                                // Second press - confirm and go back
+                        // Back button with multi-swipe confirmation
+                        MultiSwipeConfirmation(
+                            action: {
                                 timerManager.stopAlarmSound()
                                 dismiss()
                                 timerManager.stopNapTimer()
                                 timerManager.startHoldTimer()
-                            } else {
-                                // First press - show confirmation
-                                isBackConfirmationShowing = true
-                                isSkipConfirmationShowing = false
-                                
-                                // Reset confirmation after 3 seconds
-                                confirmationTimer?.invalidate()
-                                confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                                    isBackConfirmationShowing = false
-                                }
-                            }
-                        }) {
-                            VStack {
-                                Image(systemName: napFinished ? "house" : "arrow.left")
-                                    .font(.system(size: 24))
-                                Text(isBackConfirmationShowing ? "Confirm?" : (napFinished ? "Home" : "Back"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                            }
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.white)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(isBackConfirmationShowing ? Color.red.opacity(0.4) : Color.blue.opacity(0.3))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(isBackConfirmationShowing ? Color.red.opacity(0.5) : Color.blue.opacity(0.5), lineWidth: 1)
-                            )
-                        }
+                            },
+                            requiredSwipes: 3,
+                            direction: .leading,
+                            label: napFinished ? "Swipe to Home" : "Swipe to Back",
+                            confirmLabel: "Swipe again",
+                            finalLabel: "Final swipe"
+                        )
+                        .frame(width: 120)
                         
                         // Skip button with confirmation (only show if nap not finished)
                         if !napFinished {
@@ -176,7 +153,6 @@ struct SleepScreen: View {
                                 } else {
                                     // First press - show confirmation
                                     isSkipConfirmationShowing = true
-                                    isBackConfirmationShowing = false
                                     
                                     // Reset confirmation after 3 seconds
                                     confirmationTimer?.invalidate()
@@ -263,8 +239,8 @@ struct SleepScreen: View {
             // Cancel any pending notifications when leaving the screen
             NotificationManager.shared.cancelPendingNotifications()
         }
-        // Hide status bar and extend to edges
-        .statusBar(hidden: true)
+        // Hide home indicator but keep status bar visible
+        .hideHomeIndicator(true)
         .edgesIgnoringSafeArea(.all)
     }
     

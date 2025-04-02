@@ -235,3 +235,124 @@ struct MultiTouchHandler: UIViewRepresentable {
         }
     }
 }
+
+// MARK: - HomeIndicatorHider
+
+/// SwiftUI view modifier for hiding the home indicator
+struct HomeIndicatorHider: UIViewControllerRepresentable {
+    var prefersHidden: Bool
+    
+    func makeUIViewController(context: Context) -> HomeIndicatorViewController {
+        HomeIndicatorViewController(prefersHidden: prefersHidden)
+    }
+    
+    func updateUIViewController(_ uiViewController: HomeIndicatorViewController, context: Context) {
+        uiViewController.prefersHidden = prefersHidden
+        uiViewController.setNeedsUpdateOfHomeIndicatorAutoHidden()
+    }
+    
+    class HomeIndicatorViewController: UIViewController {
+        var prefersHidden: Bool
+        
+        init(prefersHidden: Bool) {
+            self.prefersHidden = prefersHidden
+            super.init(nibName: nil, bundle: nil)
+        }
+        
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+        
+        override var prefersHomeIndicatorAutoHidden: Bool {
+            return prefersHidden
+        }
+    }
+}
+
+// Extension to add a modifier for hiding the home indicator
+extension View {
+    func hideHomeIndicator(_ hidden: Bool = true) -> some View {
+        self.background(HomeIndicatorHider(prefersHidden: hidden).frame(width: 0, height: 0))
+    }
+}
+
+// MARK: - MultiSwipeConfirmation
+
+/// A component that requires multiple consecutive swipes to confirm an action
+struct MultiSwipeConfirmation: View {
+    var action: () -> Void
+    var requiredSwipes: Int = 3
+    var direction: Edge = .leading
+    var label: String = "Swipe to exit"
+    var confirmLabel: String = "Swipe again to confirm"
+    var finalLabel: String = "Final swipe to confirm"
+    
+    @State private var swipeCount: Int = 0
+    @State private var resetTimer: Timer? = nil
+    
+    var body: some View {
+        HStack {
+            if direction == .trailing {
+                Spacer()
+            }
+            
+            VStack(spacing: 5) {
+                Image(systemName: direction == .leading ? "chevron.left" : "chevron.right")
+                    .font(.system(size: 20))
+                Text(swipeText)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .foregroundColor(.white)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(swipeCount == 0 ? Color.blue.opacity(0.3) : 
+                          swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.4) : 
+                          Color.red.opacity(0.4))
+            )
+            .gesture(
+                DragGesture(minimumDistance: 50, coordinateSpace: .local)
+                    .onEnded { value in
+                        // Check swipe direction matches expected direction
+                        let horizontalAmount = value.translation.width
+                        let isSwipingLeft = horizontalAmount < 0
+                        let isExpectedDirection = (direction == .leading && isSwipingLeft) || 
+                                                 (direction == .trailing && !isSwipingLeft)
+                        
+                        if isExpectedDirection {
+                            resetTimer?.invalidate()
+                            swipeCount += 1
+                            HapticManager.shared.trigger()
+                            
+                            // If reached required count, perform action
+                            if swipeCount >= requiredSwipes {
+                                action()
+                                swipeCount = 0
+                            } else {
+                                // Set timer to reset swipe count after 3 seconds
+                                resetTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                                    swipeCount = 0
+                                }
+                            }
+                        }
+                    }
+            )
+            
+            if direction == .leading {
+                Spacer()
+            }
+        }
+    }
+    
+    private var swipeText: String {
+        switch swipeCount {
+        case 0:
+            return label
+        case requiredSwipes - 1:
+            return finalLabel
+        default:
+            return confirmLabel
+        }
+    }
+}

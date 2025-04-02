@@ -25,7 +25,7 @@ struct CircularBackButton: View {
                     .frame(width: 85, height: 70)
                 
                 VStack(spacing: 0) {
-                    Image(systemName: "chevron.left")
+                    Image(systemName: "chevron.left.2")
                         .font(.system(size: 25, weight: .medium))
                         .foregroundColor(.white)
                     Text("Back")
@@ -172,15 +172,21 @@ struct NapScreen: View {
                 // Back button overlay (always on top)
                 VStack {
                     HStack {
-                        CircularBackButton {
-                            timerManager.stopHoldTimer()
-                            timerManager.stopMaxTimer()
-                            timerManager.stopAlarmSound()
-                            presentationMode.wrappedValue.dismiss()
-                        }
+                        MultiSwipeConfirmation(
+                            action: {
+                                timerManager.stopHoldTimer()
+                                timerManager.stopMaxTimer()
+                                timerManager.stopAlarmSound()
+                                presentationMode.wrappedValue.dismiss()
+                            },
+                            requiredSwipes: 3,
+                            direction: .leading,
+                            label: "Swipe to exit",
+                            confirmLabel: "Swipe two more times",
+                            finalLabel: "The third and final swipe"
+                        )
                         .padding(.leading, 5)
-                        .padding(.top, -20)
-                        .contentShape(RoundedRectangle(cornerRadius: 15))
+                        .padding(.top, 10)
                         
                         Spacer()
                     }
@@ -219,8 +225,8 @@ struct NapScreen: View {
             SleepScreen()
                 .environmentObject(timerManager)
         }
-        // Hide status bar and extend to edges
-        .statusBar(hidden: true)
+        // Hide home indicator but keep status bar visible
+        .hideHomeIndicator(true)
         .edgesIgnoringSafeArea(.all)
     }
 }
