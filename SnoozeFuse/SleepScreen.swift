@@ -1,10 +1,12 @@
 import SwiftUI
+import UserNotifications
 
 struct SleepScreen: View {
     @EnvironmentObject var timerManager: TimerManager
     @Environment(\.dismiss) private var dismiss
     @State private var napFinished = false
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject private var notificationManager = NotificationManager.shared
     
     // Confirmation state for safety buttons
     @State private var isBackConfirmationShowing = false
@@ -223,6 +225,12 @@ struct SleepScreen: View {
             // Start nap timer when screen appears
             timerManager.startNapTimer()
             
+            // Schedule notification for the nap timer
+            if notificationManager.isNotificationAuthorized {
+                // We'll use the TimerManager's method which was updated to schedule notifications
+                timerManager.scheduleAlarmNotification()
+            }
+            
             // Stop hold timer
             timerManager.stopHoldTimer()
             
@@ -251,6 +259,9 @@ struct SleepScreen: View {
             confirmationTimer?.invalidate()
             NotificationCenter.default.removeObserver(self)
             timerManager.stopAlarmSound() // Ensure alarm is stopped
+            
+            // Cancel any pending notifications when leaving the screen
+            NotificationManager.shared.cancelPendingNotifications()
         }
         // Hide status bar and extend to edges
         .statusBar(hidden: true)

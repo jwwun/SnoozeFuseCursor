@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import UserNotifications
 
 // Define notification names
 extension Notification.Name {
@@ -258,18 +259,22 @@ class TimerManager: ObservableObject {
     
     func startNapTimer() {
         startTimer(type: .nap)
+        scheduleAlarmNotification()
     }
     
     func stopNapTimer() {
         stopTimer(type: .nap)
+        NotificationManager.shared.cancelPendingNotifications()
     }
     
     func startMaxTimer() {
         startTimer(type: .max)
+        scheduleAlarmNotification()
     }
     
     func stopMaxTimer() {
         stopTimer(type: .max)
+        NotificationManager.shared.cancelPendingNotifications()
     }
     
     // Validation
@@ -461,6 +466,21 @@ class TimerManager: ObservableObject {
         if let soundValue = defaults.string(forKey: UserDefaultsKeys.selectedAlarmSound),
            let sound = AlarmSound(rawValue: soundValue) {
             selectedAlarmSound = sound
+        }
+    }
+    
+    // New method to schedule alarm notification
+    func scheduleAlarmNotification() {
+        // Cancel any existing notifications first
+        NotificationManager.shared.cancelPendingNotifications()
+        
+        // Only schedule if napTimer is running
+        if isNapTimerRunning {
+            // Schedule for napTimer's remaining time
+            NotificationManager.shared.scheduleAlarmNotification(after: napTimer)
+        } else if isMaxTimerRunning {
+            // Or for maxTimer if that's what's running
+            NotificationManager.shared.scheduleAlarmNotification(after: maxTimer)
         }
     }
 }

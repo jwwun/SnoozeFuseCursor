@@ -1,12 +1,13 @@
 import SwiftUI
 import UIKit
+import UserNotifications
 
 // Version tracking for app updates
 fileprivate let appVersionKey = "appVersion"
 fileprivate let currentAppVersion = "1.0.2" // Increment when making orientation fixes
 
 // App delegate to handle orientation
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Check if this is a new version of the app that needs settings reset
         let lastRunVersion = UserDefaults.standard.string(forKey: appVersionKey) ?? ""
@@ -33,6 +34,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             print("First launch flag set to false")
         }
         
+        // Setup notification handling
+        UNUserNotificationCenter.current().delegate = self
+        
         return true
     }
     
@@ -47,12 +51,29 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return OrientationManager.shared.isLockEnabled ?
             OrientationManager.shared.orientation.orientationMask : .all
     }
+    
+    // Handle notifications when app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter, 
+                               willPresent notification: UNNotification, 
+                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Show notification with sound and banner even when app is in foreground
+        completionHandler([.banner, .sound, .badge])
+    }
+    
+    // Handle notification response when user taps on notification
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                               didReceive response: UNNotificationResponse,
+                               withCompletionHandler completionHandler: @escaping () -> Void) {
+        // Handle the notification tap (could navigate to specific screen if needed)
+        completionHandler()
+    }
 }
 
 @main
 struct SnoozeFuseApp: App {
     @StateObject private var timerManager = TimerManager()
     @StateObject private var orientationManager = OrientationManager.shared
+    @StateObject private var notificationManager = NotificationManager.shared
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @Environment(\.scenePhase) private var scenePhase
     
@@ -66,14 +87,14 @@ struct SnoozeFuseApp: App {
                     // Force portrait orientation immediately
                     UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
                     
-                    // We're not saving orientation settings anymore, so remove this
-                    // Apply saved orientation setting after a longer delay to ensure portrait on first launch
-                    // DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-                    //     if orientationManager.isLockEnabled && !orientationManager.isFirstLaunch && !orientationManager.forcedInitialPortrait {
-                    //         orientationManager.lockOrientation()
-                    //         print("Applied saved orientation: \(orientationManager.orientation.rawValue)")
-                    //     }
-                    // }
+                    // Check notification permission on startup
+                    notificationManager.checkNotificationPermission()
+                }
+                .onChange(of: scenePhase) { newPhase in
+                    if newPhase == .active {
+                        // Refresh notification permission status when app becomes active
+                        notificationManager.checkNotificationPermission()
+                    }
                 }
         }
     }

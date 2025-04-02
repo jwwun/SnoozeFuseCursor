@@ -116,5 +116,23 @@ Used for managers that need global access:
 ## Build and Run Instructions
 
 1. Open the project in Xcode
-2. Ensure you have iOS 14.0+ as deployment target
+2. Ensure you have iOS 18.0+ as deployment target
 3. Build and run on simulator or physical device 
+
+## Notification System
+
+### Implementation Details
+- Uses `UNUserNotificationCenter` API for permission management and scheduling
+- Notification permission state is checked on app launch
+- Notifications are scheduled with critical sound (`UNNotificationSound.defaultCritical`)
+- Notification UI components adapt based on current permission state
+- Advanced notification settings available in the Advanced Settings screen
+- Notification warning UI can be moved between main Settings and Advanced Settings screens
+- User preference for notification warning location is persisted across app launches
+
+### User Interaction Flow
+1. By default, if notifications are not enabled, a warning appears in the main Settings screen
+2. User can tap "Hide This" to move the warning to the Advanced Settings screen
+3. In Advanced Settings, user can tap "Show in Main Settings" to move it back
+4. Setting is persisted in UserDefaults so it remembers user preference across app launches
+5. When notifications are enabled, the warning UI disappears from both screens automatically

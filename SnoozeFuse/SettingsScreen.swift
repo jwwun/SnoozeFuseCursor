@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 // Breaking up the UI into smaller components
 struct CircleSizeControl: View {
@@ -543,6 +544,7 @@ struct SettingsScreen: View {
     @State private var textInputValue: String = ""
     @FocusState private var isAnyFieldFocused: Bool
     @State private var showNapScreen = false  // New state for showing nap screen
+    @ObservedObject private var notificationManager = NotificationManager.shared
     
     var body: some View {
         ZStack {
@@ -572,6 +574,11 @@ struct SettingsScreen: View {
                                 .padding(.leading, -8)//topleft corner
                                 .padding(.top, -33) // have to make it go into the ui status boundary
                                 .padding(.bottom, 0)
+                            
+                            // Notification permission warning - only show if not hidden from main settings
+                            if !notificationManager.isHiddenFromMainSettings {
+                                NotificationPermissionWarning()
+                            }
                             
                             // Circle size control
                             CircleSizeControl(
