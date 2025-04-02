@@ -53,6 +53,18 @@ struct NapScreen: View {
     @State private var showPositionMessage = true
     @State private var circlePosition: CGPoint? = nil
     
+    // Method to reset the placement state
+    func resetPlacementState() {
+        showPositionMessage = true
+        circlePosition = nil
+        
+        // Stop the holdTimer to prevent it from counting down during "tap anywhere" state
+        timerManager.stopHoldTimer()
+        
+        // Ensure we're not tracking pressed state anymore
+        isPressed = false
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -318,7 +330,9 @@ struct NapScreen: View {
             
             // Reset timers to use the latest settings
             timerManager.resetTimers()
-            // Don't start timers until circle is placed
+            
+            // Always ensure holdTimer is stopped when "tap anywhere" UI is showing
+            timerManager.stopHoldTimer()
             
             // Subscribe to holdTimer reaching zero
             NotificationCenter.default.addObserver(
@@ -348,12 +362,15 @@ struct NapScreen: View {
         }
         .fullScreenCover(isPresented: $showSleepScreen) {
             // Simple transition - no fancy effects
-            SleepScreen(dismissToSettings: {
-                // First dismiss SleepScreen
-                self.showSleepScreen = false
-                // Then dismiss NapScreen to get back to SettingsScreen
-                self.presentationMode.wrappedValue.dismiss()
-            })
+            SleepScreen(
+                dismissToSettings: {
+                    // First dismiss SleepScreen
+                    self.showSleepScreen = false
+                    // Then dismiss NapScreen to get back to SettingsScreen
+                    self.presentationMode.wrappedValue.dismiss()
+                },
+                resetNapScreen: self.resetPlacementState
+            )
                 .environmentObject(timerManager)
         }
         // Hide home indicator but keep status bar visible

@@ -123,6 +123,9 @@ Used for managers that need global access:
 - **Automatic Alarm Activation**: Added automatic alarm sound playback when Max Timer reaches zero
 - **Intelligent Nap Timer Initialization**: Modified SleepScreen to use the remaining Max Timer value when it's lower than the full Nap Duration
 - **Preserved Timer States**: Prevented timer reset on SleepScreen appearance to maintain correct timer values between screens
+- **Circle Placement Reset**: Fixed NapScreen to properly reset to "tap anywhere to place circle" state when returning from SleepScreen, providing a consistent user experience
+- **Paused Hold Timer During Circle Placement**: Fixed bug where hold timer would continue to count down during the "tap anywhere to place circle" state, ensuring timers only run when appropriate
+- **Fixed Timer Management When Returning to NapScreen**: Removed automatic holdTimer restart when returning from SleepScreen to NapScreen, preventing the release timer from running during circle placement
 
 ## Build and Run Instructions
 

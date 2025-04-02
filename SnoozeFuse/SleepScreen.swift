@@ -11,6 +11,9 @@ struct SleepScreen: View {
     // Closure to dismiss back to settings
     var dismissToSettings: (() -> Void)? = nil
     
+    // Closure to reset the NapScreen state
+    var resetNapScreen: (() -> Void)? = nil
+    
     // Computed property to determine which timer to use
     private var effectiveNapDuration: TimeInterval {
         // If max timer is less than nap timer, use max timer
@@ -130,9 +133,9 @@ struct SleepScreen: View {
                             // Tap-only button when timer is done
                             Button(action: {
                                 timerManager.stopAlarmSound()
+                                resetNapScreen?() // Call reset function if provided
                                 dismiss()
                                 timerManager.stopNapTimer()
-                                timerManager.startHoldTimer()
                             }) {
                                 VStack(spacing: 5) {
                                     Image(systemName: "chevron.left")
@@ -157,9 +160,9 @@ struct SleepScreen: View {
                             MultiSwipeConfirmation(
                                 action: {
                                     timerManager.stopAlarmSound()
+                                    resetNapScreen?() // Call reset function if provided
                                     dismiss()
                                     timerManager.stopNapTimer()
-                                    timerManager.startHoldTimer()
                                 },
                                 requiredSwipes: 2,
                                 direction: .leading,
@@ -308,6 +311,8 @@ struct SleepScreen: View {
 #Preview {
     SleepScreen(dismissToSettings: {
         print("Dismiss to settings action")
+    }, resetNapScreen: {
+        print("Reset NapScreen state")
     })
         .environmentObject(TimerManager())
 }
