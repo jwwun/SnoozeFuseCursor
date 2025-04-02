@@ -118,6 +118,12 @@ Used for managers that need global access:
 - Implemented a closure-based dismiss action that's passed from NapScreen to SleepScreen to enable proper navigation
 - Ensured timers are properly reset when returning to SettingsScreen
 
+### Fixed Timer Transitions
+- **Max Timer Completion Transition**: Added notification observer for maxTimerFinished to ensure immediate transition to SleepScreen when Max Timer reaches zero
+- **Automatic Alarm Activation**: Added automatic alarm sound playback when Max Timer reaches zero
+- **Intelligent Nap Timer Initialization**: Modified SleepScreen to use the remaining Max Timer value when it's lower than the full Nap Duration
+- **Preserved Timer States**: Prevented timer reset on SleepScreen appearance to maintain correct timer values between screens
+
 ## Build and Run Instructions
 
 1. Open the project in Xcode
@@ -240,7 +246,7 @@ Used for managers that need global access:
   - **Responsive Placement**: Maintained proper spacing and layout across different device sizes
 - **Dual-Arc Progress System**: 
   - **Concentric Timer Arcs**: Implemented two concentric arcs that show both the Max Timer and Release Timer progress
-  - **Outer Arc**: Represents Max Timer progress with blue/purple color (changes based on press state)
+  - **Outer Arc**: Represents Max Timer progress with a consistent purple color that matches the MAX TIMER UI element
   - **Inner Arc**: Shows Release Timer progress with elegant white color that shifts to pink when pressed
   - **Visual Separation**: Arcs positioned at different distances for clear visual hierarchy
   - **Clear Visual Hierarchy**: Immediate visual understanding of both timer states without looking away from circle
@@ -250,6 +256,25 @@ Used for managers that need global access:
   - **Color-Coded Timers**: Distinct colors for each timer type (blue/purple for Max Timer, white/pink for Release Timer)
   - **Consistent Color Theme**: Release Timer arc color (white/pink) matches the timer text for perfect color coordination
   - **Optimized Arc Thickness**: Thinner outer Max Timer arc (5px) with thicker inner Release Timer arc (8px) for better visual hierarchy
+  - **Burning Fuse Effect**: Added sparking particle animation to the Release Timer arc when the circle is not pressed
+  - **Thematic Visual Design**: Sparking effect visually represents the app's "SnoozeFuse" name, showing a burning fuse that extinguishes when pressed
+  - **Star-Shaped Sparkles**: Used custom star shapes that resemble the sparkle emoji ✨ instead of simple circles
+  - **Varied Sparkle Sizes**: Multiple sparkle sizes create visual depth and realism in the effect
+  - **Dynamic Rotations**: Sparkles rotate as they animate for enhanced visual interest
+  - **Random Timing**: Randomized fade timing makes the sparkling appear more organic and realistic
+  - **Increased Particle Count**: More particles (12 instead of 5) for a richer visual effect
+  - **Position-Aware Particles**: Sparks always appear at the exact position of the current Release Timer progress point
+  - **Intuitive Interaction Model**: Pressing the circle "extinguishes" the burning fuse, releasing lets it burn with visible sparks
+  - **Realistic Burning Ember**: Added orange-red glowing ember behind the blackened burnt tip for authentic burning effect
+  - **Enhanced Color Palette**: Used a vibrant orange-red-yellow palette to simulate real fire and ember effects
+  - **Rapid Animation**: Faster, more intense animations give the impression of a vigorously burning fuse
+  - **Directional Burnt Particles**: Black particles emit opposite to the burning direction, flying away from the fuse as it burns
+  - **Long-Distance Emission**: Particles travel 30-60 pixels away from the tip, creating a dramatic trailing effect
+  - **Angle-Based Trajectory**: Particles move in relation to the actual burning angle, creating realistic physics
+  - **Subtle Angular Variation**: Small random angle adjustments create a natural spread pattern rather than a perfectly straight line
+  - **Size Variation**: Tiny particles of different sizes (1.5-3px) create a more natural, organic burnt effect
+  - **Increased Flight Time**: Longer animation durations (1-2 seconds) allow particles to travel their greater distances
+  - **High-Intensity Visual**: The combination of ember glow, emitting burnt particles, and intense sparkles creates a striking visual metaphor
 
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`

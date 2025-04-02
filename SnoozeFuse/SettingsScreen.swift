@@ -337,7 +337,7 @@ struct TimerSettingsControl: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "RELEASE: usually a small number. When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session.")
+                HelpButton(helpText: "RELEASE: usually a small number. When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session. Alarm will sound when this hits 0.")
             }
             .padding(.bottom, 5)
             .frame(maxWidth: .infinity, alignment: .center)

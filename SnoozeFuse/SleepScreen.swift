@@ -233,12 +233,15 @@ struct SleepScreen: View {
             // Reset nap state
             napFinished = false
             
-            // Reset timers to use the latest settings
-            timerManager.resetTimers()
+            // Don't reset timers here, we need to preserve the current timer values
+            // timerManager.resetTimers() - Removing this line
             
-            // If max timer is less than nap timer, use max timer's value
-            if timerManager.maxTimer < timerManager.napTimer {
+            // If max timer is less than nap timer, use max timer's current value (not the full duration)
+            if timerManager.maxTimer < timerManager.napDuration {
                 timerManager.napTimer = timerManager.maxTimer
+            } else {
+                // Otherwise use the full nap duration
+                timerManager.napTimer = timerManager.napDuration
             }
             
             // Start nap timer when screen appears

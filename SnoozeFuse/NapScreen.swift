@@ -148,7 +148,7 @@ struct NapScreen: View {
                             showTimer: true,
                             timerColor: .white.opacity(0.9),
                             timerProgress: timerManager.maxTimer / timerManager.maxDuration,
-                            progressColor: isPressed ? .purple.opacity(0.8) : .blue.opacity(0.8),
+                            progressColor: Color.purple.opacity(0.8),
                             releaseTimerProgress: timerManager.holdTimer / timerManager.holdDuration,
                             showArcs: timerManager.showTimerArcs
                         )
@@ -327,6 +327,19 @@ struct NapScreen: View {
                 queue: .main
             ) { _ in
                 self.showSleepScreen = true
+            }
+            
+            // Subscribe to maxTimer reaching zero
+            NotificationCenter.default.addObserver(
+                forName: .maxTimerFinished,
+                object: nil,
+                queue: .main
+            ) { _ in
+                // When max timer reaches zero, also go to sleep screen
+                self.showSleepScreen = true
+                
+                // Start playing alarm sound immediately
+                timerManager.playAlarmSound()
             }
         }
         .onDisappear {
