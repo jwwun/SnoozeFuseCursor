@@ -163,22 +163,30 @@ Used for managers that need global access:
 - **Tap-Only Mode**: When timer ends, both buttons change to tap-only versions instead of requiring swipes
 - **Consistent Design**: Swipe buttons and tap buttons maintain consistent visual design
 
+### Button Style Enhancements
+- **Simplified Styling**: Updated buttons with flat colors for improved readability
+- **Clean Aesthetic**: Removed gradients and shadows for a more minimalist appearance
+- **Clear Visual States**: Used distinct colors to indicate button states (blue for normal, orange for intermediate, red for confirming)
+- **Consistent Design**: Maintained consistent styling across all button types
+- **Visual Boundaries**: Added subtle border strokes to define button edges
+- **Optimized Contrast**: Ensured sufficient color contrast for better readability
+- **Improved Typography**: Used system rounded fonts for a friendly, legible appearance
+- **Balanced Proportions**: Optimized icon and text sizes for visual clarity
+- **Generous Padding**: Added comfortable padding around button content for better touch targets
+- **Readable Text**: Used appropriate font sizes and weights to ensure text legibility
+- **Clear Action Indicators**: Used double chevron icons for swipe actions
+- **Explicit Interaction Labels**: Added explicit "Swipe to..." prefixes to clarify required interactions
+
 ### SleepScreen UI Enhancements
-- **Clear Navigation Path**: 'Back to Nap' button on left, 'Back to Settings' button on right
-- **Proper Destination Paths**: Back to Nap button returns to NapScreen while keeping settings, Back to Settings button returns to SettingsScreen and resets timers
-- **Visual Aesthetics**: Enhanced button design with gradients, shadows, and visual depth
+- **Clear Navigation Path**: 'Back to Nap' button on left, 'Skip' button on right
+- **Proper Destination Paths**: Back to Nap button returns to NapScreen while keeping settings, Skip button completes nap immediately
+- **Visual Clarity**: Simplified button design with flat colors for better readability
 - **Proper Spacing**: Improved layout and spacing for buttons and UI elements
-- **Clearer Labels**: Updated button labels to clearly indicate their function ('Back to Nap' and 'Back to Settings')
-- **Color Differentiation**: Used different colors to distinguish button functions (purple for Nap, indigo for Settings)
-- **Consistent Visuals**: Swipe buttons use same visual design as tap buttons for consistent UX
+- **Clearer Labels**: Updated button labels to clearly indicate their function and required actions (e.g., 'Swipe to Nap', 'Swipe to skip')
+- **Color Differentiation**: Used different colors to distinguish button functions (blue for Back to Nap, purple for Skip)
+- **Consistent Visuals**: All buttons use same visual design for consistent UX
+- **Intuitive Icons**: Used double chevron icons to indicate swipe direction
+- **Consistent Interaction Mode**: All interactive buttons use swipe gestures with MultiSwipeConfirmation for better safety
 
 ### Implementation Details
-- Implemented `MultiSwipeConfirmation` component to replace confirmation buttons
-- Updated NapScreen and SleepScreen to require multiple swipes before exit
-- Maintained edge-to-edge layout while keeping status bar visible
-- Updated `MultiSwipeConfirmation` to conditionally require swipes based on timer status
-- Redesigned SleepScreen buttons to provide clear navigation options
-- Fixed button logic to properly navigate to intended destinations
-- Enhanced button design with layered gradients, shadows, and visual polish
-- Unified design language between swipe controls and tap buttons
-- Properly positioned buttons with Back to Nap on left and Back to Settings on right
+- Implemented `MultiSwipeConfirmation`

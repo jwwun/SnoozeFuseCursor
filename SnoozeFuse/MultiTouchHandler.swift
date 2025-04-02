@@ -258,19 +258,30 @@ struct MultiSwipeConfirmation: View {
             }
             
             VStack(spacing: 5) {
-                Image(systemName: direction == .leading ? "chevron.left" : "chevron.right")
-                    .font(.system(size: 20))
+                Image(systemName: direction == .leading ? "chevron.left.2" : "chevron.right.2")
+                    .font(.system(size: 22, weight: .medium))
                 Text(swipeText)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
+            .padding(.horizontal, 20)
             .foregroundColor(.white)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(swipeCount == 0 ? Color.blue.opacity(0.3) : 
-                          swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.4) : 
-                          Color.red.opacity(0.4))
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(
+                        swipeCount == 0 ? Color.blue.opacity(0.4) : 
+                        swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.5) : 
+                        Color.red.opacity(0.5)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        swipeCount == 0 ? Color.blue.opacity(0.6) : 
+                        swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.7) : 
+                        Color.red.opacity(0.7),
+                        lineWidth: 1
+                    )
             )
             .gesture(
                 DragGesture(minimumDistance: 50, coordinateSpace: .local)

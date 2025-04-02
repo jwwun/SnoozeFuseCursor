@@ -11,10 +11,6 @@ struct SleepScreen: View {
     // Closure to dismiss back to settings
     var dismissToSettings: (() -> Void)? = nil
     
-    // Confirmation state for skip button
-    @State private var isSkipConfirmationShowing = false
-    @State private var confirmationTimer: Timer? = nil
-    
     // Computed property to determine which timer to use
     private var effectiveNapDuration: TimeInterval {
         // If max timer is less than nap timer, use max timer
@@ -140,27 +136,21 @@ struct SleepScreen: View {
                             }) {
                                 VStack(spacing: 5) {
                                     Image(systemName: "chevron.left")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 22, weight: .medium))
                                     Text("Back to Nap")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
                                 }
-                                .frame(width: 120, height: 70)
+                                .padding(.vertical, 15)
+                                .padding(.horizontal, 20)
                                 .foregroundColor(.white)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .fill(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [Color.purple.opacity(0.6), Color.purple.opacity(0.3)]),
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.blue.opacity(0.5))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .stroke(Color.purple.opacity(0.7), lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.blue.opacity(0.7), lineWidth: 1)
                                 )
-                                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 3)
                             }
                         } else {
                             // Multi-swipe button when timer is active
@@ -173,51 +163,32 @@ struct SleepScreen: View {
                                 },
                                 requiredSwipes: 2,
                                 direction: .leading,
-                                label: "Back to Nap",
+                                label: "Swipe to Nap",
                                 confirmLabel: "Swipe once more",
                                 finalLabel: "Swipe to confirm",
                                 requireMultipleSwipes: timerManager.isAnyTimerActive
                             )
-                            .frame(width: 120)
+                            .frame(width: 145)
                         }
                         
                         // Skip button or Settings button
                         if !napFinished {
-                            // Skip button (only when timer is active)
-                            Button(action: {
-                                if isSkipConfirmationShowing {
-                                    // Second press - confirm and skip nap
+                            // Skip button using MultiSwipeConfirmation
+                            MultiSwipeConfirmation(
+                                action: {
+                                    // Skip the nap
                                     timerManager.stopNapTimer()
                                     timerManager.napTimer = 0
                                     napFinished = true
-                                } else {
-                                    // First press - show confirmation
-                                    isSkipConfirmationShowing = true
-                                    
-                                    // Reset confirmation after 3 seconds
-                                    confirmationTimer?.invalidate()
-                                    confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                                        isSkipConfirmationShowing = false
-                                    }
-                                }
-                            }) {
-                                VStack {
-                                    Image(systemName: "forward.end")
-                                        .font(.system(size: 24))
-                                    Text(isSkipConfirmationShowing ? "Confirm?" : "Skip")
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                }
-                                .frame(width: 80, height: 80)
-                                .foregroundColor(.white)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(isSkipConfirmationShowing ? Color.red.opacity(0.4) : Color.purple.opacity(0.3))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .stroke(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.purple.opacity(0.5), lineWidth: 1)
-                                )
-                            }
+                                },
+                                requiredSwipes: 2,
+                                direction: .trailing,
+                                label: "Swipe to skip",
+                                confirmLabel: "Swipe once more",
+                                finalLabel: "Swipe to confirm",
+                                requireMultipleSwipes: timerManager.isAnyTimerActive
+                            )
+                            .frame(width: 145)
                         } else {
                             // Button to go back to Settings (reset timers) - tap-only when timer is done
                             Button(action: {
@@ -234,27 +205,21 @@ struct SleepScreen: View {
                             }) {
                                 VStack(spacing: 5) {
                                     Image(systemName: "gearshape")
-                                        .font(.system(size: 24))
+                                        .font(.system(size: 22, weight: .medium))
                                     Text("Back to Settings")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
                                 }
-                                .frame(width: 140, height: 70)
+                                .padding(.vertical, 15)
+                                .padding(.horizontal, 20)
                                 .foregroundColor(.white)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .fill(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [Color.indigo.opacity(0.6), Color.indigo.opacity(0.3)]),
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.indigo.opacity(0.5))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 15)
+                                    RoundedRectangle(cornerRadius: 16)
                                         .stroke(Color.indigo.opacity(0.7), lineWidth: 1)
                                 )
-                                .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 3)
                             }
                         }
                     }
@@ -310,7 +275,6 @@ struct SleepScreen: View {
         }
         .onDisappear {
             // Cleanup
-            confirmationTimer?.invalidate()
             NotificationCenter.default.removeObserver(self)
             timerManager.stopAlarmSound() // Ensure alarm is stopped
             

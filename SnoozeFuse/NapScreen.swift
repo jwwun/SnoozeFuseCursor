@@ -20,17 +20,24 @@ struct CircularBackButton: View {
             }
         }) {
             ZStack {
-                RoundedRectangle(cornerRadius: 15)
-                    .fill(isConfirming ? Color.red.opacity(0.2) : Color.gray.opacity(0))
-                    .frame(width: 85, height: 70)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isConfirming ? Color.red.opacity(0.5) : Color.blue.opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                isConfirming ? Color.red.opacity(0.7) : Color.blue.opacity(0.7),
+                                lineWidth: 1
+                            )
+                    )
+                    .frame(width: 95, height: 70)
                 
-                VStack(spacing: 0) {
+                VStack(spacing: 5) {
                     Image(systemName: "chevron.left.2")
-                        .font(.system(size: 25, weight: .medium))
+                        .font(.system(size: 22, weight: .medium))
                         .foregroundColor(.white)
-                    Text("Back")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.gray)
+                    Text(isConfirming ? "Confirm" : "Back")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(.white)
                 }
             }
         }
