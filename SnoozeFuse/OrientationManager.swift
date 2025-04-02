@@ -69,14 +69,13 @@ class OrientationManager: ObservableObject {
     static let userDefaultsKey = "orientationSettings"
     private var cancellables = Set<AnyCancellable>()
     
+    fileprivate let orientationFixVersion = "1.0.2"
+    
     private init() {
         // Force portrait mode at initialization
         forcedInitialPortrait = true
         
-        // First try to clear any problematic saved settings (if this is a new version with fixes)
-        resetSavedOrientationSettings()
-        
-        // Then load saved settings if available (now with defaults to portrait)
+        // First load saved settings if available
         loadSavedSettings()
         
         // Force portrait mode explicitly, regardless of settings
@@ -84,10 +83,6 @@ class OrientationManager: ObservableObject {
         
         // Set up observers
         setupObservers()
-        
-        // No need to save orientation settings anymore
-        // Set up app state notifications
-        // setupAppStateNotifications()
         
         // Schedule a check to reset the forced portrait flag after a longer delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
@@ -107,16 +102,28 @@ class OrientationManager: ObservableObject {
     }
     
     private func loadSavedSettings() {
-        guard let data = UserDefaults.standard.data(forKey: OrientationManager.userDefaultsKey) else {
-            return
+        // Print debug info about UserDefaults
+        let defaults = UserDefaults.standard
+        print("Attempting to load orientation settings from key '\(OrientationManager.userDefaultsKey)'")
+        print("All keys in UserDefaults:")
+        for key in defaults.dictionaryRepresentation().keys.sorted() {
+            if key.contains("orientation") {
+                print("- \(key)")
+            }
         }
         
-        if let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
+        // Try to get saved data
+        if let data = defaults.data(forKey: OrientationManager.userDefaultsKey),
+           let savedSettings = try? JSONDecoder().decode(SavedSettings.self, from: data) {
+            // Successfully loaded saved settings
             self.orientation = savedSettings.orientation
             self.isLockEnabled = savedSettings.isLockEnabled
-            
-            // On first launch, we've loaded the settings but won't apply them immediately
-            // The app will use portrait until isFirstLaunch is set to false
+            print("Loaded saved orientation settings: \(orientation.rawValue), lock enabled: \(isLockEnabled)")
+        } else {
+            // No saved settings found, use defaults
+            print("No saved orientation settings found, using defaults")
+            self.orientation = .portrait
+            self.isLockEnabled = true
         }
     }
     
@@ -277,11 +284,20 @@ class OrientationManager: ObservableObject {
         )
         
         if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: OrientationManager.userDefaultsKey)
-            UserDefaults.standard.synchronize() // Force immediate save
+            let defaults = UserDefaults.standard
+            defaults.set(encoded, forKey: OrientationManager.userDefaultsKey)
+            defaults.synchronize() // Force immediate save
             
             // Debug print to verify settings were saved
-            print("Saved orientation settings: \(orientation.rawValue), lock enabled: \(isLockEnabled)")
+            print("Saved orientation settings to key '\(OrientationManager.userDefaultsKey)': \(orientation.rawValue), lock enabled: \(isLockEnabled)")
+            
+            // Debug all UserDefaults keys for orientation settings
+            print("All keys in UserDefaults:")
+            for key in defaults.dictionaryRepresentation().keys.sorted() {
+                if key.contains("orientation") {
+                    print("- \(key)")
+                }
+            }
         }
     }
     
@@ -479,12 +495,50 @@ extension AdvancedSettingsScreen {
                     }
                     
                     // Recommendation text
-                    Text("This is in-app so you don't need to use your own devices built in orientation lock. It's mainly for iPad. Your settings will be saved between app sessions.")
-                        .font(.system(size: 12))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 10)
-                        .padding(.horizontal)
+                    VStack(spacing: 8) {
+                        Text("This is in-app so you don't need to use your own devices built in orientation lock. It's mainly for iPad. Your settings will be saved between app sessions.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Note: Saved orientation settings take a few seconds to apply on startup.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                        
+                        // iPhone landscape warning
+                        if UIDevice.current.userInterfaceIdiom == .phone && 
+                           (orientationManager.orientation == .landscapeLeft || orientationManager.orientation == .landscapeRight) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.system(size: 14))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("⚠️ WARNING: iPhone Landscape Mode")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(.orange)
+                                    
+                                    Text("UI will be usable but difficult in landscape on iPhone. This is expected. App is optimized for portrait mode.")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange.opacity(0.8))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.orange.opacity(0.15))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                            .padding(.top, 8)
+                        }
+                    }
+                    .padding(.top, 10)
+                    .padding(.horizontal)
                 } else {
                     // Disabled state message
                     HStack(spacing: 10) {

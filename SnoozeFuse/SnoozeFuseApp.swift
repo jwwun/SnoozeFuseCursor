@@ -5,6 +5,7 @@ import UserNotifications
 // Version tracking for app updates
 fileprivate let appVersionKey = "appVersion"
 fileprivate let currentAppVersion = "1.0.2" // Increment when making orientation fixes
+fileprivate let orientationFixVersion = "1.0.2" // Only change this when making orientation fixes
 
 // App delegate to handle orientation
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -13,16 +14,23 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let lastRunVersion = UserDefaults.standard.string(forKey: appVersionKey) ?? ""
         let isNewVersion = lastRunVersion != currentAppVersion
         
-        // If this is a new version with orientation fixes, reset settings
-        if isNewVersion {
-            // Clear any problematic saved settings
+        // If this is a specific version with orientation fixes, reset settings
+        let needsOrientationReset = lastRunVersion.isEmpty || (!lastRunVersion.isEmpty && 
+                                     lastRunVersion != orientationFixVersion && 
+                                     currentAppVersion == orientationFixVersion)
+        
+        if needsOrientationReset {
+            // Clear any problematic saved settings only when we have orientation fixes
+            print("Orientation fix version detected, resetting orientation settings")
             OrientationManager.shared.resetSavedOrientationSettings()
-            
-            // Save current version
+        }
+        
+        // Always save current version
+        if isNewVersion {
             UserDefaults.standard.set(currentAppVersion, forKey: appVersionKey)
             UserDefaults.standard.synchronize()
             
-            print("App updated to version \(currentAppVersion), orientation settings reset")
+            print("App updated to version \(currentAppVersion)")
         }
         
         // Force portrait orientation at launch
@@ -89,6 +97,9 @@ struct SnoozeFuseApp: App {
                     
                     // Check notification permission on startup
                     notificationManager.checkNotificationPermission()
+                    
+                    // Debug log for orientation settings
+                    print("App appeared: Orientation Lock: \(orientationManager.isLockEnabled), Orientation: \(orientationManager.orientation.rawValue)")
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
@@ -96,8 +107,9 @@ struct SnoozeFuseApp: App {
                         notificationManager.checkNotificationPermission()
                     }
                     
-                    // Save settings when app enters background
-                    if newPhase == .background {
+                    // Save settings when app enters background or terminates
+                    if newPhase == .background || newPhase == .inactive {
+                        print("App entering background or inactive state, saving orientation settings")
                         orientationManager.saveSettings(forceOverride: true)
                     }
                 }

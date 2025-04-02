@@ -138,7 +138,7 @@ struct NotificationPermissionWarning: View {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
                         
-                        Text("Enabling lets you receive alerts when your nap ends when out of app. That is all.")
+                        Text("Enabling lets you receive alerts when your nap ends when out of app. It does not notify for anything else.")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                             .fixedSize(horizontal: false, vertical: true)

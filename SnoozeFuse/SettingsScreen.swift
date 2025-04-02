@@ -167,7 +167,7 @@ struct CircleSizeControl: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "You can tap the number to manually input and override the slider.")
+                HelpButton(helpText: "Directly tap the number on the left to manually input size and override the slider.")
             }
             .padding(.bottom, 5)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -492,7 +492,7 @@ struct AlarmSoundSelector: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "Choose the sound that will play when your nap ends. You can select from built-in sounds or add your own custom sounds. It was not possible for me to add the Apple default alarm sounds.")
+                HelpButton(helpText: "Choose the sound that will play as a looping alarm when your nap ends. You can select from built-in sounds or add your own custom sounds. It was not possible for me to add the Apple default alarm sounds.")
             }
             .padding(.bottom, 5)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -793,7 +793,7 @@ struct SettingsScreen: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 18))
-                                    Text("Confirm custom size")
+                                    Text("Confirm")
                                         .font(.system(size: 18, weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(.white)
