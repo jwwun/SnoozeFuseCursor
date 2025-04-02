@@ -113,6 +113,11 @@ Used for managers that need global access:
 ### Fixed Type Reference Issue
 - Fixed error `'AlarmSound' is not a member type of class 'SnoozeFuze.TimerManager'` by updating all references in SettingsScreen.swift to use the top-level `AlarmSound` type instead of `TimerManager.AlarmSound`.
 
+### Fixed Navigation Flow
+- Fixed the "Back to Settings" button in SleepScreen to properly dismiss both SleepScreen and NapScreen, returning to SettingsScreen
+- Implemented a closure-based dismiss action that's passed from NapScreen to SleepScreen to enable proper navigation
+- Ensured timers are properly reset when returning to SettingsScreen
+
 ## Build and Run Instructions
 
 1. Open the project in Xcode

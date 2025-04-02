@@ -223,7 +223,12 @@ struct NapScreen: View {
         }
         .fullScreenCover(isPresented: $showSleepScreen) {
             // Simple transition - no fancy effects
-            SleepScreen()
+            SleepScreen(dismissToSettings: {
+                // First dismiss SleepScreen
+                self.showSleepScreen = false
+                // Then dismiss NapScreen to get back to SettingsScreen
+                self.presentationMode.wrappedValue.dismiss()
+            })
                 .environmentObject(timerManager)
         }
         // Hide home indicator but keep status bar visible

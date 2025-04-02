@@ -8,6 +8,9 @@ struct SleepScreen: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject private var notificationManager = NotificationManager.shared
     
+    // Closure to dismiss back to settings
+    var dismissToSettings: (() -> Void)? = nil
+    
     // Confirmation state for skip button
     @State private var isSkipConfirmationShowing = false
     @State private var confirmationTimer: Timer? = nil
@@ -222,7 +225,12 @@ struct SleepScreen: View {
                                 timerManager.stopNapTimer()
                                 timerManager.resetTimers()
                                 // Go back to root view (Settings)
-                                presentationMode.wrappedValue.dismiss()
+                                if let dismissAction = dismissToSettings {
+                                    dismissAction()
+                                } else {
+                                    // Fallback to just dismissing this screen
+                                    presentationMode.wrappedValue.dismiss()
+                                }
                             }) {
                                 VStack(spacing: 5) {
                                     Image(systemName: "gearshape")
@@ -331,6 +339,8 @@ struct SleepScreen: View {
 }
 
 #Preview {
-    SleepScreen()
+    SleepScreen(dismissToSettings: {
+        print("Dismiss to settings action")
+    })
         .environmentObject(TimerManager())
 }
