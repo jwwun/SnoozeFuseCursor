@@ -140,9 +140,9 @@ struct HelpButton: View {
         }) {
             Image(systemName: "questionmark.circle")
                 .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(.white.opacity(0.2))
         }
-        .alert("Tips", isPresented: $showingHelp) {
+        .alert("Tip", isPresented: $showingHelp) {
             Button("OK!", role: .cancel) {}
         } message: {
             Text(helpText)
