@@ -138,7 +138,7 @@ struct NotificationPermissionWarning: View {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
                         
-                        Text("Enable notifications to receive alarm alerts when your nap time is over.")
+                        Text("Enabling lets you receive alerts when your nap ends when out of app. That is all.")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                             .fixedSize(horizontal: false, vertical: true)

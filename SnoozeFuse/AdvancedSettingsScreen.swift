@@ -30,19 +30,6 @@ struct AdvancedSettingsScreen: View {
                     VStack(spacing: 25) {
                         // Notification Settings Section
                         VStack(alignment: .center, spacing: 15) {
-                            Text("NOTIFICATIONS")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(Color.blue.opacity(0.7))
-                                .tracking(3)
-                                .padding(.bottom, 5)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                            
-                            // Show notification warning if hidden from main settings and notifications not authorized
-                            if !notificationManager.isNotificationAuthorized && notificationManager.isHiddenFromMainSettings {
-                                // Use NotificationPermissionWarning without the Hide button
-                                NotificationPermissionWarning(showHideButton: false)
-                                    .padding(.bottom, 10)
-                            }
                             
                             HStack(spacing: 12) {
                                 Image(systemName: notificationManager.isNotificationAuthorized ? 
@@ -58,15 +45,12 @@ struct AdvancedSettingsScreen: View {
                                     
                                     Text(notificationManager.isNotificationAuthorized ? 
                                          "Notifications are enabled. You'll be alerted when your nap time is over." : 
-                                         "Notifications are disabled. Enable to receive alarm alerts.")
+                                         "Currently disabled.")
                                         .font(.system(size: 14))
                                         .foregroundColor(.white.opacity(0.8))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
-                            }
-                            .padding(.horizontal)
-                            
-                            Button(action: {
+                                                            Button(action: {
                                 if notificationManager.isHiddenFromMainSettings {
                                     // Reset hidden state if currently hidden
                                     notificationManager.resetHiddenState()
@@ -87,12 +71,10 @@ struct AdvancedSettingsScreen: View {
                                     }
                                 }
                             }) {
-                                HStack {
-                                    Image(systemName: notificationManager.isNotificationAuthorized ? 
-                                          "gear" : "bell.badge")
+
                                     Text(notificationManager.isNotificationAuthorized ? 
-                                         "Manage Notifications" : "Enable Notifications")
-                                }
+                                         "Manage Notifications" : "Enable")
+                                
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.white)
                                 .padding(.vertical, 10)
@@ -112,6 +94,10 @@ struct AdvancedSettingsScreen: View {
                                 )
                             }
                             .padding(.top, 5)
+                            }
+                            .padding(.horizontal)
+                            
+
                             
                             // Show button to move notification warning back to main settings
                             if notificationManager.isHiddenFromMainSettings && !notificationManager.isNotificationAuthorized {
@@ -120,7 +106,7 @@ struct AdvancedSettingsScreen: View {
                                 }) {
                                     HStack {
                                         Image(systemName: "arrow.up.left.circle")
-                                        Text("Show in Main Settings")
+                                        Text("Move the below UI back to Main Settings")
                                     }
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.white)
@@ -137,6 +123,12 @@ struct AdvancedSettingsScreen: View {
                                 }
                                 .padding(.top, 5)
                             }
+                                                                                    // Show notification warning if hidden from main settings and notifications not authorized
+                            if !notificationManager.isNotificationAuthorized && notificationManager.isHiddenFromMainSettings {
+                                // Use NotificationPermissionWarning without the Hide button
+                                NotificationPermissionWarning(showHideButton: false)
+                                    .padding(.bottom, 10)
+                            }
                         }
                         .padding(.vertical, 16)
                         .padding(.horizontal, 12)
@@ -146,14 +138,8 @@ struct AdvancedSettingsScreen: View {
                         
                         // Haptic Settings Section
                         VStack(alignment: .center, spacing: 15) {
-                            Text("HAPTIC FEEDBACK")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(Color.blue.opacity(0.7))
-                                .tracking(3)
-                                .padding(.bottom, 5)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                            
-                            Toggle("Enable Haptics", isOn: $hapticManager.isHapticEnabled)
+
+                            Toggle("Enable haptics when pressing circle", isOn: $hapticManager.isHapticEnabled)
                                 .padding(.horizontal)
                             
                             if hapticManager.isHapticEnabled {

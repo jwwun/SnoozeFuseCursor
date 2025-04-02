@@ -43,7 +43,7 @@ struct CircleSizeControl: View {
                         }
                     }
                 HStack(spacing: 0) {
-                    Slider(value: $circleSize, in: 100...1000, step: 1)
+                    Slider(value: $circleSize, in: 100...500, step: 1)
                         .accentColor(.blue)
                         .onChange(of: circleSize) { _ in
                             textInputValue = "\(Int(circleSize))"
@@ -563,7 +563,7 @@ struct SettingsScreen: View {
                     
                     // ScrollView with better spacing
                     ScrollView {
-                        VStack(spacing: 25) {
+                        VStack(spacing: 10) {
                             // App title at the top
                             Image("logotransparent") // <-- Use the name you gave your image in Assets.xcassets
                                 .resizable() // Allows the image to be resized
@@ -619,7 +619,7 @@ struct SettingsScreen: View {
                                 HStack {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 18))
-                                    Text("Confirm")
+                                    Text("Confirm custom size")
                                         .font(.system(size: 18, weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(.white)
@@ -656,28 +656,7 @@ struct SettingsScreen: View {
     }
     
     private var bottomButtonBar: some View {
-        HStack {
-            // More Settings button now links to Advanced Settings
-            NavigationLink(destination: AdvancedSettingsScreen()) {
-                VStack(spacing: 8) {
-                    Image(systemName: "gearshape.2.fill")
-                        .font(.system(size: 20))
-                    Text("Advanced")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .foregroundColor(.white.opacity(0.8))
-                .frame(width: 100, height: 70)
-                .background(
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color.gray.opacity(0.2))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color.gray.opacity(0.4), lineWidth: 1)
-                )
-            }
-            
-            Spacer()
+        VStack {
             
             // Circular Start button
             Button(action: {
@@ -704,6 +683,27 @@ struct SettingsScreen: View {
                     .foregroundColor(.white)
                 }
             }
+                        // More Settings button now links to Advanced Settings
+            NavigationLink(destination: AdvancedSettingsScreen()) {
+                VStack(spacing: 8) {
+                    Image(systemName: "gearshape.2.fill")
+                        .font(.system(size: 20))
+                    Text("Advanced")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.8))
+                .frame(width: 100, height: 70)
+                .background(
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color.gray.opacity(0.2))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(Color.gray.opacity(0.4), lineWidth: 1)
+                )
+            }
+            
+            Spacer()
         }
         .padding(.horizontal, 25)
         .padding(.bottom, 30)

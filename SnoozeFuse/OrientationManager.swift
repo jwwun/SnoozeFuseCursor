@@ -332,13 +332,7 @@ extension AdvancedSettingsScreen {
         
         var body: some View {
             VStack(alignment: .center, spacing: 15) {
-                Text("ORIENTATION LOCK")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
-                    .padding(.bottom, 5)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                
+
                 // Orientation lock toggle
                 Toggle("Enable Orientation Lock", isOn: $orientationManager.isLockEnabled)
                     .padding(.horizontal)

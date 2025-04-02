@@ -70,12 +70,7 @@ extension SettingsScreen {
         
         var body: some View {
             VStack(alignment: .center, spacing: 15) {
-                Text("HAPTIC FEEDBACK")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
-                    .padding(.bottom, 5)
-                    .frame(maxWidth: .infinity, alignment: .center)
+
                 
                 Toggle("Enable Haptics", isOn: $hapticManager.isHapticEnabled)
                     .padding(.horizontal)
