@@ -149,7 +149,8 @@ struct NapScreen: View {
                             timerColor: .white.opacity(0.9),
                             timerProgress: timerManager.maxTimer / timerManager.maxDuration,
                             progressColor: isPressed ? .purple.opacity(0.8) : .blue.opacity(0.8),
-                            releaseTimerProgress: timerManager.holdTimer / timerManager.holdDuration
+                            releaseTimerProgress: timerManager.holdTimer / timerManager.holdDuration,
+                            showArcs: timerManager.showTimerArcs
                         )
                         .overlay(
                             MultiTouchHandler(

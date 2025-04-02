@@ -187,6 +187,15 @@ Used for managers that need global access:
 - **Tap-Only Mode**: When timer ends, both buttons change to tap-only versions instead of requiring swipes
 - **Consistent Design**: Swipe buttons and tap buttons maintain consistent visual design
 
+### Advanced Settings Enhancements
+- **Visual Settings Section**: Added a new category in Advanced Settings for visual customizations
+- **Timer Arcs Toggle**: Added option to enable/disable the circular timer arcs around the hold circle
+- **User Preference Persistence**: Visual settings preferences are saved across app launches
+- **Configurable UI**: Allows users to choose between minimal and informative visual styles
+- **Enabled by Default**: Timer arcs are enabled by default for the best visual experience out of the box
+- **Battery Usage Information**: Added informative text noting the estimated 2-3% battery impact of enabling timer arcs
+- **Adaptive Implementation**: CircleView component adapts to the setting without requiring restart
+
 ### Button Style Enhancements
 - **Simplified Styling**: Updated buttons with flat colors for improved readability
 - **Clean Aesthetic**: Removed gradients and shadows for a more minimalist appearance

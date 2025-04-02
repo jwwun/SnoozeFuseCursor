@@ -6,6 +6,7 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var hapticManager = HapticManager.shared
     @ObservedObject var orientationManager = OrientationManager.shared
     @ObservedObject var notificationManager = NotificationManager.shared
+    @EnvironmentObject var timerManager: TimerManager
     
     var body: some View {
         ZStack {
@@ -177,6 +178,45 @@ struct AdvancedSettingsScreen: View {
                         
                         // Orientation Settings
                         OrientationSettings()
+                        
+                        // Visual Settings Section
+                        VStack(alignment: .center, spacing: 15) {
+                            Text("Visual Settings")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                            
+                            Divider()
+                                .background(Color.gray.opacity(0.5))
+                                .padding(.horizontal)
+                            
+                            Toggle("Show timer arcs on circle", isOn: $timerManager.showTimerArcs)
+                                .padding(.horizontal)
+                                .onChange(of: timerManager.showTimerArcs) { _ in
+                                    timerManager.saveSettings()
+                                }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("If disabled, the circular timer arcs will not be displayed around the circle during nap sessions.")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal)
+                                
+                                Text("Battery impact: Enabling timer arcs may increase battery usage by approximately 2-3% during active sessions due to additional rendering.")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal)
+                                    .padding(.top, 4)
+                            }
+                        }
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 12)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(15)
+                        .padding(.horizontal, 8)
                         
                         // More advanced settings can be added here
                         

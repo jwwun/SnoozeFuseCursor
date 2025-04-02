@@ -59,13 +59,18 @@ struct CircleView: View {
     /// Release timer color
     var releaseTimerColor: Color = .orange
     
+    /// Whether to show the timer arcs
+    var showArcs: Bool = true
+    
     // MARK: - Body
     
     var body: some View {
         ZStack {
             circleBackground
-            progressBar
-            releaseTimerBar
+            if showArcs {
+                progressBar
+                releaseTimerBar
+            }
             statusTextView
             timerTextView
         }
@@ -110,7 +115,7 @@ struct CircleView: View {
                         )
                     )
                     // Dynamic color based on press state - white normally, pink when pressed
-                    .foregroundColor(isPressed ? Color.pink.opacity(0.8) : Color.white.opacity(0.8))
+                    .foregroundColor(isPressed ? Color.pink.opacity(0.5) : Color.white.opacity(0.8))
                     .rotationEffect(Angle(degrees: -90))
                     .padding(25) // More inset for better visual separation
             }

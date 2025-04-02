@@ -112,6 +112,9 @@ class TimerManager: ObservableObject {
     // Circle size (for visual representation)
     @Published var circleSize: CGFloat = 250
     
+    // Visual settings
+    @Published var showTimerArcs: Bool = true
+    
     // Animation state
     @Published var isLogoAnimating = false
     
@@ -138,6 +141,7 @@ class TimerManager: ObservableObject {
         static let selectedAlarmSound = "selectedAlarmSound"
         static let selectedCustomSoundID = "selectedCustomSoundID"
         static let customSounds = "customSounds"
+        static let showTimerArcs = "showTimerArcs"
     }
     
     init() {
@@ -435,6 +439,9 @@ class TimerManager: ObservableObject {
         if let encodedSounds = try? JSONEncoder().encode(customSounds) {
             defaults.set(encodedSounds, forKey: UserDefaultsKeys.customSounds)
         }
+        
+        // Save showTimerArcs setting
+        defaults.set(showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
     }
     
     // Load all settings from UserDefaults
@@ -480,6 +487,9 @@ class TimerManager: ObservableObject {
            let sound = AlarmSound(rawValue: soundValue) {
             selectedAlarmSound = sound
         }
+        
+        // Load showTimerArcs setting
+        self.showTimerArcs = defaults.bool(forKey: UserDefaultsKeys.showTimerArcs)
     }
     
     // New method to schedule alarm notification
