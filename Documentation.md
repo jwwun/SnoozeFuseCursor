@@ -126,6 +126,8 @@ Used for managers that need global access:
 - **Circle Placement Reset**: Fixed NapScreen to properly reset to "tap anywhere to place circle" state when returning from SleepScreen, providing a consistent user experience
 - **Paused Hold Timer During Circle Placement**: Fixed bug where hold timer would continue to count down during the "tap anywhere to place circle" state, ensuring timers only run when appropriate
 - **Fixed Timer Management When Returning to NapScreen**: Removed automatic holdTimer restart when returning from SleepScreen to NapScreen, preventing the release timer from running during circle placement
+- **Delayed Max Timer Start**: Fixed Max Timer to only start when the user first presses the circle after placement, not immediately after placing the circle, ensuring user control over timer initiation
+- **Comprehensive Timer Reset**: Added proper Max Timer stopping when returning to circle placement state, ensuring all timers are fully stopped during the placement phase
 
 ## Build and Run Instructions
 

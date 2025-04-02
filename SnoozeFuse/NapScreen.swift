@@ -52,6 +52,7 @@ struct NapScreen: View {
     @State private var showSleepScreen = false
     @State private var showPositionMessage = true
     @State private var circlePosition: CGPoint? = nil
+    @State private var isFirstInteraction = true
     
     // Method to reset the placement state
     func resetPlacementState() {
@@ -60,9 +61,14 @@ struct NapScreen: View {
         
         // Stop the holdTimer to prevent it from counting down during "tap anywhere" state
         timerManager.stopHoldTimer()
+        // Stop the maxTimer as well
+        timerManager.stopMaxTimer()
         
         // Ensure we're not tracking pressed state anymore
         isPressed = false
+        
+        // Reset the first interaction flag
+        isFirstInteraction = true
     }
     
     var body: some View {
@@ -172,10 +178,11 @@ struct NapScreen: View {
                                         if touchingCircle {
                                             // User is pressing the circle
                                             
-                                            // If this is the first interaction (timers haven't started yet),
+                                            // If this is the first interaction since placing the circle,
                                             // start the max timer when user first holds down
-                                            if timerManager.maxTimer == timerManager.maxDuration {
+                                            if isFirstInteraction {
                                                 timerManager.startMaxTimer()
+                                                isFirstInteraction = false
                                             }
                                             
                                             // Stop the hold timer when holding
@@ -202,12 +209,11 @@ struct NapScreen: View {
                                 showPositionMessage = false
                                 circlePosition = location
                                 
-                                // Debug printouts to see what's happening
-                                print("Tap location: \(location)")
-                                print("Circle size: \(timerManager.circleSize)")
-                                
+                                // Reset timers but DON'T start them yet
                                 timerManager.resetTimers()
-                                // Don't start timers until user interacts with the placed circle
+                                
+                                // Reset first interaction flag
+                                isFirstInteraction = true
                             }
                             .zIndex(3)
                         
@@ -331,8 +337,12 @@ struct NapScreen: View {
             // Reset timers to use the latest settings
             timerManager.resetTimers()
             
-            // Always ensure holdTimer is stopped when "tap anywhere" UI is showing
+            // Always ensure holdTimer and maxTimer are stopped when "tap anywhere" UI is showing
             timerManager.stopHoldTimer()
+            timerManager.stopMaxTimer()
+            
+            // Reset first interaction flag
+            isFirstInteraction = true
             
             // Subscribe to holdTimer reaching zero
             NotificationCenter.default.addObserver(
