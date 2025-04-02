@@ -222,6 +222,25 @@ Used for managers that need global access:
   - **Refined Animations**: Animated decorative elements for visual interest
   - **Polished Typography**: Maintained the existing font styles for consistency with app design
   - **Responsive Layout**: Preserved the responsive positioning to work across different device sizes
+- **Timer Visual Hierarchy Improvements**:
+  - **Larger Release Timer**: Increased size and added subtle shadow for the most important timer
+  - **Enhanced Max Timer**: Made more prominent with purple accent color and larger text
+  - **Distinct Nap Duration Display**: Clearly separated with its own style but less emphasis
+  - **Visual Container Separation**: Added distinct containers with subtle borders for timers
+  - **Direct Circle Timer Display**: Added Max Timer readout directly on the circle for at-a-glance information
+  - **Responsive Placement**: Maintained proper spacing and layout across different device sizes
+- **Dual-Arc Progress System**: 
+  - **Concentric Timer Arcs**: Implemented two concentric arcs that show both the Max Timer and Release Timer progress
+  - **Outer Arc**: Represents Max Timer progress with blue/purple color (changes based on press state)
+  - **Inner Arc**: Shows Release Timer progress with elegant white color that shifts to pink when pressed
+  - **Visual Separation**: Arcs positioned at different distances for clear visual hierarchy
+  - **Clear Visual Hierarchy**: Immediate visual understanding of both timer states without looking away from circle
+  - **Intuitive Design**: The concentric circle design naturally communicates the nested timer relationship
+  - **Compact Layout**: Both arcs positioned within or just at the edge of the circle for a cohesive design
+  - **Minimalist Styling**: Clean, distraction-free arcs without glow effects or animations
+  - **Color-Coded Timers**: Distinct colors for each timer type (blue/purple for Max Timer, white/pink for Release Timer)
+  - **Consistent Color Theme**: Release Timer arc color (white/pink) matches the timer text for perfect color coordination
+  - **Optimized Arc Thickness**: Thinner outer Max Timer arc (5px) with thicker inner Release Timer arc (8px) for better visual hierarchy
 
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`

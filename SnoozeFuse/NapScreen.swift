@@ -73,42 +73,62 @@ struct NapScreen: View {
                     VStack {
                         VStack(spacing: 0) {
                             Text("RELEASE TIMER")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundColor(Color.blue.opacity(0.7))
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundColor(Color.blue.opacity(0.8))
                                 .tracking(3)
                                 .padding(.bottom, 5)
                             
                             Text(timerManager.formatTime(timerManager.holdTimer))
-                                .font(.system(size: 56, weight: .bold, design: .monospaced))
-                                .foregroundColor(.white)
+                                .font(.system(size: 62, weight: .bold, design: .monospaced))
+                                .foregroundColor(isPressed ? Color.pink.opacity(0.9) : .white)
+                                .shadow(color: .blue.opacity(0.5), radius: 2, x: 0, y: 0)
                         }
                         .padding(.top, 60)
                         .padding(.bottom, 10)
                         
                         if circlePosition != nil {
-                            // Session timer info
-                            HStack(spacing: 30) {
-                                VStack {
-                                    Text("MAX")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(.gray)
+                            // Session timer info with enhanced visual hierarchy
+                            HStack(spacing: 35) {
+                                VStack(spacing: 2) {
+                                    Text("MAX TIMER")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color.purple.opacity(0.8))
+                                        .tracking(1)
                                     Text(timerManager.formatTime(timerManager.maxTimer))
-                                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.7))
+                                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                                        .foregroundColor(.white.opacity(0.9))
                                 }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 15)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.black.opacity(0.3))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
                                 
-                                VStack {
-                                    Text("NAP")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(.gray)
+                                VStack(spacing: 2) {
+                                    Text("NAP DURATION")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color.blue.opacity(0.7))
+                                        .tracking(1)
                                     Text(timerManager.formatTime(timerManager.napDuration))
-                                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                        .font(.system(size: 16, weight: .medium, design: .monospaced))
                                         .foregroundColor(.white.opacity(0.7))
                                 }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 15)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.black.opacity(0.2))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
                             }
-                            .padding(10)
-                            .background(Color.black.opacity(0.2))
-                            .cornerRadius(10)
                         }
                         
                         Spacer()
@@ -121,7 +141,15 @@ struct NapScreen: View {
                             size: timerManager.circleSize,
                             isPressed: isPressed,
                             showStatusText: true,
-                            showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration
+                            showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration,
+                            normalColor: .blue,
+                            pressedColor: .purple,
+                            timerValue: timerManager.formatTime(timerManager.maxTimer),
+                            showTimer: true,
+                            timerColor: .white.opacity(0.9),
+                            timerProgress: timerManager.maxTimer / timerManager.maxDuration,
+                            progressColor: isPressed ? .purple.opacity(0.8) : .blue.opacity(0.8),
+                            releaseTimerProgress: timerManager.holdTimer / timerManager.holdDuration
                         )
                         .overlay(
                             MultiTouchHandler(
@@ -171,7 +199,7 @@ struct NapScreen: View {
                             .zIndex(3)
                         
                         VStack(spacing: 10) {
-                            Text("Tap Anywhere") //dont use emojis that dont help
+                            Text("Tap Anywhere")
                                 .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .tracking(1.5)
