@@ -171,7 +171,7 @@ struct NapScreen: View {
                             .zIndex(3)
                         
                         VStack(spacing: 10) {
-                            Text("✨ Tap Anywhere ✨")
+                            Text("Tap Anywhere") //dont use emojis that dont help
                                 .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .tracking(1.5)
@@ -204,8 +204,9 @@ struct NapScreen: View {
                                             endPoint: .bottomTrailing
                                         )
                                     )
+                                    .blur(radius: 0.5)
                                 
-                                // Decorative circles in background
+                                // Animated pulsing effect
                                 Circle()
                                     .fill(Color.white.opacity(0.1))
                                     .frame(width: 20, height: 20)
@@ -226,14 +227,26 @@ struct NapScreen: View {
                             RoundedRectangle(cornerRadius: 22)
                                 .stroke(
                                     LinearGradient(
-                                        colors: [.white.opacity(0.6), .blue.opacity(0.3)],
+                                        colors: [.white.opacity(0.7), .blue.opacity(0.3)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
                                     lineWidth: 1.5
                                 )
                         )
-                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .shadow(color: .black.opacity(0.5), radius: 15, x: 0, y: 8)
+                        .overlay(
+                            // Add subtle glass reflection
+                            RoundedRectangle(cornerRadius: 22)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.15), .clear],
+                                        startPoint: .topLeading,
+                                        endPoint: .center
+                                    )
+                                )
+                                .padding(2)
+                        )
                         .zIndex(2)
                     }
                 }

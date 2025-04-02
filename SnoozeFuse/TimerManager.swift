@@ -294,7 +294,12 @@ class TimerManager: ObservableObject {
         let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
         let decimal = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
-        return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
+        
+        if minutes > 0 {
+            return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
+        } else {
+            return String(format: "%02d.%d", seconds, decimal)
+        }
     }
     
     // Play the selected alarm sound

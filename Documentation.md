@@ -212,5 +212,16 @@ Used for managers that need global access:
 - **Intuitive Icons**: Used double chevron icons to indicate swipe direction
 - **Consistent Interaction Mode**: All interactive buttons use swipe gestures with MultiSwipeConfirmation for better safety
 
+### NapScreen UI Enhancements
+- **Improved Timer Display**: Modified timer to show only seconds when there are no minutes left (e.g. "08.3" instead of "00:08.3") for cleaner presentation
+- **Enhanced Position Text**: Redesigned the "Tap anywhere to position your circle" message with:
+  - **Glass Morphism Effect**: Added subtle glass reflection gradient overlay for a modern look
+  - **Enhanced Shadow**: Improved shadow depth and spread for better visual prominence
+  - **Subtle Blur Effect**: Added slight blur to the background rectangle for a frosted glass appearance
+  - **Improved Contrast**: Enhanced the text and background contrast for better readability
+  - **Refined Animations**: Animated decorative elements for visual interest
+  - **Polished Typography**: Maintained the existing font styles for consistency with app design
+  - **Responsive Layout**: Preserved the responsive positioning to work across different device sizes
+
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`
