@@ -113,17 +113,17 @@ struct NapScreen: View {
                         
                         Spacer()
                     }
+                    .zIndex(0)
                     
                     // Circle positioned at tap location
                     if let position = circlePosition {
-                        ZStack {
-                            CircleView(
-                                size: timerManager.circleSize,
-                                isPressed: isPressed,
-                                showStatusText: true,
-                                showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration
-                            )
-                            
+                        CircleView(
+                            size: timerManager.circleSize,
+                            isPressed: isPressed,
+                            showStatusText: true,
+                            showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration
+                        )
+                        .overlay(
                             MultiTouchHandler(
                                 onTouchesChanged: { touchingCircle in
                                     if touchingCircle != isPressed {
@@ -148,33 +148,96 @@ struct NapScreen: View {
                                 },
                                 circleRadius: timerManager.circleSize / 2
                             )
-                        }
+                        )
                         .position(position)
+                        .zIndex(1)
                     }
                     
                     // Initial message
                     if showPositionMessage {
-                        Text("Tap anywhere to position your circle")
-                            .font(.system(size: 24, weight: .medium, design: .rounded))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                            .padding(.vertical, 20)
-                            .background(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .fill(Color.blue.opacity(0.2))
-                            )
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { location in
+                                showPositionMessage = false
+                                circlePosition = location
+                                
+                                // Debug printouts to see what's happening
+                                print("Tap location: \(location)")
+                                print("Circle size: \(timerManager.circleSize)")
+                                
+                                timerManager.resetTimers()
+                                // Don't start timers until user interacts with the placed circle
+                            }
+                            .zIndex(3)
+                        
+                        VStack(spacing: 10) {
+                            Text("✨ Tap Anywhere ✨")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .tracking(1.5)
+                                .shadow(color: .blue.opacity(0.6), radius: 3, x: 0, y: 1)
+                            
+                            Text("to position your circle")
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.9))
+                                .tracking(1)
+                            
+                            Image(systemName: "hand.tap.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(.white)
+                                .padding(.top, 6)
+                                .shadow(color: .white.opacity(0.6), radius: 4, x: 0, y: 0)
+                        }
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 25)
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 22)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.purple.opacity(0.7),
+                                                Color.blue.opacity(0.6)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                
+                                // Decorative circles in background
+                                Circle()
+                                    .fill(Color.white.opacity(0.1))
+                                    .frame(width: 20, height: 20)
+                                    .offset(x: -60, y: -30)
+                                
+                                Circle()
+                                    .fill(Color.white.opacity(0.1))
+                                    .frame(width: 15, height: 15)
+                                    .offset(x: 65, y: 40)
+                                
+                                Circle()
+                                    .fill(Color.white.opacity(0.1))
+                                    .frame(width: 25, height: 25)
+                                    .offset(x: 70, y: -35)
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.6), .blue.opacity(0.3)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                        )
+                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .zIndex(2)
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { location in
-                    if showPositionMessage {
-                        showPositionMessage = false
-                        circlePosition = location
-                        timerManager.resetTimers()
-                        // Don't start timers until user interacts with the placed circle
-                    }
-                }
                 
                 // Back button overlay (always on top)
                 VStack {

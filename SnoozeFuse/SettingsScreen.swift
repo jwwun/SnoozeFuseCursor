@@ -337,7 +337,7 @@ struct TimerSettingsControl: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "RELEASE: usually a small number. Set to how long you need to not be holding the circle start the <NAP> timer.\nNAP: How long your nap will last.\nMAX: A failsafe time limit for the entire session.")
+                HelpButton(helpText: "RELEASE: usually a small number. When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session.")
             }
             .padding(.bottom, 5)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -492,7 +492,7 @@ struct AlarmSoundSelector: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "Choose the sound that will play as a looping alarm when your nap ends. You can select from built-in sounds or add your own custom sounds. It was not possible for me to add the Apple default alarm sounds.")
+                HelpButton(helpText: "Choose the sound that will play as a looping alarm when your nap ends. You can select from built-in sounds or add your own custom sounds. \n\n It was not possible for me to add the Apple default alarm sounds.")
             }
             .padding(.bottom, 5)
             .frame(maxWidth: .infinity, alignment: .center)
