@@ -124,62 +124,65 @@ struct SleepScreen: View {
                     }
                     .padding()
                     
-                    // Button row - simplified
+                    // Button row - redesigned with better aesthetics
                     HStack(spacing: 40) {
-                        // Back button with multi-swipe confirmation
-                        MultiSwipeConfirmation(
-                            action: {
-                                timerManager.stopAlarmSound()
-                                dismiss()
-                                timerManager.stopNapTimer()
-                                timerManager.startHoldTimer()
-                            },
-                            requiredSwipes: 3,
-                            direction: .leading,
-                            label: napFinished ? "Swipe to Home" : "Swipe to Back",
-                            confirmLabel: "Swipe again",
-                            finalLabel: "Final swipe"
-                        )
-                        .frame(width: 120)
+                        // Back to Settings button (Home)
+                        VStack {
+                            if napFinished {
+                                Button(action: {
+                                    timerManager.stopAlarmSound()
+                                    timerManager.resetTimers()
+                                    // This properly returns to SettingsScreen
+                                    presentationMode.wrappedValue.dismiss()
+                                }) {
+                                    buttonContent(icon: "house.fill", text: "Settings", color: .indigo)
+                                }
+                            } else {
+                                MultiSwipeConfirmation(
+                                    action: {
+                                        timerManager.stopAlarmSound()
+                                        timerManager.resetTimers()
+                                        // This properly returns to SettingsScreen
+                                        presentationMode.wrappedValue.dismiss()
+                                    },
+                                    requiredSwipes: 2,
+                                    direction: .leading,
+                                    label: "Swipe to Settings",
+                                    confirmLabel: "Swipe again",
+                                    finalLabel: "Release for Settings",
+                                    isTimerActive: !napFinished
+                                )
+                                .frame(width: 130)
+                            }
+                        }
                         
-                        // Skip button with confirmation (only show if nap not finished)
-                        if !napFinished {
-                            Button(action: {
-                                if isSkipConfirmationShowing {
-                                    // Second press - confirm and skip nap
-                                    timerManager.stopNapTimer()
-                                    timerManager.napTimer = 0
-                                    napFinished = true
-                                } else {
-                                    // First press - show confirmation
-                                    isSkipConfirmationShowing = true
-                                    
-                                    // Reset confirmation after 3 seconds
-                                    confirmationTimer?.invalidate()
-                                    confirmationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                                        isSkipConfirmationShowing = false
-                                    }
+                        // Back to Nap button (keeps settings)
+                        VStack {
+                            if napFinished {
+                                Button(action: {
+                                    timerManager.stopAlarmSound()
+                                    dismiss() // This returns to NapScreen
+                                }) {
+                                    buttonContent(icon: "moon.zzz.fill", text: "Back to Nap", color: .purple)
                                 }
-                            }) {
-                                VStack {
-                                    Image(systemName: "forward.end")
-                                        .font(.system(size: 24))
-                                    Text(isSkipConfirmationShowing ? "Confirm?" : "Skip")
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                }
-                                .frame(width: 80, height: 80)
-                                .foregroundColor(.white)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(isSkipConfirmationShowing ? Color.red.opacity(0.4) : Color.purple.opacity(0.3))
+                            } else {
+                                MultiSwipeConfirmation(
+                                    action: {
+                                        timerManager.stopAlarmSound()
+                                        dismiss() // This returns to NapScreen
+                                    },
+                                    requiredSwipes: 2,
+                                    direction: .trailing,
+                                    label: "Swipe to Nap",
+                                    confirmLabel: "Swipe again",
+                                    finalLabel: "Release for Nap",
+                                    isTimerActive: !napFinished
                                 )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .stroke(isSkipConfirmationShowing ? Color.red.opacity(0.5) : Color.purple.opacity(0.5), lineWidth: 1)
-                                )
+                                .frame(width: 130)
                             }
                         }
                     }
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 40)
                 }
             }
@@ -258,6 +261,57 @@ struct SleepScreen: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: maxWakeTime)
+    }
+    
+    // Helper for consistent button appearance with enhanced aesthetics
+    private func buttonContent(icon: String, text: String, color: Color = Color.blue) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 28, weight: .medium))
+                .foregroundColor(.white)
+            
+            Text(text)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundColor(.white)
+        }
+        .frame(width: 130, height: 100)
+        .background(
+            ZStack {
+                // Bottom layer - shadow effect
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(Color.black.opacity(0.4))
+                    .offset(y: 3)
+                    .blur(radius: 2)
+                
+                // Middle layer - gradient background
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                color.opacity(0.6),
+                                color.opacity(0.3)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                
+                // Top layer - subtle shine effect
+                RoundedRectangle(cornerRadius: 22)
+                    .strokeBorder(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.7),
+                                Color.white.opacity(0.1)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            }
+        )
+        .shadow(color: color.opacity(0.3), radius: 8, x: 0, y: 4)
     }
 }
 

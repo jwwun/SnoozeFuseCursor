@@ -179,11 +179,12 @@ struct NapScreen: View {
                                 timerManager.stopAlarmSound()
                                 presentationMode.wrappedValue.dismiss()
                             },
-                            requiredSwipes: 3,
+                            requiredSwipes: 2,
                             direction: .leading,
                             label: "Swipe to exit",
-                            confirmLabel: "Swipe two more times",
-                            finalLabel: "The third and final swipe"
+                            confirmLabel: "Swipe again to exit",
+                            finalLabel: "Release to exit",
+                            isTimerActive: timerManager.maxTimer < timerManager.maxDuration || timerManager.holdTimer < timerManager.holdDuration
                         )
                         .padding(.leading, 5)
                         .padding(.top, 10)

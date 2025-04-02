@@ -143,6 +143,8 @@ Used for managers that need global access:
 - **Status Bar**: Always visible on all screens to maintain system context
 - **Home Indicator**: Hidden only on NapScreen and SleepScreen for immersive experience
 - **Custom UI Component**: `HomeIndicatorHider` component created to manage home indicator visibility
+- **Complete Home Indicator Removal**: Enhanced to fully remove home indicator from NapScreen and SleepScreen using screen edge deferring system gestures for ALL edges
+- **Exit Prevention**: Implemented aggressive edge deferring to prevent accidental exits with home indicator swipes
 
 ### Multi-Swipe Exit Protection
 - **MultiSwipeConfirmation Component**: Requires multiple consecutive swipes to exit NapScreen or SleepScreen
@@ -151,6 +153,18 @@ Used for managers that need global access:
 - **Haptic Feedback**: Triggers haptic feedback on each successful swipe
 - **Timeout Protection**: Swipe count resets after 3 seconds of inactivity
 - **Improved Safety**: Prevents accidental exits from sleep screens
+- **Conditional Swipe Requirement**: Only requires two swipes when timer is active; single swipe/tap when timer is inactive
+- **Redesigned SleepScreen Buttons**: Added separate buttons for returning to SettingsScreen (resetting timers) and NapScreen (keeping settings)
+- **Tap-Only Mode**: When timer ends, both buttons change to tap-only versions instead of requiring swipes
+- **Enhanced Button Design**: Improved button aesthetics with gradients, shadows, and visual depth
+
+### SleepScreen UI Enhancements
+- **Clear Navigation**: Distinct visual styling for Settings and Nap buttons
+- **Proper Destination Paths**: Fixed navigation to ensure Settings button returns to SettingsScreen and Nap button returns to NapScreen
+- **Visual Aesthetics**: Enhanced button design with gradients, shadows, and visual depth
+- **Proper Spacing**: Improved layout and spacing for buttons and UI elements
+- **Clearer Labels**: Updated button labels to clearly indicate their function
+- **Color Differentiation**: Used different colors to distinguish button functions (indigo for Settings, purple for Nap)
 
 ### Implementation Details
 - Created `HomeIndicatorHider` as a UIViewControllerRepresentable to hide home indicator
@@ -158,3 +172,10 @@ Used for managers that need global access:
 - Implemented `MultiSwipeConfirmation` component to replace confirmation buttons
 - Updated NapScreen and SleepScreen to require multiple swipes before exit
 - Removed status bar hiding while maintaining edge-to-edge layout
+- Enhanced `HomeIndicatorHider` with `preferredScreenEdgesDeferringSystemGestures` to completely remove home indicator
+- Updated `MultiSwipeConfirmation` to conditionally require swipes based on timer status
+- Redesigned SleepScreen buttons to provide clear navigation options
+- Enhanced edge deferring by using ALL edges to prevent accidental exits
+- Added immediate auto-hiding for home indicator on view controller load
+- Fixed button logic to properly navigate to intended destinations
+- Enhanced button design with layered gradients, shadows, and visual polish

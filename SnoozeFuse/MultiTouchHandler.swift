@@ -249,6 +249,7 @@ struct HomeIndicatorHider: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: HomeIndicatorViewController, context: Context) {
         uiViewController.prefersHidden = prefersHidden
         uiViewController.setNeedsUpdateOfHomeIndicatorAutoHidden()
+        uiViewController.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
     }
     
     class HomeIndicatorViewController: UIViewController {
@@ -265,6 +266,29 @@ struct HomeIndicatorHider: UIViewControllerRepresentable {
         
         override var prefersHomeIndicatorAutoHidden: Bool {
             return prefersHidden
+        }
+        
+        override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
+            // Defer ALL edges to make it much harder to exit with home indicator
+            return [.bottom, .top, .left, .right]
+        }
+        
+        override var prefersStatusBarHidden: Bool {
+            return false
+        }
+        
+        // Add this to make the home indicator truly hidden
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            
+            // Set the home indicator to auto-hide immediately
+            if #available(iOS 16.0, *) {
+                // iOS 16 and later
+                self.setNeedsUpdateOfHomeIndicatorAutoHidden()
+            } else {
+                // Earlier iOS versions
+                UIViewController.attemptRotationToDeviceOrientation()
+            }
         }
     }
 }
@@ -286,6 +310,7 @@ struct MultiSwipeConfirmation: View {
     var label: String = "Swipe to exit"
     var confirmLabel: String = "Swipe again to confirm"
     var finalLabel: String = "Final swipe to confirm"
+    var isTimerActive: Bool = true
     
     @State private var swipeCount: Int = 0
     @State private var resetTimer: Timer? = nil
@@ -308,7 +333,7 @@ struct MultiSwipeConfirmation: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(swipeCount == 0 ? Color.blue.opacity(0.3) : 
-                          swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.4) : 
+                          swipeCount < effectiveRequiredSwipes - 1 ? Color.orange.opacity(0.4) : 
                           Color.red.opacity(0.4))
             )
             .gesture(
@@ -326,7 +351,7 @@ struct MultiSwipeConfirmation: View {
                             HapticManager.shared.trigger()
                             
                             // If reached required count, perform action
-                            if swipeCount >= requiredSwipes {
+                            if swipeCount >= effectiveRequiredSwipes {
                                 action()
                                 swipeCount = 0
                             } else {
@@ -338,6 +363,12 @@ struct MultiSwipeConfirmation: View {
                         }
                     }
             )
+            .onTapGesture {
+                // If timer is not active, allow tap to complete action directly
+                if !isTimerActive {
+                    action()
+                }
+            }
             
             if direction == .leading {
                 Spacer()
@@ -345,11 +376,21 @@ struct MultiSwipeConfirmation: View {
         }
     }
     
+    // Returns the effective number of swipes required based on timer status
+    private var effectiveRequiredSwipes: Int {
+        return isTimerActive ? requiredSwipes : 1
+    }
+    
     private var swipeText: String {
+        // If timer is not active, show tap label
+        if !isTimerActive {
+            return "Tap to exit"
+        }
+        
         switch swipeCount {
         case 0:
             return label
-        case requiredSwipes - 1:
+        case effectiveRequiredSwipes - 1:
             return finalLabel
         default:
             return confirmLabel
