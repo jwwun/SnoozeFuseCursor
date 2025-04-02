@@ -151,6 +151,16 @@ Used for managers that need global access:
 - **Home Indicator**: Removed attempts to hide the Home Indicator since iOS restricts fully hiding it
 - **Edge-to-edge Layout**: Maintained edge-to-edge content layout using `.edgesIgnoringSafeArea(.all)` for immersive experience
 
+### Help Button Tooltips
+- **Contextual Help**: Added subtle question mark icons next to each setting in the Settings screen
+- **On-demand Information**: Users can tap the help icons to see explanations about specific features
+- **Clear Descriptions**: Each tooltip provides concise yet informative explanations about:
+  - **Circle Size**: Controls the size of the hold circle with information about visibility vs. screen space
+  - **Timer Settings**: Explains the purpose of each timer (Release, Nap, Max) 
+  - **Alarm Sound**: Describes sound selection options including custom sounds
+- **Unobtrusive Design**: Help buttons are subtle and don't interfere with the main UI
+- **Consistent Placement**: All help buttons follow the same design pattern and positioning
+
 ### Multi-Swipe Exit Protection
 - **MultiSwipeConfirmation Component**: Requires multiple consecutive swipes to exit NapScreen or SleepScreen
 - **Configurable Settings**: Swipe count, direction, and labels can be customized

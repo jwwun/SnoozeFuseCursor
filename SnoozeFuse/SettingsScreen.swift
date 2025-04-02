@@ -2,6 +2,27 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UserNotifications
 
+// HelpButton component for settings explanations
+struct HelpButton: View {
+    let helpText: String
+    @State private var showingHelp = false
+    
+    var body: some View {
+        Button(action: {
+            showingHelp = true
+        }) {
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 14))
+                .foregroundColor(.white.opacity(0.6))
+        }
+        .alert("Tips", isPresented: $showingHelp) {
+            Button("OK!", role: .cancel) {}
+        } message: {
+            Text(helpText)
+        }
+    }
+}
+
 // Breaking up the UI into smaller components
 struct CircleSizeControl: View {
     @Binding var circleSize: CGFloat
@@ -12,13 +33,17 @@ struct CircleSizeControl: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 3) {
-            // Title
-            Text("CIRCLE SIZE")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(Color.blue.opacity(0.7))
-                .tracking(3)
-                .padding(.bottom, 5)
-                .frame(maxWidth: .infinity, alignment: .center)
+            // Title with help button
+            HStack {
+                Text("CIRCLE SIZE")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(Color.blue.opacity(0.7))
+                    .tracking(3)
+                
+                HelpButton(helpText: "You can tap the number to manually input and override the slider.")
+            }
+            .padding(.bottom, 5)
+            .frame(maxWidth: .infinity, alignment: .center)
                 
             HStack(spacing: 0) {
                 TextField("", text: $textInputValue)
@@ -178,12 +203,17 @@ struct TimerSettingsControl: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 1) {
-            Text("TIMER SETTINGS")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(Color.blue.opacity(0.7))
-                .tracking(3)
-                .padding(.bottom, 5)
-                .frame(maxWidth: .infinity, alignment: .center)
+            // Title with help button
+            HStack {
+                Text("TIMER SETTINGS")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(Color.blue.opacity(0.7))
+                    .tracking(3)
+                
+                HelpButton(helpText: "RELEASE: usually a small number. Set to how long you need to not be holding the circle start the <NAP> timer.\nNAP: How long your nap will last.\nMAX: A failsafe time limit for the entire session.")
+            }
+            .padding(.bottom, 5)
+            .frame(maxWidth: .infinity, alignment: .center)
             
             // Timer grid layout - reduced spacings to prevent edge cutoff
             HStack(alignment: .top, spacing: 8) {
@@ -328,13 +358,17 @@ struct AlarmSoundSelector: View {
     
     var body: some View {
         VStack(alignment: .center, spacing: 3) {
-            // Title
-            Text("ALARM SOUND")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundColor(Color.blue.opacity(0.7))
-                .tracking(3)
-                .padding(.bottom, 5)
-                .frame(maxWidth: .infinity, alignment: .center)
+            // Title with help button
+            HStack {
+                Text("ALARM SOUND")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(Color.blue.opacity(0.7))
+                    .tracking(3)
+                
+                HelpButton(helpText: "Choose the sound that will play when your nap ends. You can select from built-in sounds or add your own custom sounds. It was not possible for me to add the Apple default alarm sounds.")
+            }
+            .padding(.bottom, 5)
+            .frame(maxWidth: .infinity, alignment: .center)
             
             // Sound selection and preview
             HStack {
