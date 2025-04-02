@@ -151,6 +151,20 @@ Used for managers that need global access:
 - **Home Indicator**: Removed attempts to hide the Home Indicator since iOS restricts fully hiding it
 - **Edge-to-edge Layout**: Maintained edge-to-edge content layout using `.edgesIgnoringSafeArea(.all)` for immersive experience
 
+### Flashy Logo Animation
+- **Smooth Sequenced Animation**: Carefully choreographed animation phases that flow naturally without jarring transitions
+- **Staggered Particle Emission**: Particles emerge gradually with subtle delays for more natural movement
+- **Physics-Based Movement**: Particles follow fluid physics with gentle gravity and turbulence for organic motion
+- **Color Harmony**: Particles use a cohesive blue-purple color theme that complements the app's aesthetic
+- **Graduated Transitions**: Every animation element uses proper easing and spring effects for smooth transitions
+- **Hue Cycling Effect**: Subtle color shifts add visual interest without overwhelming the animation
+- **Multi-Phase Rotation**: Rotation begins gently and accelerates naturally for a more fluid spin
+- **Responsive Scaling**: Logo scaling uses spring physics for natural bouncing without abrupt changes
+- **Fade Transitions**: All elements fade in and out gradually to avoid sudden appearances or disappearances
+- **Haptic Feedback**: Subtle vibration provides tactile confirmation when animation is triggered
+- **Performance Optimized**: Uses Metal rendering via drawingGroup() and efficient animation techniques
+- **Extended Duration**: Longer animation (2.0 seconds) allows for proper pacing of all animation phases
+
 ### Help Button Tooltips
 - **Contextual Help**: Added subtle question mark icons next to each setting in the Settings screen
 - **On-demand Information**: Users can tap the help icons to see explanations about specific features

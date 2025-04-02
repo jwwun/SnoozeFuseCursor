@@ -95,6 +95,11 @@ struct SnoozeFuseApp: App {
                         // Refresh notification permission status when app becomes active
                         notificationManager.checkNotificationPermission()
                     }
+                    
+                    // Save settings when app enters background
+                    if newPhase == .background {
+                        orientationManager.saveSettings(forceOverride: true)
+                    }
                 }
         }
     }

@@ -2,6 +2,133 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UserNotifications
 
+// Simple flashy animation for the logo
+struct PixelateEffect: ViewModifier {
+    let isActive: Bool
+    @State private var glowOpacity = 0.0
+    @State private var glowScale = 1.0
+    @State private var rotationAngle = 0.0
+    @State private var bounceScale = 1.0
+    @State private var hueRotation = 0.0
+    
+    func body(content: Content) -> some View {
+        ZStack {
+            // Base content with animated effects
+            content
+                .scaleEffect(bounceScale)
+                .rotationEffect(.degrees(rotationAngle))
+                .hueRotation(Angle(degrees: hueRotation))
+                .animation(isActive ? 
+                    .interpolatingSpring(mass: 0.2, stiffness: 5, damping: 0.5, initialVelocity: 5) : 
+                    .easeInOut(duration: 0.5), 
+                    value: bounceScale)
+                .animation(isActive ? 
+                    .interpolatingSpring(mass: 0.2, stiffness: 3, damping: 0.6, initialVelocity: 5) : 
+                    .easeInOut(duration: 0.5), 
+                    value: rotationAngle)
+                .animation(.easeInOut(duration: 0.5), value: hueRotation)
+                
+            // Glow effect with smooth animation
+            if isActive {
+                content
+                    .blur(radius: 8)
+                    .opacity(glowOpacity)
+                    .scaleEffect(glowScale)
+                    .blendMode(.screen)
+                    .animation(.easeInOut(duration: 0.7), value: glowOpacity)
+                    .animation(.easeInOut(duration: 1.2), value: glowScale)
+            }
+        }
+        .onChange(of: isActive) { newValue in
+            if newValue {
+                startAnimations()
+            } else {
+                resetAnimations()
+            }
+        }
+    }
+    
+    private func startAnimations() {
+        // Sequence the animations for a smoother flow
+        
+        // Start with glow and subtle scale
+        withAnimation(.easeIn(duration: 0.3)) {
+            glowOpacity = 0.7
+            glowScale = 1.2
+            bounceScale = 1.1
+        }
+        
+        // Start hue rotation
+        withAnimation(.linear(duration: 0.8).repeatCount(2, autoreverses: true)) {
+            hueRotation = 30
+        }
+        
+        // Then continue with more dramatic effects
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            // Continue rotation smoothly
+            withAnimation(.easeInOut(duration: 0.8)) {
+                rotationAngle = 360
+            }
+            
+            // Larger bounce
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                bounceScale = 1.3
+                glowOpacity = 0.9
+                glowScale = 1.4
+            }
+            
+            // Smooth return to normal size
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    bounceScale = 0.9
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                        bounceScale = 1.0
+                    }
+                    
+                    // Fade out effects gradually
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        glowOpacity = 0.0
+                        glowScale = 2.0
+                    }
+                }
+            }
+        }
+    }
+    
+    private func resetAnimations() {
+        // Use animations for resetting too, to avoid teleporting
+        withAnimation(.easeOut(duration: 0.5)) {
+            glowOpacity = 0.0
+            glowScale = 1.0
+            hueRotation = 0.0
+        }
+        
+        // For rotation, use a separate animation that doesn't rotate back
+        if rotationAngle != 0 {
+            // Find the closest multiple of 360 degrees
+            let fullRotations = Int(rotationAngle / 360)
+            let targetAngle = CGFloat(fullRotations + 1) * 360
+            
+            // First complete the rotation to the next full 360
+            withAnimation(.easeInOut(duration: 0.3)) {
+                rotationAngle = targetAngle
+            }
+            
+            // Then silently reset to 0 after the animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                rotationAngle = 0
+            }
+        }
+        
+        withAnimation(.spring()) {
+            bounceScale = 1.0
+        }
+    }
+}
+
 // HelpButton component for settings explanations
 struct HelpButton: View {
     let helpText: String
@@ -598,15 +725,28 @@ struct SettingsScreen: View {
                     // ScrollView with better spacing
                     ScrollView {
                         VStack(spacing: 10) {
-                            // App title at the top
-                            Image("logotransparent") // <-- Use the name you gave your image in Assets.xcassets
-                                .resizable() // Allows the image to be resized
-                                .scaledToFit() // Scales the image to fit the frame while maintaining aspect ratio
+                            // App title at the top - now with pixel animation!
+                            Image("logotransparent")
+                                .resizable()
+                                .scaledToFit()
                                 .frame(width: 132, height: 66)
                                 .scaleEffect(0.8)
+                                .drawingGroup() // Use Metal rendering for better performance
+                                .modifier(PixelateEffect(isActive: timerManager.isLogoAnimating))
+                                .onTapGesture {
+                                    if !timerManager.isLogoAnimating {
+                                        timerManager.isLogoAnimating = true
+                                        // Play haptic feedback
+                                        HapticManager.shared.trigger()
+                                        // Reset animation flag after animation completes
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                            timerManager.isLogoAnimating = false
+                                        }
+                                    }
+                                }
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, -8)//topleft corner
-                                .padding(.top, -33) // have to make it go into the ui status boundary
+                                .padding(.leading, -8) // topleft corner
+                                .padding(.top, -33) // make it go into the ui status boundary
                                 .padding(.bottom, 0)
                             
                             // Notification permission warning - only show if not hidden from main settings

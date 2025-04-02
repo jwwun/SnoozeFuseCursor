@@ -261,11 +261,12 @@ class OrientationManager: ObservableObject {
         // Note: We don't persist isFirstLaunch as it should always be true when app starts fresh
     }
     
-    private func saveSettings() {
+    func saveSettings(forceOverride: Bool = false) {
         // Ensure we're not in first launch mode when saving settings
-        if isFirstLaunch || forcedInitialPortrait {
+        if (isFirstLaunch || forcedInitialPortrait) && !forceOverride {
             // Don't save settings during first launch or forced portrait state
             // This prevents overwriting user preferences with initial startup values
+            print("Skipping save during first launch or forced portrait state")
             return
         }
         
@@ -337,6 +338,9 @@ extension AdvancedSettingsScreen {
                 Toggle("Enable Orientation Lock", isOn: $orientationManager.isLockEnabled)
                     .padding(.horizontal)
                     .padding(.bottom, 5)
+                    .onChange(of: orientationManager.isLockEnabled) { _ in
+                        orientationManager.saveSettings(forceOverride: true)
+                    }
                 
                 if orientationManager.isLockEnabled {
                     // Orientation buttons instead of picker
@@ -344,6 +348,7 @@ extension AdvancedSettingsScreen {
                         // Portrait button
                         Button(action: {
                             orientationManager.orientation = .portrait
+                            orientationManager.saveSettings(forceOverride: true)
                         }) {
                             HStack {
                                 Image(systemName: "iphone")
@@ -400,6 +405,7 @@ extension AdvancedSettingsScreen {
                             Button("Cancel", role: .cancel) {}
                             Button("Use Anyway") {
                                 orientationManager.orientation = .portraitUpsideDown
+                                orientationManager.saveSettings(forceOverride: true)
                             }
                         } message: {
                             Text("iPhoneX and newer models do not support Upside Down orientation. It's recommended to use Portrait mode only on these devices since the home indicator needs to be visible.")
@@ -408,6 +414,7 @@ extension AdvancedSettingsScreen {
                         // Landscape Left button
                         Button(action: {
                             orientationManager.orientation = .landscapeLeft
+                            orientationManager.saveSettings(forceOverride: true)
                         }) {
                             HStack {
                                 Image(systemName: "iphone.landscape")
@@ -434,6 +441,7 @@ extension AdvancedSettingsScreen {
                         // Landscape Right button
                         Button(action: {
                             orientationManager.orientation = .landscapeRight
+                            orientationManager.saveSettings(forceOverride: true)
                         }) {
                             HStack {
                                 Image(systemName: "iphone.landscape")
@@ -471,7 +479,7 @@ extension AdvancedSettingsScreen {
                     }
                     
                     // Recommendation text
-                    Text("This is in-app so you don't need to use your own devices built in orientation lock. It's mainly for iPad. Note: This setting will not be saved between app launches.")
+                    Text("This is in-app so you don't need to use your own devices built in orientation lock. It's mainly for iPad. Your settings will be saved between app sessions.")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.center)

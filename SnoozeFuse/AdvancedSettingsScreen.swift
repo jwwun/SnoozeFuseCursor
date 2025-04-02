@@ -141,6 +141,9 @@ struct AdvancedSettingsScreen: View {
 
                             Toggle("Enable haptics when pressing circle", isOn: $hapticManager.isHapticEnabled)
                                 .padding(.horizontal)
+                                .onChange(of: hapticManager.isHapticEnabled) { _ in
+                                    hapticManager.saveSettings()
+                                }
                             
                             if hapticManager.isHapticEnabled {
                                 Picker("Intensity", selection: $hapticManager.hapticStyle) {
@@ -150,6 +153,9 @@ struct AdvancedSettingsScreen: View {
                                 }
                                 .pickerStyle(SegmentedPickerStyle())
                                 .padding(.horizontal)
+                                .onChange(of: hapticManager.hapticStyle) { _ in
+                                    hapticManager.saveSettings()
+                                }
                                 
                                 Button(action: {
                                     hapticManager.trigger()
@@ -190,6 +196,10 @@ struct AdvancedSettingsScreen: View {
             orientationManager.lockOrientation()
             // Refresh notification status
             notificationManager.checkNotificationPermission()
+        }
+        .onDisappear {
+            // Save orientation settings when leaving the screen
+            orientationManager.saveSettings(forceOverride: true)
         }
     }
 }
