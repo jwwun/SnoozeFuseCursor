@@ -670,7 +670,11 @@ struct AlarmSoundSelector: View {
             ManageSoundsView()
                 .environmentObject(timerManager) // Pass TimerManager down
         }
-        .onAppear(perform: checkMusicPermission)
+        // Add onAppear handler to load custom sounds only when this view appears
+        .onAppear {
+            // Load custom sounds when the selector is shown
+            timerManager.loadCustomSounds()
+        }
     }
 
     private func checkMusicPermission() {

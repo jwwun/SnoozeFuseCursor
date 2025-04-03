@@ -391,6 +391,11 @@ class TimerManager: ObservableObject {
     private func getAlarmSoundURL() -> URL? {
         // Handle custom sound selection
         if selectedAlarmSound == .custom, let customSoundID = selectedCustomSoundID {
+            // Ensure custom sounds are loaded before trying to access them
+            if customSounds.isEmpty {
+                loadCustomSounds(skipMusicCheck: true)
+            }
+            
             if let customSound = customSounds.first(where: { $0.id == customSoundID }) {
                 print("🔊 Attempting to use custom sound URL: \(customSound.fileURL.lastPathComponent)")
                 
@@ -518,8 +523,22 @@ class TimerManager: ObservableObject {
         // Set to nil to release resources
         audioPlayer = nil
         
-        // Also stop any playing Apple Music content
-        MPMusicPlayerController.applicationMusicPlayer.stop()
+        // Only stop Apple Music content if we're using a custom Apple Music sound
+        // This avoids unnecessarily requesting permissions
+        if selectedAlarmSound == .custom && 
+           selectedCustomSoundID != nil && 
+           !customSounds.isEmpty {
+            
+            // Check if we have any Apple Music tracks in our custom sounds
+            let hasAppleMusicTracks = customSounds.contains { sound in
+                sound.fileURL.lastPathComponent.starts(with: "applemusic_")
+            }
+            
+            // Only stop MPMusicPlayerController if we actually might be using it
+            if hasAppleMusicTracks {
+                MPMusicPlayerController.applicationMusicPlayer.stop()
+            }
+        }
         
         // Remove the interruption observer
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
@@ -761,11 +780,10 @@ class TimerManager: ObservableObject {
             circleSize = size
         }
         
-        // Load custom sounds list
-        if let savedSounds = defaults.data(forKey: UserDefaultsKeys.customSounds) {
-            if let decodedSounds = try? JSONDecoder().decode([CustomSound].self, from: savedSounds) {
-                customSounds = decodedSounds
-            }
+        // Load selected alarm type
+        if let soundValue = defaults.string(forKey: UserDefaultsKeys.selectedAlarmSound),
+           let sound = AlarmSound(rawValue: soundValue) {
+            selectedAlarmSound = sound
         }
         
         // Load selected custom sound ID
@@ -774,14 +792,28 @@ class TimerManager: ObservableObject {
             selectedCustomSoundID = id
         }
         
-        // Load selected alarm type
-        if let soundValue = defaults.string(forKey: UserDefaultsKeys.selectedAlarmSound),
-           let sound = AlarmSound(rawValue: soundValue) {
-            selectedAlarmSound = sound
+        // Load showTimerArcs setting (default to true if not found)
+        if defaults.object(forKey: UserDefaultsKeys.showTimerArcs) != nil {
+            self.showTimerArcs = defaults.bool(forKey: UserDefaultsKeys.showTimerArcs)
+        } else {
+            // Keep the default value of true that was set in the property declaration
+            self.showTimerArcs = true
         }
         
-        // Load showTimerArcs setting
-        self.showTimerArcs = defaults.bool(forKey: UserDefaultsKeys.showTimerArcs)
+        // Defer loading of custom sounds until needed (don't access files at startup)
+        // This prevents file access permission prompts until the user actually needs them
+    }
+    
+    // Load custom sounds - only called when needed
+    func loadCustomSounds(skipMusicCheck: Bool = false) {
+        let defaults = UserDefaults.standard
+        
+        // Load custom sounds list
+        if let savedSounds = defaults.data(forKey: UserDefaultsKeys.customSounds) {
+            if let decodedSounds = try? JSONDecoder().decode([CustomSound].self, from: savedSounds) {
+                customSounds = decodedSounds
+            }
+        }
     }
     
     // MARK: - Notification Sound Registration
