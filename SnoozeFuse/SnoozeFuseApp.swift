@@ -92,19 +92,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             let actionIdentifier = response.actionIdentifier
             
             if actionIdentifier == "SNOOZE_ACTION" {
-                // Snooze the alarm for 5 minutes
-                NotificationManager.shared.scheduleAlarmNotification(after: 300) // 5 minutes in seconds
-                
-                // Stop any current alarm sound
-                TimerManager.shared.stopAlarmSound()
+                // Snooze the alarm
+                NotificationManager.shared.scheduleAlarmNotification(after: 300)
+                TimerManager.shared.stopAlarmSound() // Stop current sound
             } else if actionIdentifier == UNNotificationDismissActionIdentifier {
-                // User dismissed the notification by swiping it away
-                // Stop any alarm sound
-                TimerManager.shared.stopAlarmSound()
+                // User dismissed (swiped away)
+                TimerManager.shared.stopAlarmSound() // Stop current sound
             } else {
-                // For default action or VIEW_ACTION
-                // Start playing the user's selected alarm sound
-                TimerManager.shared.playAlarmSound()
+                // For default action (tap body) or VIEW_ACTION ("Open App")
+                // Just ensure any existing TimerManager sound is stopped.
+                // The system's UNNotificationSound.defaultCritical should have played upon delivery.
+                // We won't restart the custom loop here.
+                print("🔔 Handling notification tap/open action. Stopping any existing TimerManager sound.")
+                TimerManager.shared.stopAlarmSound() // <<< Ensure sound stops, but DO NOT call playAlarmSound() here anymore
             }
         }
         
@@ -115,16 +115,17 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, 
                                willPresent notification: UNNotification, 
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // If this is our alarm notification, show it with sound even in foreground
+        // If this is our alarm notification, do NOT show it in the foreground
+        // SleepScreen already handles playing the sound internally when its timer finishes.
         if notification.request.identifier == "alarmNotification" {
-            // Show notification with sound
-            completionHandler([.sound, .banner, .badge])
+            // Pass empty options to prevent alert/sound/badge in foreground
+            completionHandler([]) 
             
-            // Also start playing the alarm sound directly in the app
-            TimerManager.shared.playAlarmSound()
+            // REMOVED redundant TimerManager.shared.playAlarmSound() call
+            print("🔔 Foreground alarm notification received, but presentation suppressed as SleepScreen handles it.")
         } else {
-            // For other notifications, just show them
-            completionHandler([.banner, .sound, .badge])
+            // For other notifications, allow standard presentation (banner, sound, badge)
+             completionHandler([.banner, .sound, .badge])
         }
     }
 }

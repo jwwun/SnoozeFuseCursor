@@ -10,29 +10,6 @@ extension Notification.Name {
     static let maxTimerFinished = Notification.Name("maxTimerFinished")
 }
 
-// Data conversion extensions for WAV file creation
-extension UInt32 {
-    var data: Data {
-        var int = self
-        return Data(bytes: &int, count: MemoryLayout<UInt32>.size)
-    }
-    
-    var littleEndian: UInt32 {
-        return CFSwapInt32HostToLittle(self)
-    }
-}
-
-extension UInt16 {
-    var data: Data {
-        var int = self
-        return Data(bytes: &int, count: MemoryLayout<UInt16>.size)
-    }
-    
-    var littleEndian: UInt16 {
-        return CFSwapInt16HostToLittle(self)
-    }
-}
-
 // Custom sound struct for persistence and management
 struct CustomSound: Identifiable, Codable, Equatable {
     var id = UUID()
@@ -408,59 +385,81 @@ class TimerManager: ObservableObject {
         }
     }
     
+    // Helper function to get the URL for the currently selected alarm sound
+    private func getAlarmSoundURL() -> URL? {
+        // Handle custom sound selection
+        if selectedAlarmSound == .custom, let customSoundID = selectedCustomSoundID {
+            if let customSound = customSounds.first(where: { $0.id == customSoundID }) {
+                print("🔊 Attempting to use custom sound URL: \(customSound.fileURL.lastPathComponent)")
+                // Check if the custom sound file actually exists before returning URL
+                 if FileManager.default.fileExists(atPath: customSound.fileURL.path) {
+                    return customSound.fileURL
+                 } else {
+                     print("🚨 ERROR: Custom sound file not found at path: \(customSound.fileURL.path). Falling back.")
+                     // Fall through to default/selected built-in sound if file is missing
+                 }
+            } else {
+                print("🚨 ERROR: Selected custom sound ID \(customSoundID) not found in customSounds array. Falling back.")
+                // Fall through if ID is invalid
+            }
+        }
+        
+        // Handle built-in sound selection (or fallback from custom)
+        let soundToPlay = (selectedAlarmSound == .custom) ? .testAlarm : selectedAlarmSound // Fallback to testAlarm if custom failed
+        
+        print("🔊 Attempting to use built-in sound: \(soundToPlay.filename).\(soundToPlay.fileExtension)")
+        guard let url = Bundle.main.url(
+            forResource: soundToPlay.filename,
+            withExtension: soundToPlay.fileExtension
+        ) else {
+            print("🚨 ERROR: Could not find built-in sound file: \(soundToPlay.filename).\(soundToPlay.fileExtension)")
+            return nil
+        }
+        return url
+    }
+
     // Play the selected alarm sound
     func playAlarmSound() {
-        print("Playing alarm sound: \(selectedAlarmSound.rawValue)")
+        print("🔊 Playing alarm sound request... Current selection: \(selectedAlarmSound.rawValue)")
         
         // Stop any existing audio first
         stopAlarmSound()
         
+        // Get the sound URL using the helper
+        guard let soundURL = getAlarmSoundURL() else {
+            print("🚨 ERROR: Could not get a valid sound URL to play.")
+            return // Cannot proceed without a URL
+        }
+        
         // Setup audio session for playback
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback)
+            // Use .playback category for continuous background audio
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers, .duckOthers])
             try AVAudioSession.sharedInstance().setActive(true)
+            print("🔊 Audio session activated for playback.")
         } catch {
-            print("Failed to setup audio session: \(error)")
+            print("🚨 ERROR: Failed to setup audio session: \(error)")
+            // Attempt to continue playback even if session setup fails partially
         }
         
-        // For custom sounds
-        if selectedAlarmSound == .custom, let customSoundID = selectedCustomSoundID {
-            if let customSound = customSounds.first(where: { $0.id == customSoundID }) {
-                do {
-                    print("Playing custom sound: \(customSound.name)")
-                    audioPlayer = try AVAudioPlayer(contentsOf: customSound.fileURL)
-                    audioPlayer?.prepareToPlay()
-                    audioPlayer?.numberOfLoops = -1 // Loop continuously
-                    audioPlayer?.volume = 1.0
-                    let playResult = audioPlayer?.play() ?? false
-                    print("Custom sound play result: \(playResult)")
-                    return
-                } catch {
-                    print("Could not play custom alarm sound: \(error.localizedDescription)")
-                    // Fall back to default sound if custom fails
-                }
-            }
-        }
-        
-        // For built-in sounds or if custom fails
-        guard let url = Bundle.main.url(
-            forResource: selectedAlarmSound.filename,
-            withExtension: selectedAlarmSound.fileExtension
-        ) else {
-            print("Could not find alarm sound file: \(selectedAlarmSound.filename).\(selectedAlarmSound.fileExtension)")
-            return
-        }
-        
+        // Now play the sound from the determined URL
         do {
-            print("Playing built-in sound: \(selectedAlarmSound.filename).\(selectedAlarmSound.fileExtension)")
-            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            print("🔊 Initializing AVAudioPlayer with URL: \(soundURL.lastPathComponent)")
+            audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
             audioPlayer?.prepareToPlay()
             audioPlayer?.numberOfLoops = -1 // Loop continuously (-1 means loop indefinitely)
             audioPlayer?.volume = 1.0
-            let playResult = audioPlayer?.play() ?? false
-            print("Built-in sound play result: \(playResult)")
             
-            // Register for interruptions
+            // Add a slight delay before playing to ensure session is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                let playResult = self.audioPlayer?.play() ?? false
+                print("🔊 Audio player play() called. Result: \(playResult)")
+                if !playResult {
+                    print("🚨 ERROR: audioPlayer.play() returned false.")
+                }
+            }
+            
+            // Register for interruptions *after* successfully initializing the player
             NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
             NotificationCenter.default.addObserver(
                 self,
@@ -468,8 +467,12 @@ class TimerManager: ObservableObject {
                 name: AVAudioSession.interruptionNotification,
                 object: AVAudioSession.sharedInstance()
             )
+            print("🔊 Registered for audio interruptions.")
+            
         } catch {
-            print("Could not play alarm sound: \(error.localizedDescription)")
+            print("🚨 ERROR: Could not initialize or play alarm sound from URL \(soundURL.lastPathComponent): \(error.localizedDescription)")
+            // Clean up session if player fails to initialize
+             stopAlarmSound() 
         }
     }
     

@@ -126,122 +126,10 @@ struct SleepScreen: View {
                     }
                     .padding()
                     
-                    // Button row - redesigned with two buttons
+                    // Button row - using computed properties for clarity
                     HStack(spacing: 20) {
-                        // Button to go back to NapScreen (keeping settings)
-                        if napFinished {
-                            // Tap-only button when timer is done
-                            Button(action: {
-                                // Ensure alarm is fully stopped first
-                                timerManager.stopAlarmSound()
-                                // Also cancel any scheduled notifications
-                                NotificationManager.shared.cancelPendingNotifications()
-                                
-                                resetNapScreen?() // Call reset function if provided
-                                dismiss()
-                                timerManager.stopNapTimer()
-                                timerManager.startHoldTimer()
-                            }) {
-                                VStack(spacing: 5) {
-                                    Image(systemName: "chevron.left")
-                                        .font(.system(size: 22, weight: .medium))
-                                    Text("Back to Nap")
-                                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                                }
-                                .padding(.vertical, 15)
-                                .padding(.horizontal, 20)
-                                .foregroundColor(.white)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color.blue.opacity(0.5))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.blue.opacity(0.7), lineWidth: 1)
-                                )
-                            }
-                        } else {
-                            // Multi-swipe button when timer is active
-                            MultiSwipeConfirmation(
-                                action: {
-                                    // Ensure alarm is fully stopped first
-                                    timerManager.stopAlarmSound()
-                                    // Also cancel any scheduled notifications
-                                    NotificationManager.shared.cancelPendingNotifications()
-                                    
-                                    resetNapScreen?() // Call reset function if provided
-                                    dismiss()
-                                    timerManager.stopNapTimer()
-                                    timerManager.startHoldTimer()
-                                },
-                                requiredSwipes: 2,
-                                direction: .leading,
-                                label: "Swipe to Nap",
-                                confirmLabel: "Swipe once more",
-                                finalLabel: "Swipe to confirm",
-                                requireMultipleSwipes: timerManager.isAnyTimerActive
-                            )
-                            .frame(width: 145)
-                        }
-                        
-                        // Skip button or Settings button
-                        if !napFinished {
-                            // Skip button using MultiSwipeConfirmation
-                            MultiSwipeConfirmation(
-                                action: {
-                                    // Ensure alarm is stopped first
-                                    timerManager.stopAlarmSound()
-                                    
-                                    // Skip the nap
-                                    timerManager.stopNapTimer()
-                                    timerManager.napTimer = 0
-                                    napFinished = true
-                                },
-                                requiredSwipes: 2,
-                                direction: .trailing,
-                                label: "Swipe to skip",
-                                confirmLabel: "Swipe once more",
-                                finalLabel: "Swipe to confirm",
-                                requireMultipleSwipes: timerManager.isAnyTimerActive
-                            )
-                            .frame(width: 145)
-                        } else {
-                            // Button to go back to Settings (reset timers) - tap-only when timer is done
-                            Button(action: {
-                                // Ensure alarm is fully stopped first
-                                timerManager.stopAlarmSound()
-                                // Also cancel any scheduled notifications
-                                NotificationManager.shared.cancelPendingNotifications()
-                                
-                                timerManager.stopNapTimer()
-                                timerManager.resetTimers()
-                                // Go back to root view (Settings)
-                                if let dismissAction = dismissToSettings {
-                                    dismissAction()
-                                } else {
-                                    // Fallback to just dismissing this screen
-                                    presentationMode.wrappedValue.dismiss()
-                                }
-                            }) {
-                                VStack(spacing: 5) {
-                                    Image(systemName: "gearshape")
-                                        .font(.system(size: 22, weight: .medium))
-                                    Text("Back to Settings")
-                                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                                }
-                                .padding(.vertical, 15)
-                                .padding(.horizontal, 20)
-                                .foregroundColor(.white)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color.indigo.opacity(0.5))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.indigo.opacity(0.7), lineWidth: 1)
-                                )
-                            }
-                        }
+                        leftButton
+                        rightButton
                     }
                     .padding(.bottom, 40)
                 }
@@ -307,6 +195,108 @@ struct SleepScreen: View {
         }
         // Hide home indicator but keep status bar visible
         .edgesIgnoringSafeArea(.all)
+    }
+    
+    // MARK: - Computed Button Views
+    
+    /// Button for going back to NapScreen or initiating the nap swipe
+    @ViewBuilder
+    private var leftButton: some View {
+        let action = {
+            // Ensure alarm is fully stopped first
+            timerManager.stopAlarmSound()
+            // Also cancel any scheduled notifications
+            NotificationManager.shared.cancelPendingNotifications()
+            
+            resetNapScreen?() // Call reset function if provided
+            dismiss()
+            timerManager.stopNapTimer() // Stop the nap timer
+            // Don't automatically start hold timer here, NapScreen handles state
+        }
+        
+        if napFinished {
+            // Tap-only button when timer is done
+            Button(action: action) {
+                buttonContent(icon: "chevron.left", text: "Back to Nap", color: .blue)
+            }
+        } else {
+            // Multi-swipe button when timer is active
+            MultiSwipeConfirmation(
+                action: action,
+                requiredSwipes: 2,
+                direction: .leading,
+                label: "Swipe to Nap",
+                confirmLabel: "Swipe once more",
+                finalLabel: "Swipe to confirm",
+                requireMultipleSwipes: timerManager.isAnyTimerActive
+            )
+            .frame(width: 145) // Keep original frame
+        }
+    }
+    
+    /// Button for skipping the nap or going back to Settings
+    @ViewBuilder
+    private var rightButton: some View {
+        if !napFinished {
+            // Skip button using MultiSwipeConfirmation
+            MultiSwipeConfirmation(
+                action: {
+                    // Ensure alarm is stopped first
+                    timerManager.stopAlarmSound()
+                    // Also cancel any scheduled notifications
+                    NotificationManager.shared.cancelPendingNotifications()
+                    
+                    // Skip the nap
+                    timerManager.stopNapTimer()
+                    timerManager.napTimer = 0 // Effectively end the timer
+                    napFinished = true
+                },
+                requiredSwipes: 2,
+                direction: .trailing,
+                label: "Swipe to skip",
+                confirmLabel: "Swipe once more",
+                finalLabel: "Swipe to confirm",
+                requireMultipleSwipes: timerManager.isAnyTimerActive
+            )
+             .frame(width: 145) // Keep original frame
+        } else {
+            // Button to go back to Settings (reset timers) - tap-only when timer is done
+            Button(action: {
+                // Ensure alarm is fully stopped first
+                timerManager.stopAlarmSound()
+                // Also cancel any scheduled notifications
+                NotificationManager.shared.cancelPendingNotifications()
+                
+                timerManager.stopNapTimer()
+                timerManager.stopMaxTimer() // Stop max timer to prevent background notifications
+                timerManager.resetTimers()
+                // Go back to root view (Settings)
+                dismissToSettings?()
+            }) {
+                 buttonContent(icon: "gearshape", text: "Back to Settings", color: .indigo)
+            }
+        }
+    }
+    
+    /// Helper view for button content to reduce repetition
+    private func buttonContent(icon: String, text: String, color: Color) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .medium))
+            Text(text)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+        }
+        .padding(.vertical, 15)
+        .padding(.horizontal, 20)
+        .foregroundColor(.white)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(color.opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.7), lineWidth: 1)
+        )
     }
     
     // Calculate wake up time based on effective nap duration

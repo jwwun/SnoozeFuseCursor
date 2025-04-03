@@ -32,7 +32,17 @@ SnoozeFuse is an iOS app built with SwiftUI that provides timer functionality wi
 - Enables complex touch interactions for timer controls
 
 #### Screens
-- `SettingsScreen.swift` - Main settings interface
+- `SettingsScreen.swift` - Main settings interface. Contains several nested SwiftUI Views for different setting groups:
+    - `PixelateEffect`: ViewModifier for logo animation.
+    - `HelpButton`: Reusable button for showing help tooltips.
+    - `CircleSizeControl`: UI for adjusting the circle size via slider and text input.
+    - `TimeUnit`: Enum for time units (seconds, minutes).
+    - `CuteTimePicker`: Reusable wheel picker for time values with unit selection.
+    - `TimerSettingsControl`: UI for setting Release, Nap, and Max timers.
+    - `AlarmSoundSelector`: UI for selecting built-in or custom alarm sounds, including preview and import functionality.
+    - `DocumentPicker`: `UIViewControllerRepresentable` for picking custom sound files.
+    - `CirclePreviewOverlay`: An overlay view to preview the circle size.
+    - Contains a `Color(hex:)` extension, which could potentially be moved to a dedicated utilities file.
 - `NapScreen.swift` - Interface for nap timer
 - `SleepScreen.swift` - Interface for sleep timer
 - `AdvancedSettingsScreen.swift` - Additional settings
@@ -49,6 +59,8 @@ SnoozeFuse is an iOS app built with SwiftUI that provides timer functionality wi
 - **Improved Code Organization**: Moved enums to appropriate scope level
 - **Enhanced Method Documentation**: Added comments to clarify functionality
 - **Moved AlarmSound Enum**: Relocated the `AlarmSound` enum from nested inside `TimerManager` to a top-level type, and updated references throughout the codebase
+- **Removed Unused Code**: Deleted unused `Data` conversion extensions for `UInt32` and `UInt16`.
+- **Simplified Sound Playback**: Refactored `playAlarmSound` by extracting sound URL retrieval logic into a dedicated helper function (`getAlarmSoundURL`), improving clarity and separation of concerns.
 
 ### 2. HapticManager Refactoring
 - **Added Settings Persistence**: Implemented `saveSettings` and `loadSettings` methods
@@ -63,6 +75,7 @@ SnoozeFuse is an iOS app built with SwiftUI that provides timer functionality wi
 - **Added Documentation**: Added comprehensive documentation comments
 - **Extended Preview**: Created richer preview examples for design time
 - **Added MARK Comments**: Improved code organization with MARK comments
+- **Encapsulated Animation State**: Grouped related `@State` variables for particle animations (sparks, burnt effects) into private helper structs (`SparkState`, `BurntEmitParticleState`, etc.) to improve code organization and readability within `CircleView`.
 
 ### 4. MultiTouchHandler Refactoring
 - **Improved Architecture**: Reorganized component relationships and responsibilities
@@ -71,6 +84,19 @@ SnoozeFuse is an iOS app built with SwiftUI that provides timer functionality wi
 - **Added MARK Comments**: Improved code organization with section markers
 - **Simplified Conditionals**: Improved guard clauses and return early patterns
 - **Clarified Class Hierarchy**: Reordered class declarations for better readability
+
+### 5. SettingsScreen Refactoring
+- **Optimized Circle Size Control**: Refactored `CircleSizeControl`'s `onChange` handlers to eliminate redundant calls to `onValueChanged()` and `timerManager.saveSettings()`, ensuring settings are saved only once per effective change.
+- **Reduced Timer Settings Redundancy**: Extracted repeated time unit conversion logic in `TimerSettingsControl` into private helper functions (`decompose` and `compose`) for better code reuse and readability.
+- **Streamlined Sound Deletion**: Removed the redundant secondary 'Remove Custom Sounds' menu from `AlarmSoundSelector`, relying solely on the more intuitive swipe-to-delete action for managing custom sounds.
+
+### 6. SleepScreen Refactoring
+- **Button Logic Consolidation**: Refactored the bottom button row (`Back to Nap`/`Swipe to Nap` and `Back to Settings`/`Swipe to skip`) by extracting the conditional logic (based on `napFinished` state) into private computed properties (`leftButton`, `rightButton`).
+- **Reduced Button UI Repetition**: Created a private helper view (`buttonContent`) to define the common visual structure for the bottom buttons, reducing code duplication.
+
+### 7. Notification Handling Fixes
+- **Prevented Foreground Alert/Sound**: Modified the `UNUserNotificationCenterDelegate`'s `userNotificationCenter(_:willPresent:withCompletionHandler:)` method in `AppDelegate` to pass `[]` to the completion handler for alarm notifications. This prevents the system banner and sound from appearing when the app is already in the foreground.
+- **Eliminated Double Alarm Sound**: Removed the redundant call to `TimerManager.shared.playAlarmSound()` from the foreground notification delegate, ensuring the alarm sound is only triggered once by the `SleepScreen`'s internal logic.
 
 ## Key Design Patterns
 

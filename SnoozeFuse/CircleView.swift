@@ -62,21 +62,36 @@ struct CircleView: View {
     /// Whether to show the timer arcs
     var showArcs: Bool = true
     
-    /// Random offsets for spark positions
-    @State private var sparkOffsets: [CGPoint] = Array(repeating: .zero, count: 12)
-    @State private var sparkScales: [CGFloat] = Array(repeating: 0.0, count: 12)
-    @State private var sparkOpacities: [Double] = Array(repeating: 0.0, count: 12)
-    @State private var sparkRotations: [Double] = Array(repeating: 0.0, count: 12)
+    // MARK: - Private Animation State
     
-    /// Random properties for burnt particles that emit from the tip
-    @State private var burntEmitOffsets: [CGPoint] = Array(repeating: .zero, count: 8)
-    @State private var burntEmitScales: [CGFloat] = Array(repeating: 0.0, count: 8)
-    @State private var burntEmitOpacities: [Double] = Array(repeating: 0.0, count: 8)
+    /// State for a single sparkle particle
+    private struct SparkState {
+        var id = UUID()
+        var offset: CGPoint = .zero
+        var scale: CGFloat = 0.0
+        var opacity: Double = 0.0
+        var rotation: Double = 0.0
+    }
     
-    /// Random properties for burnt particles
-    @State private var burntOffsets: [CGPoint] = Array(repeating: .zero, count: 6)
-    @State private var burntScales: [CGFloat] = Array(repeating: 0.0, count: 6)
-    @State private var burntRotations: [Double] = Array(repeating: 0.0, count: 6)
+    /// State for a single burnt particle emitting from the tip
+    private struct BurntEmitParticleState {
+        var id = UUID()
+        var offset: CGPoint = .zero
+        var scale: CGFloat = 0.0
+        var opacity: Double = 0.0
+    }
+    
+    /// State for a single burnt particle near the tip (not currently used visually but kept for potential future use)
+    private struct BurntParticleState {
+        var id = UUID()
+        var offset: CGPoint = .zero
+        var scale: CGFloat = 0.0
+        var rotation: Double = 0.0
+    }
+    
+    @State private var sparkStates: [SparkState] = Array(repeating: SparkState(), count: 12)
+    @State private var burntEmitStates: [BurntEmitParticleState] = Array(repeating: BurntEmitParticleState(), count: 8)
+    @State private var burntStates: [BurntParticleState] = Array(repeating: BurntParticleState(), count: 6) // Kept for potential future effects
     
     // MARK: - Body
     
@@ -96,20 +111,17 @@ struct CircleView: View {
         }
         .frame(width: size, height: size)
         .onAppear {
-            // Initialize random spark positions
-            for i in 0..<sparkOffsets.count {
+            // Initialize animations
+            for i in 0..<sparkStates.count {
                 resetSpark(index: i, initialDelay: Double(i) * 0.2)
             }
-            
-            // Initialize burnt emitting particles
-            for i in 0..<burntEmitOffsets.count {
+            for i in 0..<burntEmitStates.count {
                 resetBurntEmitParticle(index: i, initialDelay: Double(i) * 0.15)
             }
-            
-            // Initialize burnt particles
-            for i in 0..<burntOffsets.count {
-                resetBurntParticle(index: i, initialDelay: Double(i) * 0.1)
-            }
+            // Burnt particle initialization (currently unused visually)
+            // for i in 0..<burntStates.count {
+            //     resetBurntParticle(index: i, initialDelay: Double(i) * 0.1)
+            // }
         }
     }
     
@@ -207,7 +219,7 @@ struct CircleView: View {
                 let angle = 2 * .pi * CGFloat(progress) - .pi/2
                 
                 // Add sparkles at the progress point
-                ForEach(0..<sparkOffsets.count, id: \.self) { i in
+                ForEach(sparkStates.indices, id: \.self) { i in
                     SparkleShape()
                         .fill(
                             LinearGradient(
@@ -220,14 +232,14 @@ struct CircleView: View {
                             )
                         )
                         .frame(width: i % 3 == 0 ? 12 : (i % 3 == 1 ? 9 : 7), height: i % 3 == 0 ? 12 : (i % 3 == 1 ? 9 : 7))
-                        .scaleEffect(sparkScales[i])
-                        .opacity(sparkOpacities[i])
-                        .rotationEffect(Angle(degrees: sparkRotations[i]))
+                        .scaleEffect(sparkStates[i].scale)
+                        .opacity(sparkStates[i].opacity)
+                        .rotationEffect(Angle(degrees: sparkStates[i].rotation))
                         .blur(radius: 0.2)
                         .shadow(color: .orange.opacity(0.7), radius: 3, x: 0, y: 0)
                         .offset(
-                            x: (size/2 - 25) * cos(angle) + sparkOffsets[i].x, 
-                            y: (size/2 - 25) * sin(angle) + sparkOffsets[i].y
+                            x: (size/2 - 25) * cos(angle) + sparkStates[i].offset.x, 
+                            y: (size/2 - 25) * sin(angle) + sparkStates[i].offset.y
                         )
                 }
             }
@@ -247,17 +259,17 @@ struct CircleView: View {
                 )
                 
                 // Add small black particles emitting from the tip
-                ForEach(0..<burntEmitOffsets.count, id: \.self) { i in
+                ForEach(burntEmitStates.indices, id: \.self) { i in
                     Circle()
                         .fill(
                             Color.black.opacity(i % 2 == 0 ? 0.7 : 0.5)
                         )
                         .frame(width: i % 3 == 0 ? 3 : (i % 3 == 1 ? 2 : 1.5), height: i % 3 == 0 ? 3 : (i % 3 == 1 ? 2 : 1.5))
-                        .scaleEffect(burntEmitScales[i])
-                        .opacity(burntEmitOpacities[i])
+                        .scaleEffect(burntEmitStates[i].scale)
+                        .opacity(burntEmitStates[i].opacity)
                         .offset(
-                            x: tipPosition.x + burntEmitOffsets[i].x, 
-                            y: tipPosition.y + burntEmitOffsets[i].y
+                            x: tipPosition.x + burntEmitStates[i].offset.x, 
+                            y: tipPosition.y + burntEmitStates[i].offset.y
                         )
                         .blur(radius: 0.3)
                 }
@@ -298,25 +310,25 @@ struct CircleView: View {
     private func resetSpark(index: Int, initialDelay: Double = 0) {
         // Only start animations after initial delay
         DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) {
-            // Randomize position offset, scale and opacity with animation
+            // Randomize properties within the state struct
             withAnimation(.easeOut(duration: 0.25)) {
-                sparkScales[index] = CGFloat.random(in: 0.8...1.3)
-                sparkOffsets[index] = CGPoint(
+                sparkStates[index].scale = CGFloat.random(in: 0.8...1.3)
+                sparkStates[index].offset = CGPoint(
                     x: CGFloat.random(in: -20...20),
                     y: CGFloat.random(in: -20...20)
                 )
-                sparkOpacities[index] = Double.random(in: 0.6...1.0)
-                sparkRotations[index] = Double.random(in: 0...360)
+                sparkStates[index].opacity = Double.random(in: 0.6...1.0)
+                sparkStates[index].rotation = Double.random(in: 0...360)
             }
             
             // After a short delay, fade out
             DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.05...0.2)) {
                 withAnimation(.easeIn(duration: 0.15)) {
-                    sparkOpacities[index] = 0
-                    sparkScales[index] = CGFloat.random(in: 0.3...0.6)
-                    sparkOffsets[index].y += CGFloat.random(in: 5...12) // More upward movement
-                    sparkOffsets[index].x += CGFloat.random(in: -5...5) // Some sideways drift
-                    sparkRotations[index] += Double.random(in: 45...120)
+                    sparkStates[index].opacity = 0
+                    sparkStates[index].scale = CGFloat.random(in: 0.3...0.6)
+                    sparkStates[index].offset.y += CGFloat.random(in: 5...12) // More upward movement
+                    sparkStates[index].offset.x += CGFloat.random(in: -5...5) // Some sideways drift
+                    sparkStates[index].rotation += Double.random(in: 45...120)
                 }
                 
                 // Restart animation after a slight delay
@@ -331,10 +343,10 @@ struct CircleView: View {
     private func resetBurntEmitParticle(index: Int, initialDelay: Double = 0) {
         // Only start animations after initial delay
         DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) {
-            // Start at the tip position
-            burntEmitOffsets[index] = CGPoint(x: 0, y: 0)
-            burntEmitScales[index] = CGFloat.random(in: 0.8...1.2)
-            burntEmitOpacities[index] = Double.random(in: 0.6...0.9)
+            // Start at the tip position using the state struct
+            burntEmitStates[index].offset = CGPoint(x: 0, y: 0)
+            burntEmitStates[index].scale = CGFloat.random(in: 0.8...1.2)
+            burntEmitStates[index].opacity = Double.random(in: 0.6...0.9)
             
             // Calculate the opposite direction of the burning tip
             if let progress = releaseTimerProgress {
@@ -351,12 +363,12 @@ struct CircleView: View {
                 // Animate the particle moving away from the tip in the opposite direction
                 withAnimation(.easeOut(duration: Double.random(in: 1.0...2.0))) {
                     // Use the angle to determine direction vector
-                    burntEmitOffsets[index] = CGPoint(
+                    burntEmitStates[index].offset = CGPoint(
                         x: cos(randomizedAngle) * distance,
                         y: sin(randomizedAngle) * distance
                     )
-                    burntEmitScales[index] = CGFloat.random(in: 0.3...0.6)
-                    burntEmitOpacities[index] = 0 // Fade out completely
+                    burntEmitStates[index].scale = CGFloat.random(in: 0.3...0.6)
+                    burntEmitStates[index].opacity = 0 // Fade out completely
                 }
             }
             
@@ -371,15 +383,15 @@ struct CircleView: View {
     private func resetBurntParticle(index: Int, initialDelay: Double = 0) {
         // Only start animations after initial delay
         DispatchQueue.main.asyncAfter(deadline: .now() + initialDelay) {
-            // Randomize position offset, scale and rotation with animation
+            // Randomize properties within the state struct
             withAnimation(.easeInOut(duration: Double.random(in: 0.8...1.5))) {
                 // Keep particles close to the tip but give them some random movement
-                burntScales[index] = CGFloat.random(in: 0.8...1.2)
-                burntOffsets[index] = CGPoint(
+                burntStates[index].scale = CGFloat.random(in: 0.8...1.2)
+                burntStates[index].offset = CGPoint(
                     x: CGFloat.random(in: -4...4),
                     y: CGFloat.random(in: -4...4)
                 )
-                burntRotations[index] = Double.random(in: 0...360)
+                burntStates[index].rotation = Double.random(in: 0...360)
             }
             
             // Restart animation after a delay for continuous subtle movement

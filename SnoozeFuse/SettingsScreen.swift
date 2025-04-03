@@ -49,53 +49,66 @@ struct PixelateEffect: ViewModifier {
     }
     
     private func startAnimations() {
-        // Sequence the animations for a smoother flow
+        // Reset state before starting
+        resetAnimations() 
         
-        // Start with glow and subtle scale
+        // Phase 1: Initial pop and glow
         withAnimation(.easeIn(duration: 0.3)) {
             glowOpacity = 0.7
             glowScale = 1.2
-            bounceScale = 1.1
+            bounceScale = 1.1 // Initial small bounce
         }
         
-        // Start hue rotation
-        withAnimation(.linear(duration: 0.8).repeatCount(2, autoreverses: true)) {
-            hueRotation = 30
+        // Phase 2: Hue shift and slight rotation start
+        // Use a slightly delayed start for hue to make it less abrupt
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.linear(duration: 0.8).repeatCount(2, autoreverses: true)) {
+                hueRotation = 30
+            }
         }
         
-        // Then continue with more dramatic effects
+        // Phase 3: Main bounce, rotation, and glow intensification
+        // Delay this slightly to let phase 1 settle
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            // Continue rotation smoothly
-            withAnimation(.easeInOut(duration: 0.8)) {
-                rotationAngle = 360
-            }
-            
-            // Larger bounce
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                bounceScale = 1.3
-                glowOpacity = 0.9
-                glowScale = 1.4
-            }
-            
-            // Smooth return to normal size
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    bounceScale = 0.9
-                }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                        bounceScale = 1.0
-                    }
-                    
-                    // Fade out effects gradually
-                    withAnimation(.easeOut(duration: 0.8)) {
-                        glowOpacity = 0.0
-                        glowScale = 2.0
-                    }
-                }
-            }
+             withAnimation(.easeInOut(duration: 0.8)) {
+                 // Rotate smoothly over a longer duration
+                 rotationAngle = 360 
+             }
+             withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                 // Bigger bounce effect
+                 bounceScale = 1.3
+                 glowOpacity = 0.9 // Max glow
+                 glowScale = 1.4   // Max glow scale
+             }
         }
+        
+        // Phase 4: Settle back and fade out glow
+        // Start settling slightly after the main bounce peak
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { // Phase 3 animation duration (0.4) + delay (0.2)
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                 // Settle back towards original size
+                bounceScale = 0.9 // Slight overshoot
+            }
+             // Fade out glow while settling
+             withAnimation(.easeOut(duration: 0.8)) {
+                 glowOpacity = 0.0
+                 glowScale = 2.0 // Glow expands as it fades
+             }
+        }
+        
+        // Phase 5: Final settle
+        // Ensure this happens after the overshoot settles
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { // Phase 4 settle duration (0.5) + start time (0.6) - slight overlap
+             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                 bounceScale = 1.0 // Return to normal size
+             }
+        }
+        
+         // Phase 6: Reset rotation silently after animation completes (avoids snapping)
+         // Total rotation animation duration (0.8) + start delay (0.2)
+         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+             rotationAngle = 0 // Reset angle non-animated
+         }
     }
     
     private func resetAnimations() {
@@ -188,17 +201,25 @@ struct CircleSizeControl: View {
                     .frame(width: CGFloat(max(textInputValue.count, 1) * 20 + 28))
                     .focused($isTextFieldFocused)
                     .onChange(of: textInputValue) { newValue in
+                        // Update the circleSize binding when the text changes.
+                        // The Slider's onChange will handle the saving and callback.
                         if let newSize = Int(newValue) {
-                            circleSize = CGFloat(newSize)
-                            onValueChanged()
-                            timerManager.saveSettings()
-                        }
+                            // Only update if the value is actually different
+                            // to prevent potential update loops.
+                            if circleSize != CGFloat(newSize) {
+                                 circleSize = CGFloat(newSize)
+                            }
+                        } 
+                        // If input is invalid/empty, we don't update circleSize.
+                        // The UI will be out of sync until a valid number or slider interaction.
                     }
                 HStack(spacing: 0) {
                     Slider(value: $circleSize, in: 100...500, step: 1)
                         .accentColor(.blue)
-                        .onChange(of: circleSize) { _ in
-                            textInputValue = "\(Int(circleSize))"
+                        .onChange(of: circleSize) { newSizeValue in
+                            // When circleSize changes (from slider or text field update),
+                            // update the text field and then perform the actions.
+                            textInputValue = "\(Int(newSizeValue))"
                             onValueChanged()
                             timerManager.saveSettings()
                         }
@@ -231,16 +252,16 @@ enum TimeUnit: String, CaseIterable, Identifiable {
 
 // Cute time picker with unit selection
 struct CuteTimePicker: View {
-    @Binding var value: String
-    @Binding var unit: TimeUnit
+    @Binding var duration: TimeInterval // Use TimeInterval binding directly
     var label: String
     var focus: FocusState<TimerSettingsControl.TimerField?>.Binding
     var timerField: TimerSettingsControl.TimerField
-    var updateAction: () -> Void
-    
-    // Internal state for the wheel picker
+    // Removed updateAction: () -> Void
+
+    // Internal state for the wheel picker and unit selection
     @State private var numericValue: Int = 0
-    
+    @State private var selectedUnit: TimeUnit = .seconds // Default to seconds initially
+
     var body: some View {
         VStack(alignment: .center, spacing: 5) {
             // Timer label without emoji
@@ -248,10 +269,10 @@ struct CuteTimePicker: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.white.opacity(0.8))
                 .padding(.bottom, 2)
-            
-            // Replace TextField with wheel Picker
+
+            // Wheel Picker for numeric value
             Picker("", selection: $numericValue) {
-                ForEach(0..<100) { number in
+                ForEach(0..<100) { number in // Assuming max 99 for simplicity
                     Text("\(number)").tag(number)
                 }
             }
@@ -259,27 +280,22 @@ struct CuteTimePicker: View {
             .frame(height: 100)
             .background(Color.black.opacity(0.3))
             .cornerRadius(12)
-            .onChange(of: numericValue) { newValue in
-                value = "\(newValue)"
-                updateAction()
+            .onChange(of: numericValue) { _ in // Use _ if newValue isn't needed
+                composeAndUpdateDuration()
             }
-            .onAppear {
-                // Initialize picker with current value
-                numericValue = Int(value) ?? 0
-            }
-            
+
             // Unit selection picker with compact style
             Menu {
                 ForEach(TimeUnit.allCases) { timeUnit in
                     Button(action: {
-                        unit = timeUnit
-                        updateAction()
+                        selectedUnit = timeUnit
+                        composeAndUpdateDuration()
                     }) {
                         Text(timeUnit.rawValue.uppercased())
                     }
                 }
             } label: {
-                Text(unit.rawValue)
+                Text(selectedUnit.rawValue) // Use selectedUnit state
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.blue)
                     .frame(minWidth: 50)
@@ -295,6 +311,31 @@ struct CuteTimePicker: View {
             RoundedRectangle(cornerRadius: 15)
                 .fill(Color.gray.opacity(0.15))
         )
+        .onAppear {
+            // Initialize picker state when view appears
+            decomposeAndUpdateState()
+        }
+        .onChange(of: duration) { _ in
+             // Update picker state if the binding changes externally
+            decomposeAndUpdateState()
+        }
+    }
+
+    // Helper to decompose TimeInterval into internal state (value and unit)
+    private func decomposeAndUpdateState() {
+        let value = Int(duration)
+        if value >= 60 && value % 60 == 0 {
+            numericValue = value / 60
+            selectedUnit = .minutes
+        } else {
+            numericValue = value
+            selectedUnit = .seconds
+        }
+    }
+
+    // Helper to compose TimeInterval from internal state and update binding
+    private func composeAndUpdateDuration() {
+        duration = TimeInterval(numericValue) * selectedUnit.multiplier
     }
 }
 
@@ -303,174 +344,106 @@ struct TimerSettingsControl: View {
     @Binding var holdDuration: TimeInterval
     @Binding var napDuration: TimeInterval
     @Binding var maxDuration: TimeInterval
-    
-    @State private var holdTime: String = "5"
-    @State private var napTime: String = "1"
-    @State private var maxTime: String = "2"
-    
-    @State private var holdUnit: TimeUnit = .seconds // Default seconds
-    @State private var napUnit: TimeUnit = .minutes  // Default minutes
-    @State private var maxUnit: TimeUnit = .minutes  // Default minutes
-    
+
+    // Removed @State variables for time strings and units
+
     @FocusState private var focusedField: TimerField?
     @EnvironmentObject var timerManager: TimerManager
-    
-    // Warning states
+
+    // Warning states (remain the same)
     private var isMaxLessThanNap: Bool {
         maxDuration < napDuration
     }
-    
+
     private var isHoldTooLong: Bool {
         holdDuration > (maxDuration - napDuration)
     }
-    
+
     enum TimerField {
         case hold, nap, max
     }
-    
+
     var body: some View {
         VStack(alignment: .center, spacing: 1) {
-            // Title with help button
-            HStack {
-                Text("TIMER SETTINGS")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
-                
-                HelpButton(helpText: "RELEASE: usually a small number. When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session. Alarm will sound when this hits 0.")
-            }
-            .padding(.bottom, 5)
-            .frame(maxWidth: .infinity, alignment: .center)
-            
-            // Timer grid layout - reduced spacings to prevent edge cutoff
+            // Title with help button (remains the same)
+             HStack {
+                 Text("TIMER SETTINGS")
+                     .font(.system(size: 14, weight: .bold, design: .rounded))
+                     .foregroundColor(Color.blue.opacity(0.7))
+                     .tracking(3)
+                 
+                 HelpButton(helpText: "RELEASE: usually a small number. When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session. Alarm will sound when this hits 0.")
+             }
+             .padding(.bottom, 5)
+             .frame(maxWidth: .infinity, alignment: .center)
+
+            // Timer grid layout - pass bindings directly
             HStack(alignment: .top, spacing: 8) {
                 // Hold Timer (Timer A)
                 CuteTimePicker(
-                    value: $holdTime,
-                    unit: $holdUnit,
+                    duration: $holdDuration, // Pass binding
                     label: "RELEASE",
                     focus: $focusedField,
-                    timerField: .hold,
-                    updateAction: updateHoldTimer
+                    timerField: .hold
+                    // Removed updateAction
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
                         .stroke(isHoldTooLong ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
-                
+                 .onChange(of: holdDuration) { _ in timerManager.saveSettings() } // Save on change
+
                 // Nap Timer (Timer B)
                 CuteTimePicker(
-                    value: $napTime,
-                    unit: $napUnit,
+                    duration: $napDuration, // Pass binding
                     label: "NAP",
                     focus: $focusedField,
-                    timerField: .nap,
-                    updateAction: updateNapTimer
+                    timerField: .nap
+                    // Removed updateAction
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
                         .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
-                
+                .onChange(of: napDuration) { _ in timerManager.saveSettings() } // Save on change
+
                 // Max Timer (Timer C)
                 CuteTimePicker(
-                    value: $maxTime,
-                    unit: $maxUnit,
+                    duration: $maxDuration, // Pass binding
                     label: "MAX",
                     focus: $focusedField,
-                    timerField: .max,
-                    updateAction: updateMaxTimer
+                    timerField: .max
+                    // Removed updateAction
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
                         .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
+                .onChange(of: maxDuration) { _ in timerManager.saveSettings() } // Save on change
             }
-            
-            // Subtle warning messages
-            if isMaxLessThanNap || isHoldTooLong {
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12))
-                    Text(isMaxLessThanNap ? "<Max> should be greater than <Nap> (add autoassist later, this just for debug)" : "<Release> + <Nap> should be less than <Max> ")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundColor(Color.orange.opacity(0.8))
-                .padding(.top, 8)
-            }
+
+            // Subtle warning messages (remain the same)
+             if isMaxLessThanNap || isHoldTooLong {
+                 HStack(spacing: 4) {
+                     Image(systemName: "exclamationmark.triangle.fill")
+                         .font(.system(size: 12))
+                     Text(isMaxLessThanNap ? "<Max> should be greater than <Nap> (add autoassist later, this just for debug)" : "<Release> + <Nap> should be less than <Max> ")
+                         .font(.system(size: 12, weight: .medium))
+                 }
+                 .foregroundColor(Color.orange.opacity(0.8))
+                 .padding(.top, 8)
+             }
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
         .padding(.horizontal, 8)
-        .onAppear {
-            // Initialize units and values
-            setupInitialValues()
-        }
+        // Removed .onAppear { setupInitialValues() }
+        // Removed setupInitialValues, decompose, compose, update...Timer functions
     }
-    
-    // Setup initial values based on the existing durations
-    private func setupInitialValues() {
-        let hold = Int(holdDuration)
-        if hold >= 60 && hold % 60 == 0 {
-            holdUnit = .minutes
-            holdTime = "\(hold / 60)"
-        } else {
-            holdUnit = .seconds
-            holdTime = "\(hold)"
-        }
-        
-        let nap = Int(napDuration)
-        if nap >= 60 && nap % 60 == 0 {
-            napUnit = .minutes
-            napTime = "\(nap / 60)"
-        } else {
-            napUnit = .seconds
-            napTime = "\(nap)"
-        }
-        
-        let max = Int(maxDuration)
-        if max >= 60 && max % 60 == 0 {
-            maxUnit = .minutes
-            maxTime = "\(max / 60)"
-        } else {
-            maxUnit = .seconds
-            maxTime = "\(max)"
-        }
-    }
-    
-    private func updateHoldTimer() {
-        let value = Int(holdTime) ?? 0
-        holdDuration = TimeInterval(value) * holdUnit.multiplier
-        // Save settings after update
-        timerManager.saveSettings()
-    }
-    
-    private func updateNapTimer() {
-        let value = Int(napTime) ?? 0
-        napDuration = TimeInterval(value) * napUnit.multiplier
-        // Save settings after update
-        timerManager.saveSettings()
-    }
-    
-    private func updateMaxTimer() {
-        let value = Int(maxTime) ?? 0
-        maxDuration = TimeInterval(value) * maxUnit.multiplier
-        // Save settings after update
-        timerManager.saveSettings()
-    }
-    
-    // Helper function to format time with unit
-    private func formatTimeWithUnit(_ time: String, _ unit: TimeUnit) -> String {
-        if let value = Int(time) {
-            if value == 1 {
-                return "1 " + unit.rawValue.dropLast() // Remove 's' for singular
-            }
-            return "\(value) " + unit.rawValue
-        }
-        return "0 " + unit.rawValue
-    }
+
+     // Removed helper function formatTimeWithUnit as it's no longer used here
 }
 
 // New component for alarm sound selection
@@ -542,20 +515,6 @@ struct AlarmSoundSelector: View {
                                     Label("Delete", systemImage: "trash")
                                 }
                             }
-                        }
-                        
-                        // Delete option menu section
-                        Menu {
-                            ForEach(timerManager.customSounds) { customSound in
-                                Button(role: .destructive, action: {
-                                    soundToDelete = customSound.id
-                                    showingDeleteConfirmation = true
-                                }) {
-                                    Label(customSound.name, systemImage: "trash")
-                                }
-                            }
-                        } label: {
-                            Label("Remove Custom Sounds", systemImage: "trash")
                         }
                     }
                 } label: {
