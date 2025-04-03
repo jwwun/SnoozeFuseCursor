@@ -134,6 +134,24 @@ Used for managers that need global access:
 - Optimize sound loading and playback
 - Ensure proper cancellation of publishers
 
+### Performance Optimizations
+
+#### Commitment Message Performance Fixes
+- **Enhanced Debounce Mechanism**: Extended debounce timing from 0.5s to 0.8s to better handle rapid UI changes
+- **Background Thread Processing**: Moved settings persistence operations to background threads using `DispatchQueue.global(qos: .userInitiated)`
+- **Dedicated Serial Queue**: Created a serial queue for settings operations to prevent concurrent UserDefaults access
+- **Metal Rendering**: Added `drawingGroup()` modifier to Text views containing dynamically updated content for GPU-accelerated rendering
+- **Scroll Input Optimizations**: Improved CuteTimePicker wheel picker performance by adding more efficient debouncing and threading
+- **Delayed Observers Setup**: Added a small delay to TimerManager initialization to prevent feedback loops during app startup
+- **Forced Synchronization**: Added `UserDefaults.synchronize()` call to ensure settings are committed to disk efficiently
+- **Explicit Thread Management**: Added explicit thread transitions between background processing and UI updates
+- **Staggered UI Updates**: Implemented non-blocking UI updates with small delays to prevent UI freezing
+- **ThreadSafe Value Updates**: Added thread safety in CuteTimePicker by ensuring binding updates happen on the main thread
+- **Fixed Reference Type Patterns**: Removed improper use of reference type memory management (`weak self`) in struct closures, as this is only applicable to classes
+
+#### SwiftUI Initial Scroll Behavior
+Note: There is a small lag when first using a SwiftUI wheel picker after app launch. This is expected behavior with the SwiftUI framework and happens only on the first scroll after app initialization. This behavior is consistent across many SwiftUI applications and does not indicate a performance issue with the app itself.
+
 ## Bug Fixes
 
 ### Fixed Type Reference Issue
@@ -248,7 +266,14 @@ Used for managers that need global access:
 - **Configurable UI**: Allows users to choose between minimal and informative visual styles
 - **Enabled by Default**: Timer arcs are enabled by default for the best visual experience out of the box
 - **Battery Usage Information**: Added informative text noting the estimated 2-3% battery impact of enabling timer arcs
-- **Adaptive Implementation**: CircleView component adapts to the setting without requiring restart
+
+### Timer Settings Enhancements
+- **Commitment Message**: Added a clear, dynamically-updating message under timer settings that explains the timer sequence
+- **Plain Language Explanation**: Message clearly states "When you lift your finger, the countdown will start from X seconds/minutes. After that, your nap will last X seconds/minutes. If something goes wrong, the max limit is X seconds/minutes as a backup."
+- **Dynamic Value Display**: Times automatically update when the user changes any timer setting
+- **Smart Unit Formatting**: Displays values with appropriate units (seconds/minutes) and proper singular/plural forms
+- **Visual Integration**: Styled to match the app's overall design while maintaining readability
+- **Improved User Understanding**: Helps users better understand the relationship between the three timers
 
 ### Button Style Enhancements
 - **Simplified Styling**: Updated buttons with flat colors for improved readability

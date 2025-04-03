@@ -172,6 +172,10 @@ struct CircleSizeControl: View {
     var onValueChanged: () -> Void
     @EnvironmentObject var timerManager: TimerManager
     
+    // Add debounce timer
+    @State private var saveDebounceTimer: Timer? = nil
+    @State private var isAdjusting: Bool = false
+    
     var body: some View {
         VStack(alignment: .center, spacing: 3) {
             // Title with help button
@@ -222,7 +226,24 @@ struct CircleSizeControl: View {
                             // update the text field and then perform the actions.
                             textInputValue = "\(Int(newSizeValue))"
                             onValueChanged()
-                            timerManager.saveSettings()
+                            
+                            // Mark as adjusting
+                            isAdjusting = true
+                            
+                            // Cancel existing timer
+                            saveDebounceTimer?.invalidate()
+                            
+                            // Create new debounced timer for saving
+                            saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in    
+                                DispatchQueue.global(qos: .userInitiated).async {
+                                    self.timerManager.saveSettings()
+                                    
+                                    // Reset adjusting state
+                                    DispatchQueue.main.async {
+                                        self.isAdjusting = false
+                                    }
+                                }
+                            }
                         }
                 }
                 .padding(.horizontal)
@@ -233,6 +254,11 @@ struct CircleSizeControl: View {
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
         .padding(.horizontal, 8) // Reduced to prevent edge cutoff
+        .onDisappear {
+            // Clean up timer
+            saveDebounceTimer?.invalidate()
+            saveDebounceTimer = nil
+        }
     }
 }
 
@@ -257,11 +283,17 @@ struct CuteTimePicker: View {
     var label: String
     var focus: FocusState<TimerSettingsControl.TimerField?>.Binding
     var timerField: TimerSettingsControl.TimerField
-    // Removed updateAction: () -> Void
 
     // Internal state for the wheel picker and unit selection
     @State private var numericValue: Int = 0
     @State private var selectedUnit: TimeUnit = .seconds // Default to seconds initially
+    
+    // State to track active scrolling - helps improve performance
+    @State private var isScrolling: Bool = false
+    @State private var scrollDebounceTimer: Timer? = nil
+    
+    // Track if the binding warm-up has occurred
+    @State private var hasWarmedUpBinding: Bool = false
 
     var body: some View {
         VStack(alignment: .center, spacing: 5) {
@@ -281,8 +313,22 @@ struct CuteTimePicker: View {
             .frame(height: 100)
             .background(Color.black.opacity(0.3))
             .cornerRadius(12)
-            .onChange(of: numericValue) { _ in // Use _ if newValue isn't needed
-                composeAndUpdateDuration()
+            .onChange(of: numericValue) { _ in
+                // Mark that scrolling has started
+                isScrolling = true
+                
+                // Cancel existing timer
+                scrollDebounceTimer?.invalidate()
+                
+                // Set timer to update duration only after scrolling stops
+                scrollDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
+                    composeAndUpdateDuration()
+                    
+                    // Delay marking scrolling as finished to ensure UI remains responsive
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isScrolling = false
+                    }
+                }
             }
 
             // Unit selection picker with compact style
@@ -315,13 +361,40 @@ struct CuteTimePicker: View {
         .onAppear {
             // Initialize picker state when view appears
             decomposeAndUpdateState()
+            
+            // Perform binding warm-up only once
+            if !hasWarmedUpBinding {
+                // Delay slightly to ensure view is ready
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    let originalDuration = duration
+                    // Tiny change to trigger binding update
+                    duration += 0.001 
+                    
+                    // Change back immediately
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        duration = originalDuration
+                        hasWarmedUpBinding = true
+                    }
+                }
+            }
         }
         .onChange(of: duration) { _ in
-             // Update picker state if the binding changes externally
-            decomposeAndUpdateState()
+            // Only update picker state if we're not currently scrolling
+            // This prevents feedback loops during active scrolling
+            if !isScrolling {
+                decomposeAndUpdateState()
+            }
+        }
+        .onDisappear {
+            // Clean up timer
+            scrollDebounceTimer?.invalidate()
+            scrollDebounceTimer = nil
+            
+            // Reset warm-up flag if needed (optional, depends on desired behavior)
+            // hasWarmedUpBinding = false 
         }
     }
-
+    
     // Helper to decompose TimeInterval into internal state (value and unit)
     private func decomposeAndUpdateState() {
         let value = Int(duration)
@@ -336,7 +409,11 @@ struct CuteTimePicker: View {
 
     // Helper to compose TimeInterval from internal state and update binding
     private func composeAndUpdateDuration() {
-        duration = TimeInterval(numericValue) * selectedUnit.multiplier
+        let newDuration = TimeInterval(numericValue) * selectedUnit.multiplier
+        // Only update if value actually changed to reduce redundant updates
+        if duration != newDuration {
+            duration = newDuration
+        }
     }
 }
 
@@ -346,10 +423,14 @@ struct TimerSettingsControl: View {
     @Binding var napDuration: TimeInterval
     @Binding var maxDuration: TimeInterval
 
-    // Removed @State variables for time strings and units
-
     @FocusState private var focusedField: TimerField?
     @EnvironmentObject var timerManager: TimerManager
+    
+    // Text state for commitment message to prevent constant recalculation
+    @State private var commitmentMessage: String = ""
+    
+    // Debounce timer for message updates
+    @State private var messageUpdateTimer: Timer? = nil
 
     // Warning states (remain the same)
     private var isMaxLessThanNap: Bool {
@@ -363,6 +444,44 @@ struct TimerSettingsControl: View {
     enum TimerField {
         case hold, nap, max
     }
+    
+    // Helper to format time with appropriate unit
+    private func formatTimeUnit(_ duration: TimeInterval) -> String {
+        if duration >= 60 && duration.truncatingRemainder(dividingBy: 60) == 0 {
+            let minutes = Int(duration / 60)
+            return "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
+        } else {
+            return "\(Int(duration)) \(Int(duration) == 1 ? "second" : "seconds")"
+        }
+    }
+    
+    // Update the commitment message text without triggering view updates
+    private func updateCommitmentMessage() {
+        let holdText = formatTimeUnit(holdDuration)
+        let napText = formatTimeUnit(napDuration)
+        let maxText = formatTimeUnit(maxDuration)
+        
+        commitmentMessage = "Release to start a \(holdText) prep countdown → \(napText) nap, with a backup limit at \(maxText)."
+    }
+    
+    // Schedule a delayed update of the commitment message and settings save
+    private func scheduleDelayedUpdate() {
+        // Cancel any existing timer
+        messageUpdateTimer?.invalidate()
+        
+        // Create a new timer with a reasonable delay
+        messageUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            // Use a background queue for the settings save to avoid UI blocking
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.timerManager.saveSettings()
+                
+                // Update UI elements back on the main thread
+                DispatchQueue.main.async {
+                    self.updateCommitmentMessage()
+                }
+            }
+        }
+    }
 
     var body: some View {
         VStack(alignment: .center, spacing: 1) {
@@ -373,7 +492,7 @@ struct TimerSettingsControl: View {
                      .foregroundColor(Color.blue.opacity(0.7))
                      .tracking(3)
                  
-                 HelpButton(helpText: "RELEASE: usually a small number. When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session. Alarm will sound when this hits 0.")
+                 HelpButton(helpText: "There will be a lag when first using this because it's caching. This is normal.\n\nRELEASE: When the circle is not being held, this timer counts down. Starts <NAP> timer when done.\n\nNAP: How long your nap will last.\n\nMAX: A failsafe time limit for the entire session. Alarm will sound when this hits 0.")
              }
              .padding(.bottom, 5)
              .frame(maxWidth: .infinity, alignment: .center)
@@ -386,13 +505,14 @@ struct TimerSettingsControl: View {
                     label: "RELEASE",
                     focus: $focusedField,
                     timerField: .hold
-                    // Removed updateAction
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
                         .stroke(isHoldTooLong ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
-                 .onChange(of: holdDuration) { _ in timerManager.saveSettings() } // Save on change
+                 .onChange(of: holdDuration) { _ in 
+                     scheduleDelayedUpdate()
+                 } // Schedule delayed save on change
 
                 // Nap Timer (Timer B)
                 CuteTimePicker(
@@ -400,13 +520,14 @@ struct TimerSettingsControl: View {
                     label: "NAP",
                     focus: $focusedField,
                     timerField: .nap
-                    // Removed updateAction
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
                         .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
-                .onChange(of: napDuration) { _ in timerManager.saveSettings() } // Save on change
+                .onChange(of: napDuration) { _ in 
+                    scheduleDelayedUpdate()
+                } // Schedule delayed save on change
 
                 // Max Timer (Timer C)
                 CuteTimePicker(
@@ -414,21 +535,34 @@ struct TimerSettingsControl: View {
                     label: "MAX",
                     focus: $focusedField,
                     timerField: .max
-                    // Removed updateAction
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
                         .stroke(isMaxLessThanNap ? Color.orange.opacity(0.6) : Color.clear, lineWidth: 2)
                 )
-                .onChange(of: maxDuration) { _ in timerManager.saveSettings() } // Save on change
+                .onChange(of: maxDuration) { _ in 
+                    scheduleDelayedUpdate()
+                } // Schedule delayed save on change
             }
+            
+            // Commitment message that explains the timer process - now using pre-computed string
+            Text(commitmentMessage)
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
+                .padding(.top, 12)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle()) // Make sure it has the right hit test shape
+                .allowsHitTesting(false) // Don't let it intercept touch events
+                .drawingGroup() // Use Metal for better rendering performance
 
             // Subtle warning messages (remain the same)
              if isMaxLessThanNap || isHoldTooLong {
                  HStack(spacing: 4) {
                      Image(systemName: "exclamationmark.triangle.fill")
                          .font(.system(size: 12))
-                     Text(isMaxLessThanNap ? "<Max> should be greater than <Nap> (add autoassist later, this just for debug)" : "<Release> + <Nap> should be less than <Max> ")
+                     Text(isMaxLessThanNap ? "<MAX> should be greater than <NAP>" : "<Release> + <NAP> should be less than <MAX> ")
                          .font(.system(size: 12, weight: .medium))
                  }
                  .foregroundColor(Color.orange.opacity(0.8))
@@ -440,11 +574,16 @@ struct TimerSettingsControl: View {
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
         .padding(.horizontal, 8)
-        // Removed .onAppear { setupInitialValues() }
-        // Removed setupInitialValues, decompose, compose, update...Timer functions
+        .onAppear {
+            // Initialize the commitment message when the view appears
+            updateCommitmentMessage()
+        }
+        .onDisappear {
+            // Clean up timer when view disappears
+            messageUpdateTimer?.invalidate()
+            messageUpdateTimer = nil
+        }
     }
-
-     // Removed helper function formatTimeWithUnit as it's no longer used here
 }
 
 // New component for alarm sound selection
@@ -963,10 +1102,18 @@ struct SettingsScreen: View {
                             // Start button
                             bottomButtonBar
                                 .padding(.top, 10)
+                            
+                            // Add extra padding at the bottom for better scrolling
+                            Spacer()
+                                .frame(height: 20)
                         }
                         .padding(.horizontal, 5)
                     }
+                    .scrollIndicators(.hidden) // Hide scroll indicators for cleaner look
+                    .simultaneousGesture(DragGesture().onChanged { _ in }) // Add empty gesture to ensure proper propagation
+                    .focusable(false) // Prevent focus to ensure scrolling takes priority
                     .focused($isAnyFieldFocused)
+                    .allowsHitTesting(true) // Explicitly allow hit testing
                     
                     // Global keyboard dismissal button and loading overlay
                     VStack {
@@ -1145,7 +1292,7 @@ struct CirclePreviewOverlay: View {
             }
         }
         .transition(.opacity)
-        .zIndex(999) // Ensure it's above everything
+        .allowsHitTesting(true) // Explicitly allow hit testing
     }
 }
 

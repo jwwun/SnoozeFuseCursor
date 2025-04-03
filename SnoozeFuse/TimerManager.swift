@@ -155,11 +155,14 @@ class TimerManager: ObservableObject {
         // Initialize timers with default values
         resetTimers()
         
-        // Subscribe to changes in duration settings
-        setupDurationObservers()
-        
-        // Load saved settings
+        // First load settings to ensure proper initial values
         loadSettings()
+        
+        // Then subscribe to changes in duration settings
+        // Add delay to setup observers to prevent immediate feedback loops
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.setupDurationObservers()
+        }
         
         // Listen for audio session notifications to help debug issues
         NotificationCenter.default.addObserver(
@@ -726,33 +729,42 @@ class TimerManager: ObservableObject {
     
     // Save all settings to UserDefaults
     func saveSettings() {
-        let defaults = UserDefaults.standard
+        // Create a serial queue for settings operations
+        let settingsQueue = DispatchQueue(label: "com.app.snoozefuse.settings", qos: .utility)
         
-        // Save timer durations
-        defaults.set(holdDuration, forKey: UserDefaultsKeys.holdDuration)
-        defaults.set(napDuration, forKey: UserDefaultsKeys.napDuration)
-        defaults.set(maxDuration, forKey: UserDefaultsKeys.maxDuration)
-        
-        // Save circle size
-        defaults.set(circleSize, forKey: UserDefaultsKeys.circleSize)
-        
-        // Save selected alarm type
-        defaults.set(selectedAlarmSound.rawValue, forKey: UserDefaultsKeys.selectedAlarmSound)
-        
-        // Save selected custom sound ID
-        if let id = selectedCustomSoundID {
-            defaults.set(id.uuidString, forKey: UserDefaultsKeys.selectedCustomSoundID)
-        } else {
-            defaults.removeObject(forKey: UserDefaultsKeys.selectedCustomSoundID)
+        settingsQueue.async { [weak self] in
+            guard let self = self else { return }
+            let defaults = UserDefaults.standard
+            
+            // Save timer durations
+            defaults.set(self.holdDuration, forKey: UserDefaultsKeys.holdDuration)
+            defaults.set(self.napDuration, forKey: UserDefaultsKeys.napDuration)
+            defaults.set(self.maxDuration, forKey: UserDefaultsKeys.maxDuration)
+            
+            // Save circle size
+            defaults.set(self.circleSize, forKey: UserDefaultsKeys.circleSize)
+            
+            // Save selected alarm type
+            defaults.set(self.selectedAlarmSound.rawValue, forKey: UserDefaultsKeys.selectedAlarmSound)
+            
+            // Save selected custom sound ID
+            if let id = self.selectedCustomSoundID {
+                defaults.set(id.uuidString, forKey: UserDefaultsKeys.selectedCustomSoundID)
+            } else {
+                defaults.removeObject(forKey: UserDefaultsKeys.selectedCustomSoundID)
+            }
+            
+            // Save custom sounds list - this is more expensive so do it less frequently
+            if let encodedSounds = try? JSONEncoder().encode(self.customSounds) {
+                defaults.set(encodedSounds, forKey: UserDefaultsKeys.customSounds)
+            }
+            
+            // Save showTimerArcs setting
+            defaults.set(self.showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
+            
+            // Force synchronize to write changes to disk (use sparingly)
+            defaults.synchronize()
         }
-        
-        // Save custom sounds list
-        if let encodedSounds = try? JSONEncoder().encode(customSounds) {
-            defaults.set(encodedSounds, forKey: UserDefaultsKeys.customSounds)
-        }
-        
-        // Save showTimerArcs setting
-        defaults.set(showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
     }
     
     // Load all settings from UserDefaults
