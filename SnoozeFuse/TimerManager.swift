@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import AVFoundation
 import UserNotifications
+import MediaPlayer
 
 // Define notification names
 extension Notification.Name {
@@ -125,6 +126,7 @@ class TimerManager: ObservableObject {
     @Published var selectedAlarmSound: AlarmSound = .testAlarm
     @Published var customSounds: [CustomSound] = []
     @Published var selectedCustomSoundID: UUID?
+    @Published var isExportingMusic: Bool = false
     
     // Timer cancellables
     private var holdCancellable: AnyCancellable?
@@ -391,13 +393,40 @@ class TimerManager: ObservableObject {
         if selectedAlarmSound == .custom, let customSoundID = selectedCustomSoundID {
             if let customSound = customSounds.first(where: { $0.id == customSoundID }) {
                 print("🔊 Attempting to use custom sound URL: \(customSound.fileURL.lastPathComponent)")
+                
+                // Special case for Apple Music placeholder files
+                if customSound.fileURL.lastPathComponent.starts(with: "applemusic_") {
+                    print("🎵 This is an Apple Music track that can't be directly played")
+                    
+                    // Try to read the stored Apple Music ID
+                    if let musicIDContent = try? String(contentsOf: customSound.fileURL, encoding: .utf8),
+                       let musicIDString = musicIDContent.components(separatedBy: ": ").last,
+                       let musicID = UInt64(musicIDString) {
+                        
+                        print("🎵 Found Apple Music ID: \(musicID), will attempt to play via MPMusicPlayerController")
+                        
+                        // Set up a music player controller to play this specific item
+                        let musicPlayer = MPMusicPlayerController.applicationMusicPlayer
+                        let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: ["\(musicID)"])
+                        musicPlayer.setQueue(with: descriptor)
+                        musicPlayer.play()
+                        
+                        // Return nil so our normal AVAudioPlayer code doesn't run
+                        // (music is played via MPMusicPlayerController instead)
+                        return nil
+                    }
+                    
+                    // If we couldn't play via Apple Music, fall through to default sounds
+                    print("🚨 ERROR: Could not play Apple Music track, falling back to default sound")
+                }
+                
                 // Check if the custom sound file actually exists before returning URL
-                 if FileManager.default.fileExists(atPath: customSound.fileURL.path) {
+                else if FileManager.default.fileExists(atPath: customSound.fileURL.path) {
                     return customSound.fileURL
-                 } else {
-                     print("🚨 ERROR: Custom sound file not found at path: \(customSound.fileURL.path). Falling back.")
-                     // Fall through to default/selected built-in sound if file is missing
-                 }
+                } else {
+                    print("🚨 ERROR: Custom sound file not found at path: \(customSound.fileURL.path). Falling back.")
+                    // Fall through to default/selected built-in sound if file is missing
+                }
             } else {
                 print("🚨 ERROR: Selected custom sound ID \(customSoundID) not found in customSounds array. Falling back.")
                 // Fall through if ID is invalid
@@ -472,7 +501,7 @@ class TimerManager: ObservableObject {
         } catch {
             print("🚨 ERROR: Could not initialize or play alarm sound from URL \(soundURL.lastPathComponent): \(error.localizedDescription)")
             // Clean up session if player fails to initialize
-             stopAlarmSound() 
+             stopAlarmSound()
         }
     }
     
@@ -488,6 +517,9 @@ class TimerManager: ObservableObject {
         
         // Set to nil to release resources
         audioPlayer = nil
+        
+        // Also stop any playing Apple Music content
+        MPMusicPlayerController.applicationMusicPlayer.stop()
         
         // Remove the interruption observer
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
@@ -515,37 +547,135 @@ class TimerManager: ObservableObject {
         playAlarmSound()
     }
     
-    // Add a custom sound from a file URL
-    func addCustomSound(from url: URL) {
-        // Get filename for display
-        let filename = url.lastPathComponent
-        
-        // Copy the file to the app's documents directory for persistence
-        let fileManager = FileManager.default
-        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let destinationURL = documentsDirectory.appendingPathComponent(UUID().uuidString + "." + url.pathExtension)
-        
+    // MARK: - Custom Sound Management
+    
+    // Add a custom sound from a local file URL
+    func addCustomSound(name: String, fileURL: URL) {
+        // Create a copy of the file in the app's document directory
         do {
-            try fileManager.copyItem(at: url, to: destinationURL)
+            // Create a unique filename based on the original
+            let fileName = "\(UUID().uuidString)_\(fileURL.lastPathComponent)"
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let destinationURL = documentsDirectory.appendingPathComponent(fileName)
             
-            // Create a new custom sound and add to the list
-            let newSound = CustomSound(name: filename, fileURL: destinationURL)
+            // Copy the file
+            try FileManager.default.copyItem(at: fileURL, to: destinationURL)
+            
+            // Create and add the custom sound
+            let newSound = CustomSound(name: name, fileURL: destinationURL)
             customSounds.append(newSound)
             
-            // Set it as the selected sound
+            // Auto-select the new sound
             selectedAlarmSound = .custom
             selectedCustomSoundID = newSound.id
             
             // Save settings
             saveSettings()
             
-            print("Custom sound added successfully: \(filename)")
+            print("Successfully added custom sound: \(name)")
         } catch {
-            print("Error copying custom sound: \(error.localizedDescription)")
+            print("Failed to add custom sound: \(error)")
         }
     }
     
-    // Remove a custom sound
+    // Add a sound from Apple Music
+    func addMusicSound(item: MPMediaItem) {
+        guard let title = item.title else {
+            print("Invalid media item: missing title")
+            isExportingMusic = false
+            return
+        }
+        
+        // Set exporting flag to true at the start
+        isExportingMusic = true
+        
+        // Debug item properties
+        print("Processing Apple Music item: \(title)")
+        print("- Has asset URL: \(item.assetURL != nil)")
+        
+        // Prepare display name (Artist - Title)
+        var displayName = title
+        if let artist = item.artist {
+            displayName = "\(artist) - \(title)"
+        }
+        
+        // Create a unique filename using the song title
+        let sanitizedTitle = title.replacingOccurrences(of: " ", with: "_")
+                                  .replacingOccurrences(of: "/", with: "_")
+                                  .replacingOccurrences(of: ":", with: "_")
+        let fileName = "\(UUID().uuidString)_\(sanitizedTitle).m4a"
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let destinationURL = documentsDirectory.appendingPathComponent(fileName)
+        
+        // Try direct export if we have a URL (works for most music including pirated)
+        if let assetURL = item.assetURL, 
+           let avAsset = AVURLAsset(url: assetURL) as AVAsset? {
+            
+            let exporter = AVAssetExportSession(asset: avAsset, presetName: AVAssetExportPresetAppleM4A)
+            exporter?.outputURL = destinationURL
+            exporter?.outputFileType = .m4a
+            
+            exporter?.exportAsynchronously {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    
+                    // Set exporting flag to false when complete
+                    defer { self.isExportingMusic = false }
+                    
+                    if let error = exporter?.error {
+                        print("Failed to export Apple Music item: \(error)")
+                        self.handleExportFailure(item: item, displayName: displayName)
+                        return
+                    }
+                    
+                    // Success! Create and add the custom sound
+                    let newSound = CustomSound(name: displayName, fileURL: destinationURL)
+                    self.customSounds.append(newSound)
+                    
+                    // Auto-select the new sound
+                    self.selectedAlarmSound = .custom
+                    self.selectedCustomSoundID = newSound.id
+                    
+                    // Save settings
+                    self.saveSettings()
+                    
+                    print("Successfully added Apple Music sound: \(displayName)")
+                }
+            }
+        } else {
+            // No asset URL available - handle as fallback case
+            print("No asset URL available for this music item")
+            handleExportFailure(item: item, displayName: displayName)
+        }
+    }
+    
+    // Helper to handle failed exports by creating a placeholder
+    private func handleExportFailure(item: MPMediaItem, displayName: String) {
+        print("Creating placeholder for music: \(displayName)")
+        
+        // Store the ID as a placeholder
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let placeholderURL = documentsDirectory.appendingPathComponent("applemusic_\(item.playbackStoreID).txt")
+        
+        // Create placeholder file with the ID
+        try? "Apple Music ID: \(item.playbackStoreID)".write(to: placeholderURL, atomically: true, encoding: .utf8)
+        
+        // Create and add special custom sound
+        let newSound = CustomSound(name: "🎵 \(displayName)", fileURL: placeholderURL)
+        self.customSounds.append(newSound)
+        
+        // Select the new sound
+        self.selectedAlarmSound = .custom
+        self.selectedCustomSoundID = newSound.id
+        
+        // Save settings
+        self.saveSettings()
+        
+        // Reset exporting state
+        self.isExportingMusic = false
+    }
+    
+    // Remove a custom sound by ID
     func removeCustomSound(id: UUID) {
         guard let index = customSounds.firstIndex(where: { $0.id == id }) else { return }
         
