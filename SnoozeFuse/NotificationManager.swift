@@ -122,6 +122,16 @@ class NotificationManager: ObservableObject {
         alarmSoundTimer = nil
     }
     
+    // Function to clear the app badge count
+    func clearBadgeCount() {
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        UNUserNotificationCenter.current().setBadgeCount(0) { error in
+            if let error = error {
+                print("Error clearing badge count: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     // Register the alarm notification category with actions
     func registerNotificationCategories() {
         let snoozeAction = UNNotificationAction(

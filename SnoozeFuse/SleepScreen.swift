@@ -141,6 +141,9 @@ struct SleepScreen: View {
             // Reset nap state
             napFinished = false
             
+            // Clear notification badge directly
+            UIApplication.shared.applicationIconBadgeNumber = 0
+            
             // Don't reset timers here, we need to preserve the current timer values
             // timerManager.resetTimers() - Removing this line
             

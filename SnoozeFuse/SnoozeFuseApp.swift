@@ -164,6 +164,9 @@ struct SnoozeFuseApp: App {
                     if newPhase == .active {
                         // Refresh notification permission status when app becomes active
                         notificationManager.checkNotificationPermission()
+                        
+                        // Clear the app badge number when app becomes active
+                        UIApplication.shared.applicationIconBadgeNumber = 0
                     }
                     
                     // Handle app going to background

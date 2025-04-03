@@ -53,6 +53,7 @@ struct NapScreen: View {
     @State private var showPositionMessage = true
     @State private var circlePosition: CGPoint? = nil
     @State private var isFirstInteraction = true
+    @State private var napFinished = false
     
     // Method to reset the placement state
     func resetPlacementState() {
@@ -329,13 +330,19 @@ struct NapScreen: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
+            // Reset nap state
+            napFinished = false
+            
+            // Clear notification badge directly
+            UIApplication.shared.applicationIconBadgeNumber = 0
+            
+            // Don't reset timers here, we need to preserve the current timer values
+            // timerManager.resetTimers() - Removing this line
+            
             // Reset state when screen appears
             showPositionMessage = true
             circlePosition = nil
             showSleepScreen = false
-            
-            // Reset timers to use the latest settings
-            timerManager.resetTimers()
             
             // Always ensure holdTimer and maxTimer are stopped when "tap anywhere" UI is showing
             timerManager.stopHoldTimer()
