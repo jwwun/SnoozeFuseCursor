@@ -132,10 +132,15 @@ struct SleepScreen: View {
                         if napFinished {
                             // Tap-only button when timer is done
                             Button(action: {
+                                // Ensure alarm is fully stopped first
                                 timerManager.stopAlarmSound()
+                                // Also cancel any scheduled notifications
+                                NotificationManager.shared.cancelPendingNotifications()
+                                
                                 resetNapScreen?() // Call reset function if provided
                                 dismiss()
                                 timerManager.stopNapTimer()
+                                timerManager.startHoldTimer()
                             }) {
                                 VStack(spacing: 5) {
                                     Image(systemName: "chevron.left")
@@ -159,10 +164,15 @@ struct SleepScreen: View {
                             // Multi-swipe button when timer is active
                             MultiSwipeConfirmation(
                                 action: {
+                                    // Ensure alarm is fully stopped first
                                     timerManager.stopAlarmSound()
+                                    // Also cancel any scheduled notifications
+                                    NotificationManager.shared.cancelPendingNotifications()
+                                    
                                     resetNapScreen?() // Call reset function if provided
                                     dismiss()
                                     timerManager.stopNapTimer()
+                                    timerManager.startHoldTimer()
                                 },
                                 requiredSwipes: 2,
                                 direction: .leading,
@@ -179,6 +189,9 @@ struct SleepScreen: View {
                             // Skip button using MultiSwipeConfirmation
                             MultiSwipeConfirmation(
                                 action: {
+                                    // Ensure alarm is stopped first
+                                    timerManager.stopAlarmSound()
+                                    
                                     // Skip the nap
                                     timerManager.stopNapTimer()
                                     timerManager.napTimer = 0
@@ -195,7 +208,11 @@ struct SleepScreen: View {
                         } else {
                             // Button to go back to Settings (reset timers) - tap-only when timer is done
                             Button(action: {
+                                // Ensure alarm is fully stopped first
                                 timerManager.stopAlarmSound()
+                                // Also cancel any scheduled notifications
+                                NotificationManager.shared.cancelPendingNotifications()
+                                
                                 timerManager.stopNapTimer()
                                 timerManager.resetTimers()
                                 // Go back to root view (Settings)
@@ -276,6 +293,7 @@ struct SleepScreen: View {
                 queue: .main
             ) { _ in
                 self.napFinished = true
+                // Play the alarm sound
                 self.timerManager.playAlarmSound()
             }
         }

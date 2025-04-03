@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import UserNotifications
+import AVFoundation
 
 // Version tracking for app updates
 fileprivate let appVersionKey = "appVersion"
@@ -10,6 +11,16 @@ fileprivate let orientationFixVersion = "1.0.2" // Only change this when making 
 // App delegate to handle orientation
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        // Check if we're launching from a notification
+        if let notification = launchOptions?[.remoteNotification] as? [String: AnyObject],
+           let aps = notification["aps"] as? [String: AnyObject],
+           let _ = aps["alert"] {
+            // Was launched from a notification, check if it's an alarm
+            print("App launched from notification")
+            
+            // Will play sound when the notification handler is called
+        }
+
         // Check if this is a new version of the app that needs settings reset
         let lastRunVersion = UserDefaults.standard.string(forKey: appVersionKey) ?? ""
         let isNewVersion = lastRunVersion != currentAppVersion
@@ -45,6 +56,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Setup notification handling
         UNUserNotificationCenter.current().delegate = self
         
+        // Register for background modes
+        application.beginReceivingRemoteControlEvents()
+        
+        // Setup basic audio session
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback)
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("Initial audio session setup succeeded")
+        } catch {
+            print("Warning: Failed to set up initial audio session: \(error)")
+        }
+        
         return true
     }
     
@@ -60,20 +83,49 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             OrientationManager.shared.orientation.orientationMask : .all
     }
     
-    // Handle notifications when app is in foreground
-    func userNotificationCenter(_ center: UNUserNotificationCenter, 
-                               willPresent notification: UNNotification, 
-                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Show notification with sound and banner even when app is in foreground
-        completionHandler([.banner, .sound, .badge])
-    }
-    
     // Handle notification response when user taps on notification
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                didReceive response: UNNotificationResponse,
                                withCompletionHandler completionHandler: @escaping () -> Void) {
-        // Handle the notification tap (could navigate to specific screen if needed)
+        // Check if this is our alarm notification
+        if response.notification.request.identifier == "alarmNotification" {
+            let actionIdentifier = response.actionIdentifier
+            
+            if actionIdentifier == "SNOOZE_ACTION" {
+                // Snooze the alarm for 5 minutes
+                NotificationManager.shared.scheduleAlarmNotification(after: 300) // 5 minutes in seconds
+                
+                // Stop any current alarm sound
+                TimerManager.shared.stopAlarmSound()
+            } else if actionIdentifier == UNNotificationDismissActionIdentifier {
+                // User dismissed the notification by swiping it away
+                // Stop any alarm sound
+                TimerManager.shared.stopAlarmSound()
+            } else {
+                // For default action or VIEW_ACTION
+                // Start playing the user's selected alarm sound
+                TimerManager.shared.playAlarmSound()
+            }
+        }
+        
         completionHandler()
+    }
+    
+    // Handle notifications when app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter, 
+                               willPresent notification: UNNotification, 
+                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // If this is our alarm notification, show it with sound even in foreground
+        if notification.request.identifier == "alarmNotification" {
+            // Show notification with sound
+            completionHandler([.sound, .banner, .badge])
+            
+            // Also start playing the alarm sound directly in the app
+            TimerManager.shared.playAlarmSound()
+        } else {
+            // For other notifications, just show them
+            completionHandler([.banner, .sound, .badge])
+        }
     }
 }
 
@@ -98,6 +150,12 @@ struct SnoozeFuseApp: App {
                     // Check notification permission on startup
                     notificationManager.checkNotificationPermission()
                     
+                    // Register notification categories for alarm
+                    notificationManager.registerNotificationCategories()
+                    
+                    // Register built-in sounds for notifications
+                    TimerManager.shared.registerBuiltInSoundsForNotifications()
+                    
                     // Debug log for orientation settings
                     print("App appeared: Orientation Lock: \(orientationManager.isLockEnabled), Orientation: \(orientationManager.orientation.rawValue)")
                 }
@@ -107,9 +165,23 @@ struct SnoozeFuseApp: App {
                         notificationManager.checkNotificationPermission()
                     }
                     
-                    // Save settings when app enters background or terminates
-                    if newPhase == .background || newPhase == .inactive {
-                        print("App entering background or inactive state, saving orientation settings")
+                    // Handle app going to background
+                    if newPhase == .background {
+                        print("App entering background state")
+                        
+                        // If any timer is running, ensure background audio is properly set up
+                        if timerManager.isNapTimerRunning || timerManager.isMaxTimerRunning {
+                            print("Timer is active - ensuring background audio will work")
+                            timerManager.setupBackgroundAudio()
+                        }
+                        
+                        // Save settings
+                        orientationManager.saveSettings(forceOverride: true)
+                    }
+                    
+                    // Handle app becoming inactive
+                    if newPhase == .inactive {
+                        print("App entering inactive state, saving orientation settings")
                         orientationManager.saveSettings(forceOverride: true)
                     }
                 }

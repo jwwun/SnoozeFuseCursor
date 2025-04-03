@@ -10,6 +10,29 @@ extension Notification.Name {
     static let maxTimerFinished = Notification.Name("maxTimerFinished")
 }
 
+// Data conversion extensions for WAV file creation
+extension UInt32 {
+    var data: Data {
+        var int = self
+        return Data(bytes: &int, count: MemoryLayout<UInt32>.size)
+    }
+    
+    var littleEndian: UInt32 {
+        return CFSwapInt32HostToLittle(self)
+    }
+}
+
+extension UInt16 {
+    var data: Data {
+        var int = self
+        return Data(bytes: &int, count: MemoryLayout<UInt16>.size)
+    }
+    
+    var littleEndian: UInt16 {
+        return CFSwapInt16HostToLittle(self)
+    }
+}
+
 // Custom sound struct for persistence and management
 struct CustomSound: Identifiable, Codable, Equatable {
     var id = UUID()
@@ -94,6 +117,9 @@ enum TimerType {
 }
 
 class TimerManager: ObservableObject {
+    // Shared instance for use by other managers
+    static let shared = TimerManager()
+    
     // Timer durations (defaults)
     @Published var holdDuration: TimeInterval = 5    // Timer A: 5 seconds default
     @Published var napDuration: TimeInterval = 60   // Timer B: 1 minutes default
@@ -122,7 +148,6 @@ class TimerManager: ObservableObject {
     @Published var selectedAlarmSound: AlarmSound = .testAlarm
     @Published var customSounds: [CustomSound] = []
     @Published var selectedCustomSoundID: UUID?
-    private var audioPlayer: AVAudioPlayer?
     
     // Timer cancellables
     private var holdCancellable: AnyCancellable?
@@ -144,6 +169,9 @@ class TimerManager: ObservableObject {
         static let showTimerArcs = "showTimerArcs"
     }
     
+    // Audio player for alarm sounds
+    private var audioPlayer: AVAudioPlayer?
+    
     init() {
         // Initialize timers with default values
         resetTimers()
@@ -153,6 +181,33 @@ class TimerManager: ObservableObject {
         
         // Load saved settings
         loadSettings()
+        
+        // Listen for audio session notifications to help debug issues
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(audioSessionChanged),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+    }
+    
+    deinit {
+        // Clean up observers
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    // Monitor audio session state changes
+    @objc private func audioSessionChanged(notification: Notification) {
+        if notification.name == AVAudioSession.interruptionNotification {
+            guard let userInfo = notification.userInfo,
+                  let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                return
+            }
+            
+            let reasonStr = type == .began ? "began" : "ended"
+            print("🔊 Audio Session Interruption: \(reasonStr)")
+        }
     }
     
     private func setupDurationObservers() {
@@ -306,16 +361,79 @@ class TimerManager: ObservableObject {
         }
     }
     
+    // MARK: - Background Audio Support
+    
+    // Setup audio session for background playback
+    func setupBackgroundAudio() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback)
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("Successfully set up background audio session")
+        } catch {
+            print("Failed to set up background audio session: \(error)")
+        }
+    }
+    
+    // Special method to start playing alarm sound in background
+    func startBackgroundAlarmSound() {
+        setupBackgroundAudio()
+        playAlarmSound()
+    }
+    
+    // Handle audio interruptions (calls, etc)
+    @objc private func handleAudioInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // Audio has been interrupted, pause if needed
+            audioPlayer?.pause()
+            print("Audio interrupted: pausing playback")
+        case .ended:
+            // Interruption ended, check if should resume
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
+                  AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) else {
+                return
+            }
+            // Resume audio
+            print("Audio interruption ended: resuming playback")
+            setupBackgroundAudio() // Re-setup audio session
+            audioPlayer?.play()
+        @unknown default:
+            break
+        }
+    }
+    
     // Play the selected alarm sound
     func playAlarmSound() {
+        print("Playing alarm sound: \(selectedAlarmSound.rawValue)")
+        
+        // Stop any existing audio first
+        stopAlarmSound()
+        
+        // Setup audio session for playback
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("Failed to setup audio session: \(error)")
+        }
+        
         // For custom sounds
         if selectedAlarmSound == .custom, let customSoundID = selectedCustomSoundID {
             if let customSound = customSounds.first(where: { $0.id == customSoundID }) {
                 do {
+                    print("Playing custom sound: \(customSound.name)")
                     audioPlayer = try AVAudioPlayer(contentsOf: customSound.fileURL)
+                    audioPlayer?.prepareToPlay()
                     audioPlayer?.numberOfLoops = -1 // Loop continuously
                     audioPlayer?.volume = 1.0
-                    audioPlayer?.play()
+                    let playResult = audioPlayer?.play() ?? false
+                    print("Custom sound play result: \(playResult)")
                     return
                 } catch {
                     print("Could not play custom alarm sound: \(error.localizedDescription)")
@@ -329,23 +447,64 @@ class TimerManager: ObservableObject {
             forResource: selectedAlarmSound.filename,
             withExtension: selectedAlarmSound.fileExtension
         ) else {
-            print("Could not find alarm sound file")
+            print("Could not find alarm sound file: \(selectedAlarmSound.filename).\(selectedAlarmSound.fileExtension)")
             return
         }
         
         do {
+            print("Playing built-in sound: \(selectedAlarmSound.filename).\(selectedAlarmSound.fileExtension)")
             audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.prepareToPlay()
             audioPlayer?.numberOfLoops = -1 // Loop continuously (-1 means loop indefinitely)
             audioPlayer?.volume = 1.0
-            audioPlayer?.play()
+            let playResult = audioPlayer?.play() ?? false
+            print("Built-in sound play result: \(playResult)")
+            
+            // Register for interruptions
+            NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleAudioInterruption),
+                name: AVAudioSession.interruptionNotification,
+                object: AVAudioSession.sharedInstance()
+            )
         } catch {
             print("Could not play alarm sound: \(error.localizedDescription)")
         }
     }
     
-    // Stop playing alarm sound
+    // Stop playing alarm sound - with robust handling
     func stopAlarmSound() {
+        print("Stopping all alarm sounds")
+        
+        // First make sure the player stops
         audioPlayer?.stop()
+        
+        // Force volume to zero as a fallback in case stopping fails
+        audioPlayer?.volume = 0
+        
+        // Set to nil to release resources
+        audioPlayer = nil
+        
+        // Remove the interruption observer
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+        
+        // Deactivate audio session to fully release audio resources
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            print("Successfully deactivated audio session")
+        } catch {
+            print("Warning: Failed to deactivate audio session: \(error)")
+            
+            // As a backup, try to set the category to ambient which reduces volume
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.ambient)
+                try AVAudioSession.sharedInstance().setActive(true)
+                print("Fallback: Set to ambient category instead")
+            } catch {
+                print("Even ambient category fallback failed: \(error)")
+            }
+        }
     }
     
     // Test play alarm sound for preview
@@ -490,6 +649,17 @@ class TimerManager: ObservableObject {
         
         // Load showTimerArcs setting
         self.showTimerArcs = defaults.bool(forKey: UserDefaultsKeys.showTimerArcs)
+    }
+    
+    // MARK: - Notification Sound Registration
+    
+    // No longer needed - iOS only allows using sounds that are in the app bundle with .caf extension
+    // This is a placeholder method to maintain compatibility
+    func registerBuiltInSoundsForNotifications() {
+        print("Note: iOS requires notification sounds to be in the app bundle with .caf extension")
+        print("Using default system sounds for notifications")
+        
+        // This is left as a stub for future enhancement if we decide to include .caf sounds in the app bundle
     }
     
     // New method to schedule alarm notification

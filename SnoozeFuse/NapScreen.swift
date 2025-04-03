@@ -363,7 +363,7 @@ struct NapScreen: View {
                 self.showSleepScreen = true
                 
                 // Start playing alarm sound immediately
-                timerManager.playAlarmSound()
+                self.timerManager.playAlarmSound()
             }
         }
         .onDisappear {

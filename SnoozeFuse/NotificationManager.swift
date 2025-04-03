@@ -9,6 +9,9 @@ class NotificationManager: ObservableObject {
     @Published var isCheckingPermission = false
     @Published var isHiddenFromMainSettings = false
     
+    // Keep a reference to the scheduled alarm sound timer
+    private var alarmSoundTimer: Timer?
+    
     private enum UserDefaultsKeys {
         static let hasCheckedNotificationPermission = "hasCheckedNotificationPermission"
         static let isHiddenFromMainSettings = "isHiddenFromMainSettings"
@@ -80,7 +83,14 @@ class NotificationManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Wake Up!"
         content.body = "Your nap time is over."
+        
+        // Use critical alert for maximum volume
         content.sound = UNNotificationSound.defaultCritical
+        
+        // Important: set this category
+        content.categoryIdentifier = "alarmCategory"
+        
+        // Set badge
         content.badge = 1
         
         // Create trigger (time-based)
@@ -97,6 +107,8 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
                 print("Error scheduling notification: \(error.localizedDescription)")
+            } else {
+                print("Notification scheduled successfully for \(timeInterval) seconds from now")
             }
         }
     }
@@ -104,6 +116,34 @@ class NotificationManager: ObservableObject {
     // Function to cancel pending notifications
     func cancelPendingNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        
+        // Cancel any timer
+        alarmSoundTimer?.invalidate()
+        alarmSoundTimer = nil
+    }
+    
+    // Register the alarm notification category with actions
+    func registerNotificationCategories() {
+        let snoozeAction = UNNotificationAction(
+            identifier: "SNOOZE_ACTION",
+            title: "Snooze 5 Minutes",
+            options: UNNotificationActionOptions.foreground
+        )
+        
+        let viewAction = UNNotificationAction(
+            identifier: "VIEW_ACTION",
+            title: "Open App",
+            options: UNNotificationActionOptions.foreground
+        )
+        
+        let alarmCategory = UNNotificationCategory(
+            identifier: "alarmCategory",
+            actions: [snoozeAction, viewAction],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
+        UNUserNotificationCenter.current().setNotificationCategories([alarmCategory])
     }
     
     // Load settings from UserDefaults

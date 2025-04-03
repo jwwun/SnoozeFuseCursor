@@ -128,12 +128,29 @@ Used for managers that need global access:
 - **Fixed Timer Management When Returning to NapScreen**: Removed automatic holdTimer restart when returning from SleepScreen to NapScreen, preventing the release timer from running during circle placement
 - **Delayed Max Timer Start**: Fixed Max Timer to only start when the user first presses the circle after placement, not immediately after placing the circle, ensuring user control over timer initiation
 - **Comprehensive Timer Reset**: Added proper Max Timer stopping when returning to circle placement state, ensuring all timers are fully stopped during the placement phase
+- **Proper Alarm Stopping**: Fixed issue where alarm would continue playing when navigating back to Nap or Settings screens by fully stopping audio playback and deactivating audio session
+
+### Fixed Notification Sounds
+- **Critical Alert System**: Used system-provided critical alert notifications that play at higher volume even in silent mode
+- **Simplified Audio Handling**: Streamlined audio playback code to prevent interruptions and ensure continuous alarm playback
+- **Reliable Sound System**: Implemented robust audio session handling with proper interruption management
+- **Foreground/Background Switch**: Added different notification handling for foreground and background states
+- **Notification Action Handling**: Enhanced notification action handling for snooze functionality
+- **Audio Interruption Recovery**: Added proper handling of audio interruptions to resume alarm sounds after phone calls
+- **Cross-Device Compatibility**: Ensured alarm sounds work reliably across different iOS devices and versions
 
 ## Build and Run Instructions
 
 1. Open the project in Xcode
 2. Ensure you have iOS 18.0+ as deployment target
-3. Build and run on simulator or physical device 
+3. **Important**: You must add the "Audio, AirPlay, and Picture in Picture" background mode capability:
+   - In Xcode, select the project file
+   - Go to the "Signing & Capabilities" tab
+   - Click "+ Capability" button
+   - Add "Background Modes"
+   - Check "Audio, AirPlay, and Picture in Picture"
+   - This allows the app to continue playing alarm sounds even when in background
+4. Build and run on simulator or physical device
 
 ## Notification System
 
