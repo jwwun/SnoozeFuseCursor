@@ -769,8 +769,8 @@ class TimerManager: ObservableObject {
             // Save showTimerArcs setting
             defaults.set(self.showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
             
-            // Force synchronize to write changes to disk (use sparingly)
-            defaults.synchronize()
+            // UserDefaults automatically synchronizes when the app goes to background
+            // Explicit synchronize is no longer needed and can cause performance issues
         }
     }
     
