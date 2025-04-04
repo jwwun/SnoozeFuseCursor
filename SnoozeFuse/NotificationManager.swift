@@ -267,4 +267,4 @@ struct NotificationPermissionWarning: View {
             EmptyView()
         }
     }
-} 
+}

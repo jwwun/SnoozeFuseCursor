@@ -26,8 +26,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let isNewVersion = lastRunVersion != currentAppVersion
         
         // If this is a specific version with orientation fixes, reset settings
-        let needsOrientationReset = lastRunVersion.isEmpty || (!lastRunVersion.isEmpty && 
-                                     lastRunVersion != orientationFixVersion && 
+        let needsOrientationReset = lastRunVersion.isEmpty || (!lastRunVersion.isEmpty &&
+                                     lastRunVersion != orientationFixVersion &&
                                      currentAppVersion == orientationFixVersion)
         
         if needsOrientationReset {
@@ -112,14 +112,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
     
     // Handle notifications when app is in foreground
-    func userNotificationCenter(_ center: UNUserNotificationCenter, 
-                               willPresent notification: UNNotification, 
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                               willPresent notification: UNNotification,
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // If this is our alarm notification, do NOT show it in the foreground
         // SleepScreen already handles playing the sound internally when its timer finishes.
         if notification.request.identifier == "alarmNotification" {
             // Pass empty options to prevent alert/sound/badge in foreground
-            completionHandler([]) 
+            completionHandler([])
             
             // REMOVED redundant TimerManager.shared.playAlarmSound() call
             print("🔔 Foreground alarm notification received, but presentation suppressed as SleepScreen handles it.")

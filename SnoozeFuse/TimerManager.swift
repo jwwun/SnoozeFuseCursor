@@ -532,8 +532,8 @@ class TimerManager: ObservableObject {
         
         // Only stop Apple Music content if we're using a custom Apple Music sound
         // This avoids unnecessarily requesting permissions
-        if selectedAlarmSound == .custom && 
-           selectedCustomSoundID != nil && 
+        if selectedAlarmSound == .custom &&
+           selectedCustomSoundID != nil &&
            !customSounds.isEmpty {
             
             // Check if we have any Apple Music tracks in our custom sounds
@@ -634,7 +634,7 @@ class TimerManager: ObservableObject {
         let destinationURL = documentsDirectory.appendingPathComponent(fileName)
         
         // Try direct export if we have a URL (works for most music including pirated)
-        if let assetURL = item.assetURL, 
+        if let assetURL = item.assetURL,
            let avAsset = AVURLAsset(url: assetURL) as AVAsset? {
             
             let exporter = AVAssetExportSession(asset: avAsset, presetName: AVAssetExportPresetAppleM4A)

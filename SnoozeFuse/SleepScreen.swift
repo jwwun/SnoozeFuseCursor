@@ -228,9 +228,10 @@ struct SleepScreen: View {
                 action: action,
                 direction: .leading,
                 label: "Slide to Nap",
-                accentColor: .blue
+                accentColor: .blue,
+                opacity: 0.9
             )
-            .frame(width: 180) // Make slider a bit wider than previous button
+            .frame(width: 200) // Make slider a bit wider than previous button
         }
     }
     
@@ -253,9 +254,10 @@ struct SleepScreen: View {
                 },
                 direction: .trailing,
                 label: "Slide to skip",
-                accentColor: .orange
+                accentColor: .orange,
+                opacity: 0.9
             )
-            .frame(width: 180) // Make slider a bit wider than previous button
+            .frame(width: 200) // Make slider a bit wider than previous button
         } else {
             // Button to go back to Settings (reset timers) - tap-only when timer is done
             Button(action: {

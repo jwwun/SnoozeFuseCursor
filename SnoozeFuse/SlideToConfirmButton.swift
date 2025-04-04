@@ -19,6 +19,9 @@ struct SlideToConfirmButton: View {
     /// Secondary color for various states
     var secondaryColor: Color = .white
     
+    /// Transparency level for the control (0-1)
+    var opacity: Double = 1.0
+    
     // MARK: - State
     
     /// Tracks the drag amount (0-1)
@@ -30,10 +33,13 @@ struct SlideToConfirmButton: View {
     /// Width of the component frame
     @State private var frameWidth: CGFloat = 0
     
+    /// Animation state for the pulse effect
+    @State private var isPulsing: Bool = false
+    
     // MARK: - Constants
     
     /// Size of the thumb/handle
-    private let thumbSize: CGFloat = 54
+    private let thumbSize: CGFloat = 48
     
     /// Minimum distance to register as complete
     private let completionThreshold: CGFloat = 0.85
@@ -46,17 +52,26 @@ struct SlideToConfirmButton: View {
         
         return GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // Track background
+                // Track background - clean, minimal design
                 Capsule()
-                    .fill(accentColor.opacity(0.2))
+                    .fill(Color.black.opacity(0.15))
                     .overlay(
                         Capsule()
-                            .stroke(accentColor.opacity(0.5), lineWidth: 1)
+                            .stroke(accentColor.opacity(0.25), lineWidth: 1)
                     )
                 
                 // Progress fill
                 Capsule()
-                    .fill(accentColor.opacity(0.4))
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                accentColor.opacity(0.35),
+                                accentColor.opacity(0.15)
+                            ]),
+                            startPoint: direction == .trailing ? .leading : .trailing,
+                            endPoint: direction == .trailing ? .trailing : .leading
+                        )
+                    )
                     .frame(width: max(thumbSize, geometry.size.width * dragAmount))
                 
                 // Track label - always shows in center
@@ -67,7 +82,7 @@ struct SlideToConfirmButton: View {
                     
                     Text(label)
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundColor(secondaryColor)
+                        .foregroundColor(secondaryColor.opacity(0.8))
                         .lineLimit(1)
                         .padding(.horizontal, thumbSize / 2)
                     
@@ -76,13 +91,23 @@ struct SlideToConfirmButton: View {
                     }
                 }
                 
-                // Drag handle/thumb
+                // Drag handle/thumb - clean, minimal design
                 ZStack {
+                    // Subtle shadow for depth without being garish
+                    Circle()
+                        .fill(Color.black.opacity(0.1))
+                        .frame(width: thumbSize + 4, height: thumbSize + 4)
+                        .blur(radius: 4)
+                        .opacity(0.6)
+                        .scaleEffect(isPulsing ? 1.05 : 1.0)
+                    
+                    // Main thumb - clean solid color
                     Circle()
                         .fill(accentColor)
                         .frame(width: thumbSize, height: thumbSize)
-                        .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)
+                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
                     
+                    // Icon
                     Image(systemName: direction == .trailing ? "chevron.right" : "chevron.left")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(secondaryColor)
@@ -107,6 +132,11 @@ struct SlideToConfirmButton: View {
                             // Reset success state while dragging
                             if isSuccess {
                                 isSuccess = false
+                            }
+                            
+                            // Stop pulsing animation during drag
+                            if isPulsing {
+                                isPulsing = false
                             }
                         }
                         .onEnded { value in
@@ -139,20 +169,37 @@ struct SlideToConfirmButton: View {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     self.dragAmount = 0
                                 }
+                                
+                                // Restart pulsing animation after spring back
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    self.startPulseAnimation()
+                                }
                             }
                         }
                 )
             }
-            .frame(height: 56)
+            .frame(height: 52)
+            .opacity(opacity)
             .onAppear {
                 // Store frame width for calculations
                 self.frameWidth = geometry.size.width
+                
+                // Start pulsing animation
+                self.startPulseAnimation()
             }
         }
-        .frame(height: 56)
+        .frame(height: 52)
     }
     
     // MARK: - Helper Methods
+    
+    /// Start the thumb pulsing animation
+    private func startPulseAnimation() {
+        // Start pulse animation cycle
+        withAnimation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            self.isPulsing = true
+        }
+    }
     
     /// Calculates the drag percentage based on the drag value and direction
     private func calculateDragPercentage(value: DragGesture.Value, geometry: GeometryProxy, direction: Edge) -> CGFloat {
@@ -192,7 +239,8 @@ struct SlideToConfirmButton: View {
             action: { print("Slider action triggered!") },
             direction: .leading,
             label: "Slide to go back",
-            accentColor: .red
+            accentColor: .red,
+            opacity: 0.7
         )
         .frame(width: 280)
     }

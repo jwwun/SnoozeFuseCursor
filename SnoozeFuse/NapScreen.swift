@@ -363,6 +363,9 @@ struct NapScreen: View {
                 
                 // Back button overlay (always on top)
                 VStack {
+                    // Top row with space for the timer
+                    Spacer().frame(height: 30) // Reduced from 100 to 30
+                    
                     HStack {
                         SlideToConfirmButton(
                             action: {
@@ -373,11 +376,12 @@ struct NapScreen: View {
                             },
                             direction: .leading,
                             label: "Slide to exit",
-                            accentColor: .blue
+                            accentColor: .blue,
+                            opacity: 0.7 // Make it semi-transparent
                         )
-                        .frame(width: 180)
+                        .frame(width: 220) // Wider but less visually intrusive
                         .padding(.leading, 5)
-                        .padding(.top, 10)
+                        .padding(.top, -40) // Added negative top padding
                         
                         Spacer()
                     }
