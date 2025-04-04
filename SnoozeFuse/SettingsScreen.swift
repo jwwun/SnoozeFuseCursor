@@ -1121,15 +1121,15 @@ struct SettingsScreen: View {
                                 isAnyFieldFocused = false
                                 hideKeyboard()
                             }) {
-                                HStack {
+                                HStack(spacing: 12) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 18))
-                                    Text("Confirm")
-                                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                                        .font(.system(size: 32))
+                                    Text("CONFIRM")
+                                        .font(.system(size: 28, weight: .bold, design: .rounded))
                                 }
                                 .foregroundColor(.white)
-                                .padding(.vertical, 14)
-                                .frame(width: 130)
+                                .padding(.vertical, 20)
+                                .frame(minWidth: 300)
                                 .background(
                                     LinearGradient(
                                         colors: [Color(hex: "66BB6A"), Color(hex: "43A047")],
@@ -1137,10 +1137,23 @@ struct SettingsScreen: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .cornerRadius(25)
-                                .shadow(color: Color(hex: "43A047").opacity(0.5), radius: 8, x: 0, y: 4)
+                                .cornerRadius(30)
+                                .shadow(color: Color(hex: "43A047").opacity(0.7), radius: 12, x: 0, y: 6)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 30)
+                                        .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 30)
+                                        .stroke(Color.green, lineWidth: 3)
+                                        .blur(radius: 3)
+                                        .opacity(0.7)
+                                )
                             }
-                            .padding(.bottom, 25)
+                            .padding(.bottom, 40)
+                            .padding(.horizontal, 20)
+                            .transition(.scale.combined(with: .opacity))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isAnyFieldFocused)
                         }
                     }
                 }
