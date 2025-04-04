@@ -156,47 +156,87 @@ struct NapScreen: View {
                     
                     // Circle positioned at tap location
                     if let position = circlePosition {
-                        CircleView(
-                            size: timerManager.circleSize,
-                            isPressed: isPressed,
-                            showStatusText: true,
-                            showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration,
-                            normalColor: .blue,
-                            pressedColor: .purple,
-                            timerValue: timerManager.formatTime(timerManager.maxTimer),
-                            showTimer: true,
-                            timerColor: .white.opacity(0.9),
-                            timerProgress: timerManager.maxTimer / timerManager.maxDuration,
-                            progressColor: Color.purple.opacity(0.8),
-                            releaseTimerProgress: timerManager.holdTimer / timerManager.holdDuration,
-                            showArcs: timerManager.showTimerArcs
-                        )
-                        .overlay(
-                            MultiTouchHandler(
-                                onTouchesChanged: { touchingCircle in
-                                    if touchingCircle != isPressed {
-                                        isPressed = touchingCircle
-                                        if touchingCircle {
-                                            // User is pressing the circle
-                                            
-                                            // If this is the first interaction since placing the circle,
-                                            // start the max timer when user first holds down
-                                            if isFirstInteraction {
-                                                timerManager.startMaxTimer()
-                                                isFirstInteraction = false
-                                            }
-                                            
-                                            // Stop the hold timer when holding
-                                            timerManager.stopHoldTimer()
-                                        } else {
-                                            // User has released the circle
-                                            // Start/resume the hold timer
-                                            timerManager.startHoldTimer()
-                                        }
-                                    }
-                                },
-                                circleRadius: timerManager.circleSize / 2
+                        ZStack {
+                            // Regular Circle View (always visible for visual feedback)
+                            CircleView(
+                                size: timerManager.circleSize,
+                                isPressed: isPressed,
+                                showStatusText: true,
+                                showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration,
+                                normalColor: .blue,
+                                pressedColor: .purple,
+                                timerValue: timerManager.formatTime(timerManager.maxTimer),
+                                showTimer: true,
+                                timerColor: .white.opacity(0.9),
+                                timerProgress: timerManager.maxTimer / timerManager.maxDuration,
+                                progressColor: Color.purple.opacity(0.8),
+                                releaseTimerProgress: timerManager.holdTimer / timerManager.holdDuration,
+                                showArcs: timerManager.showTimerArcs,
+                                isFullScreenMode: timerManager.isFullScreenMode
                             )
+                            
+                            // If full screen mode is enabled, add an invisible overlay across the entire screen
+                            if timerManager.isFullScreenMode {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { _ in
+                                                if !isPressed {
+                                                    isPressed = true
+                                                    
+                                                    // If this is the first interaction since placing the circle,
+                                                    // start the max timer when user first holds down
+                                                    if isFirstInteraction {
+                                                        timerManager.startMaxTimer()
+                                                        isFirstInteraction = false
+                                                    }
+                                                    
+                                                    // Stop the hold timer when holding
+                                                    timerManager.stopHoldTimer()
+                                                }
+                                            }
+                                            .onEnded { _ in
+                                                isPressed = false
+                                                // User has released the screen
+                                                // Start/resume the hold timer
+                                                timerManager.startHoldTimer()
+                                            }
+                                    )
+                            }
+                        }
+                        .overlay(
+                            // Only use the circle touch handler when not in full-screen mode
+                            Group {
+                                if !timerManager.isFullScreenMode {
+                                    MultiTouchHandler(
+                                        onTouchesChanged: { touchingCircle in
+                                            if touchingCircle != isPressed {
+                                                isPressed = touchingCircle
+                                                if touchingCircle {
+                                                    // User is pressing the circle
+                                                    
+                                                    // If this is the first interaction since placing the circle,
+                                                    // start the max timer when user first holds down
+                                                    if isFirstInteraction {
+                                                        timerManager.startMaxTimer()
+                                                        isFirstInteraction = false
+                                                    }
+                                                    
+                                                    // Stop the hold timer when holding
+                                                    timerManager.stopHoldTimer()
+                                                } else {
+                                                    // User has released the circle
+                                                    // Start/resume the hold timer
+                                                    timerManager.startHoldTimer()
+                                                }
+                                            }
+                                        },
+                                        circleRadius: timerManager.circleSize / 2
+                                    )
+                                }
+                            }
                         )
                         .position(position)
                         .zIndex(1)
@@ -235,6 +275,24 @@ struct NapScreen: View {
                                 .foregroundColor(.white)
                                 .padding(.top, 6)
                                 .shadow(color: .white.opacity(0.6), radius: 4, x: 0, y: 0)
+                                
+                            // Add full-screen mode indicator text
+                            if timerManager.isFullScreenMode {
+                                Text("Full-Screen Touch Mode is ON")
+                                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                                    .foregroundColor(.pink.opacity(0.9))
+                                    .padding(.top, 5)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.black.opacity(0.3))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(Color.pink.opacity(0.5), lineWidth: 1)
+                                            )
+                                    )
+                            }
                         }
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)

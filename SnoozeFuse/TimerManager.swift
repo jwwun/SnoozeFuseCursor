@@ -116,6 +116,9 @@ class TimerManager: ObservableObject {
     // Circle size (for visual representation)
     @Published var circleSize: CGFloat = 250
     
+    // Full-screen mode toggle
+    @Published var isFullScreenMode: Bool = false
+    
     // Visual settings
     @Published var showTimerArcs: Bool = true
     
@@ -146,6 +149,7 @@ class TimerManager: ObservableObject {
         static let selectedCustomSoundID = "selectedCustomSoundID"
         static let customSounds = "customSounds"
         static let showTimerArcs = "showTimerArcs"
+        static let isFullScreenMode = "isFullScreenMode"
     }
     
     // Audio player for alarm sounds
@@ -744,6 +748,9 @@ class TimerManager: ObservableObject {
             // Save circle size
             defaults.set(self.circleSize, forKey: UserDefaultsKeys.circleSize)
             
+            // Save full-screen mode setting
+            defaults.set(self.isFullScreenMode, forKey: UserDefaultsKeys.isFullScreenMode)
+            
             // Save selected alarm type
             defaults.set(self.selectedAlarmSound.rawValue, forKey: UserDefaultsKeys.selectedAlarmSound)
             
@@ -790,6 +797,11 @@ class TimerManager: ObservableObject {
         // Load circle size
         if let size = defaults.object(forKey: UserDefaultsKeys.circleSize) as? CGFloat {
             circleSize = size
+        }
+        
+        // Load full-screen mode setting
+        if defaults.object(forKey: UserDefaultsKeys.isFullScreenMode) != nil {
+            isFullScreenMode = defaults.bool(forKey: UserDefaultsKeys.isFullScreenMode)
         }
         
         // Load selected alarm type

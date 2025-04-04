@@ -172,6 +172,9 @@ struct CircleSizeControl: View {
     var onValueChanged: () -> Void
     @EnvironmentObject var timerManager: TimerManager
     
+    // Add binding for full-screen mode toggle
+    @Binding var isFullScreenMode: Bool
+    
     // Add debounce timer
     @State private var saveDebounceTimer: Timer? = nil
     @State private var isAdjusting: Bool = false
@@ -185,12 +188,42 @@ struct CircleSizeControl: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "Directly tap the number on the left to manually input size and override the slider.")
+                HelpButton(helpText: "Directly tap the number on the left to manually input size and override the slider.\n\nEnable Full-Screen Touch Mode to make the entire screen a touchable area.")
             }
             .padding(.bottom, 5)
             .frame(maxWidth: .infinity, alignment: .center)
                 
+            // First add the slider spanning full width
             HStack(spacing: 0) {
+                ResponsiveSlider(value: $circleSize, in: 100...500, step: 1) { newValue in
+                    // When circleSize changes, update text and trigger callbacks
+                    textInputValue = "\(Int(newValue))"
+                    onValueChanged()
+                    
+                    // Mark as adjusting
+                    isAdjusting = true
+                    
+                    // Cancel existing timer
+                    saveDebounceTimer?.invalidate()
+                    
+                    // Create new debounced timer for saving
+                    saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in    
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            self.timerManager.saveSettings()
+                            
+                            // Reset adjusting state
+                            DispatchQueue.main.async {
+                                self.isAdjusting = false
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+            
+            // Add text field and toggle in a horizontal row
+            HStack {
+                // Manual size input field
                 TextField("", text: $textInputValue)
                     .keyboardType(.numberPad)
                     .font(.system(size: 28, weight: .medium))
@@ -218,34 +251,29 @@ struct CircleSizeControl: View {
                         // If input is invalid/empty, we don't update circleSize.
                         // The UI will be out of sync until a valid number or slider interaction.
                     }
-                HStack(spacing: 0) {
-                    // REPLACED: Standard Slider with custom implementation
-                    ResponsiveSlider(value: $circleSize, in: 100...500, step: 1) { newValue in
-                        // When circleSize changes, update text and trigger callbacks
-                        textInputValue = "\(Int(newValue))"
-                        onValueChanged()
-                        
-                        // Mark as adjusting
-                        isAdjusting = true
-                        
-                        // Cancel existing timer
-                        saveDebounceTimer?.invalidate()
-                        
-                        // Create new debounced timer for saving
-                        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in    
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                self.timerManager.saveSettings()
-                                
-                                // Reset adjusting state
-                                DispatchQueue.main.async {
-                                    self.isAdjusting = false
-                                }
-                            }
+                
+                Spacer()
+                
+                // Full-screen mode toggle
+                HStack {
+                    Text("Full-Screen Touch")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                    
+                    Toggle("", isOn: $isFullScreenMode)
+                        .labelsHidden()
+                        .toggleStyle(SwitchToggleStyle(tint: Color.blue))
+                        .onChange(of: isFullScreenMode) { newValue in
+                            // Save settings when toggle changes
+                            timerManager.saveSettings()
                         }
-                    }
                 }
-                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Color.black.opacity(0.2))
+                .cornerRadius(8)
             }
+            .padding(.horizontal)
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
@@ -1077,11 +1105,12 @@ struct SettingsScreen: View {
                                 NotificationPermissionWarning()
                             }
                             
-                            // Circle size control
+                            // Circle size control - now with fullscreen mode toggle
                             CircleSizeControl(
                                 circleSize: $timerManager.circleSize,
                                 textInputValue: $textInputValue,
-                                onValueChanged: showPreviewBriefly
+                                onValueChanged: showPreviewBriefly,
+                                isFullScreenMode: $timerManager.isFullScreenMode
                             )
                             
                             // Timer settings

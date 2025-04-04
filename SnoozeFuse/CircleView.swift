@@ -62,6 +62,9 @@ struct CircleView: View {
     /// Whether to show the timer arcs
     var showArcs: Bool = true
     
+    /// Whether full-screen mode is enabled
+    var isFullScreenMode: Bool = false
+    
     // MARK: - Private Animation State
     
     /// State for a single sparkle particle
@@ -97,6 +100,11 @@ struct CircleView: View {
     
     var body: some View {
         ZStack {
+            // Show full-screen mode indicator if enabled
+            if isFullScreenMode {
+                fullScreenModeIndicator
+            }
+            
             circleBackground
             if showArcs {
                 progressBar
@@ -126,6 +134,30 @@ struct CircleView: View {
     }
     
     // MARK: - Private Views
+    
+    /// Full-screen mode indicator
+    private var fullScreenModeIndicator: some View {
+        Circle()
+            .stroke(
+                AngularGradient(
+                    gradient: Gradient(colors: [
+                        Color.blue.opacity(0.8),
+                        Color.purple.opacity(0.8),
+                        Color.pink.opacity(0.8),
+                        Color.blue.opacity(0.8)
+                    ]),
+                    center: .center
+                ),
+                style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [4, 6])
+            )
+            .scaleEffect(1.05)
+            .rotationEffect(Angle(degrees: isPressed ? -30 : 30))
+            .animation(
+                Animation.linear(duration: 4)
+                    .repeatForever(autoreverses: false),
+                value: isPressed
+            )
+    }
     
     /// Max timer progress bar
     private var progressBar: some View {

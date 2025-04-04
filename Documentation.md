@@ -349,5 +349,23 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - **Increased Flight Time**: Longer animation durations (1-2 seconds) allow particles to travel their greater distances
   - **High-Intensity Visual**: The combination of ember glow, emitting burnt particles, and intense sparkles creates a striking visual metaphor
 
+### Full-Screen Touch Mode
+- **Enhanced Accessibility Feature**: Added a toggle in Settings to enable Full-Screen Touch Mode
+- **Effortless Interaction**: When enabled, the entire screen becomes touch-sensitive instead of just the circle
+- **Compact UI Control**: Toggle is positioned next to the Circle Size control for logical grouping of related settings
+- **Visual Feedback**: Animated dashed border around the circle indicates when Full-Screen Mode is active
+- **Informative Tooltip**: Help tooltip provides clear explanation of the feature's purpose and functionality
+- **Persistent Setting**: User preference for Full-Screen Mode is saved in UserDefaults and persists across app launches
+- **Clear Status Indication**: Initial "Tap Anywhere" screen displays a notice when Full-Screen Mode is enabled
+- **Implementation Details**:
+  - **Smart Touch Handling**: Maintains the original circle visuals while expanding the touch detection area
+  - **Optimized Gesture Recognition**: Uses efficient gesture detection that responds to the lightest touch
+  - **Consistent Visual Feedback**: Circle still animates identically whether touched directly or activated via full-screen mode
+  - **Unchanged Visual Elements**: All visual elements (timer arcs, spark effects, etc.) remain identical regardless of touch mode
+  - **Simplified Accessibility**: Makes the app much easier to use for users with fine motor control challenges
+  - **Visual Mode Indicator**: Animated rotating gradient dashed circle provides subtle but clear indication of mode status
+  - **Visual Integration**: Gradient colors match the app's overall color scheme for a cohesive appearance
+  - **Manual Size Control**: Users can still adjust the visual circle size independently from the touch area
+
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`
