@@ -223,17 +223,14 @@ struct SleepScreen: View {
                 buttonContent(icon: "chevron.left", text: "Back to Nap", color: .blue)
             }
         } else {
-            // Multi-swipe button when timer is active
-            MultiSwipeConfirmation(
+            // Slide button when timer is active
+            SlideToConfirmButton(
                 action: action,
-                requiredSwipes: 2,
                 direction: .leading,
-                label: "Swipe to Nap",
-                confirmLabel: "Swipe once more",
-                finalLabel: "Swipe to confirm",
-                requireMultipleSwipes: timerManager.isAnyTimerActive
+                label: "Slide to Nap",
+                accentColor: .blue
             )
-            .frame(width: 145) // Keep original frame
+            .frame(width: 180) // Make slider a bit wider than previous button
         }
     }
     
@@ -241,8 +238,8 @@ struct SleepScreen: View {
     @ViewBuilder
     private var rightButton: some View {
         if !napFinished {
-            // Skip button using MultiSwipeConfirmation
-            MultiSwipeConfirmation(
+            // Skip button using SlideToConfirmButton
+            SlideToConfirmButton(
                 action: {
                     // Ensure alarm is stopped first
                     timerManager.stopAlarmSound()
@@ -254,14 +251,11 @@ struct SleepScreen: View {
                     timerManager.napTimer = 0 // Effectively end the timer
                     napFinished = true
                 },
-                requiredSwipes: 2,
                 direction: .trailing,
-                label: "Swipe to skip",
-                confirmLabel: "Swipe once more",
-                finalLabel: "Swipe to confirm",
-                requireMultipleSwipes: timerManager.isAnyTimerActive
+                label: "Slide to skip",
+                accentColor: .orange
             )
-             .frame(width: 145) // Keep original frame
+            .frame(width: 180) // Make slider a bit wider than previous button
         } else {
             // Button to go back to Settings (reset timers) - tap-only when timer is done
             Button(action: {

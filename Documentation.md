@@ -369,3 +369,11 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`
+- Implemented `SlideToConfirmButton` - a "slide to unlock" style control that replaces the previous multi-swipe confirmation buttons. Features include:
+  - Visual sliding motion with a draggable thumb
+  - Dynamic filling track that shows progress
+  - Animated spring-back when released before threshold
+  - Direction support (leading or trailing)
+  - Haptic feedback when successful
+  - Configurable colors and labels
+  - Automatic reset after successful confirmation

@@ -174,37 +174,6 @@ struct NapScreen: View {
                                 showArcs: timerManager.showTimerArcs,
                                 isFullScreenMode: timerManager.isFullScreenMode
                             )
-                            
-                            // If full screen mode is enabled, add an invisible overlay across the entire screen
-                            if timerManager.isFullScreenMode {
-                                Color.clear
-                                    .contentShape(Rectangle())
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .gesture(
-                                        DragGesture(minimumDistance: 0)
-                                            .onChanged { _ in
-                                                if !isPressed {
-                                                    isPressed = true
-                                                    
-                                                    // If this is the first interaction since placing the circle,
-                                                    // start the max timer when user first holds down
-                                                    if isFirstInteraction {
-                                                        timerManager.startMaxTimer()
-                                                        isFirstInteraction = false
-                                                    }
-                                                    
-                                                    // Stop the hold timer when holding
-                                                    timerManager.stopHoldTimer()
-                                                }
-                                            }
-                                            .onEnded { _ in
-                                                isPressed = false
-                                                // User has released the screen
-                                                // Start/resume the hold timer
-                                                timerManager.startHoldTimer()
-                                            }
-                                    )
-                            }
                         }
                         .overlay(
                             // Only use the circle touch handler when not in full-screen mode
@@ -355,26 +324,58 @@ struct NapScreen: View {
                         )
                         .zIndex(2)
                     }
+                    
+                    // ADD: Full-screen touch detection overlay
+                    // Only show when circle is placed and full-screen mode is enabled
+                    if !showPositionMessage && timerManager.isFullScreenMode, circlePosition != nil {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .allowsHitTesting(true)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { _ in
+                                        if !isPressed {
+                                            isPressed = true
+                                            
+                                            // If this is the first interaction since placing the circle,
+                                            // start the max timer when user first holds down
+                                            if isFirstInteraction {
+                                                timerManager.startMaxTimer()
+                                                isFirstInteraction = false
+                                            }
+                                            
+                                            // Stop the hold timer when holding
+                                            timerManager.stopHoldTimer()
+                                        }
+                                    }
+                                    .onEnded { _ in
+                                        isPressed = false
+                                        // User has released the screen
+                                        // Start/resume the hold timer
+                                        timerManager.startHoldTimer()
+                                    }
+                            )
+                            .zIndex(10) // Set high zIndex to ensure it's above all other content
+                    }
                 }
                 .contentShape(Rectangle())
                 
                 // Back button overlay (always on top)
                 VStack {
                     HStack {
-                        MultiSwipeConfirmation(
+                        SlideToConfirmButton(
                             action: {
                                 timerManager.stopHoldTimer()
                                 timerManager.stopMaxTimer()
                                 timerManager.stopAlarmSound()
                                 presentationMode.wrappedValue.dismiss()
                             },
-                            requiredSwipes: 2,
                             direction: .leading,
-                            label: "Swipe to exit",
-                            confirmLabel: "Swipe once more",
-                            finalLabel: "Swipe again to confirm",
-                            requireMultipleSwipes: timerManager.isAnyTimerActive
+                            label: "Slide to exit",
+                            accentColor: .blue
                         )
+                        .frame(width: 180)
                         .padding(.leading, 5)
                         .padding(.top, 10)
                         
@@ -383,6 +384,7 @@ struct NapScreen: View {
                     Spacer()
                 }
                 .allowsHitTesting(true)
+                .zIndex(20) // Make sure this is higher than the full-screen touch overlay
             }
             .navigationBarHidden(true)
         }

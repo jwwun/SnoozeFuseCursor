@@ -192,7 +192,7 @@ struct MultiTouchHandler: UIViewRepresentable {
         /// Handles touch movements
         func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?, in view: TouchView) {
             // Check if any active touch is inside the circle
-            let touchesInsideCircle = activeTouches.contains { 
+            let touchesInsideCircle = activeTouches.contains {
                 isTouchInsideCircle($0, in: view)
             }
             
@@ -269,16 +269,16 @@ struct MultiSwipeConfirmation: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(
-                        swipeCount == 0 ? Color.blue.opacity(0.4) : 
-                        swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.5) : 
+                        swipeCount == 0 ? Color.blue.opacity(0.4) :
+                        swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.5) :
                         Color.red.opacity(0.5)
                     )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(
-                        swipeCount == 0 ? Color.blue.opacity(0.6) : 
-                        swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.7) : 
+                        swipeCount == 0 ? Color.blue.opacity(0.6) :
+                        swipeCount < requiredSwipes - 1 ? Color.orange.opacity(0.7) :
                         Color.red.opacity(0.7),
                         lineWidth: 1
                     )
@@ -289,7 +289,7 @@ struct MultiSwipeConfirmation: View {
                         // Check swipe direction matches expected direction
                         let horizontalAmount = value.translation.width
                         let isSwipingLeft = horizontalAmount < 0
-                        let isExpectedDirection = (direction == .leading && isSwipingLeft) || 
+                        let isExpectedDirection = (direction == .leading && isSwipingLeft) ||
                                                  (direction == .trailing && !isSwipingLeft)
                         
                         if isExpectedDirection {
