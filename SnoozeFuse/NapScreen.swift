@@ -75,6 +75,26 @@ struct NapScreen: View {
         isFirstInteraction = true
     }
     
+    private func parseTimerComponents(_ text: String) -> [TimerComponent] {
+        var components: [TimerComponent] = []
+        let parts = text.split(separator: " ")
+        
+        for part in parts {
+            let partString = String(part)
+            let numberEndIndex = partString.firstIndex(where: { !$0.isNumber }) ?? partString.endIndex
+            let number = String(partString[..<numberEndIndex])
+            let unit = String(partString[numberEndIndex...])
+            components.append(TimerComponent(number: number, unit: unit))
+        }
+        
+        return components
+    }
+    
+    struct TimerComponent {
+        let number: String
+        let unit: String
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -100,10 +120,25 @@ struct NapScreen: View {
                                 .tracking(3)
                                 .padding(.bottom, 5)
                             
-                            Text(timerManager.formatTime(timerManager.holdTimer))
-                                .font(.system(size: 62, weight: .bold, design: .monospaced))
-                                .foregroundColor(isPressed ? Color.pink.opacity(0.9) : .white)
-                                .shadow(color: .blue.opacity(0.5), radius: 2, x: 0, y: 0)
+                            // Timer display with big numbers, small units
+                            let timerText = timerManager.formatTime(timerManager.holdTimer)
+                            let components = parseTimerComponents(timerText)
+                            VStack(spacing: 0) {
+                                HStack(spacing: 1) {
+                                    ForEach(components, id: \.number) { component in
+                                        Text(component.number)
+                                            .font(.system(size: 62, weight: .bold, design: .monospaced))
+                                            .foregroundColor(isPressed ? Color.pink.opacity(0.9) : .white)
+                                        
+                                        Text(component.unit)
+                                            .font(.system(size: 24, weight: .medium, design: .monospaced))
+                                            .foregroundColor(isPressed ? Color.pink.opacity(0.7) : .white.opacity(0.8))
+                                            .baselineOffset(-8)
+                                            .padding(.trailing, 4)
+                                    }
+                                }
+                            }
+                            .shadow(color: .blue.opacity(0.5), radius: 2, x: 0, y: 0)
                         }
                         .padding(.top, 60)
                         .padding(.bottom, 10)
@@ -116,9 +151,22 @@ struct NapScreen: View {
                                         .font(.system(size: 12, weight: .bold, design: .rounded))
                                         .foregroundColor(Color.purple.opacity(0.8))
                                         .tracking(1)
-                                    Text(timerManager.formatTime(timerManager.maxTimer))
-                                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.9))
+                                    
+                                    let maxTimerText = timerManager.formatTime(timerManager.maxTimer)
+                                    let maxComponents = parseTimerComponents(maxTimerText)
+                                    HStack(spacing: 0) {
+                                        ForEach(maxComponents, id: \.number) { component in
+                                            Text(component.number)
+                                                .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.white.opacity(0.9))
+                                            
+                                            Text(component.unit)
+                                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                                .foregroundColor(.white.opacity(0.7))
+                                                .baselineOffset(-2)
+                                                .padding(.trailing, 2)
+                                        }
+                                    }
                                 }
                                 .padding(.vertical, 8)
                                 .padding(.horizontal, 15)
@@ -136,9 +184,22 @@ struct NapScreen: View {
                                         .font(.system(size: 12, weight: .bold, design: .rounded))
                                         .foregroundColor(Color.blue.opacity(0.7))
                                         .tracking(1)
-                                    Text(timerManager.formatTime(timerManager.napDuration))
-                                        .font(.system(size: 16, weight: .medium, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.7))
+                                    
+                                    let napTimerText = timerManager.formatTime(timerManager.napDuration)
+                                    let napComponents = parseTimerComponents(napTimerText)
+                                    HStack(spacing: 0) {
+                                        ForEach(napComponents, id: \.number) { component in
+                                            Text(component.number)
+                                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                                .foregroundColor(.white.opacity(0.9))
+                                            
+                                            Text(component.unit)
+                                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                                .foregroundColor(.white.opacity(0.7))
+                                                .baselineOffset(-2)
+                                                .padding(.trailing, 2)
+                                        }
+                                    }
                                 }
                                 .padding(.vertical, 8)
                                 .padding(.horizontal, 15)

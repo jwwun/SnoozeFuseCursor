@@ -120,6 +120,30 @@ Used for managers that need global access:
 ### Bridge Pattern
 - `MultiTouchHandler` bridges between UIKit touch handling and SwiftUI views
 
+## UI Improvements
+
+### Timer Display Format
+- **Adaptive Time Format**: Updated all timer displays to use a human-readable format that changes based on duration:
+  - For durations > 1 hour: "[hours]hr [minutes]min [seconds]sec"
+  - For durations < 1 hour: "[minutes]min [seconds]sec"
+  - For durations < 1 minute: "[seconds]sec"
+- **Simplified Time Display**: Removed milliseconds from all timer displays for cleaner interface
+- **Consistent Formatting**: Applied the same formatting across the app for visual consistency
+- **User-friendly Units**: Used abbreviated time units (hr, min, sec) instead of colons for better readability
+- **Enhanced Visual Hierarchy**:
+  - Numbers are displayed in a larger, bold font
+  - Units are displayed in a smaller font with reduced opacity
+  - Creates clear visual distinction between numerical values and their units
+  - Applied consistent formatting across all timer displays in the app
+- **Optimized Proportions**: Carefully calibrated font size relationships (approximately 2:1 ratio between numbers and units)
+- **Improved Legibility**: Base alignment adjustments ensure proper vertical alignment between numbers and units
+- **Compact Design**: Eliminated excess spacing between numbers and units for a more cohesive look
+- **Fixed Format Flickering**: Implemented threshold-based formatting to prevent flickering between display formats:
+  - Uses hours format for any duration ≥ 60 minutes (3600 seconds)
+  - Uses minutes format for any duration ≥ 60 seconds but < 3600 seconds
+  - Uses seconds format for any duration < 60 seconds
+  - Ensures consistent unit format for stable UI even during timer transitions
+
 ## Future Improvements
 
 ### Potential Refactoring Opportunities

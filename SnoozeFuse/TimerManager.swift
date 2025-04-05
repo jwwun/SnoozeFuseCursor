@@ -336,14 +336,24 @@ class TimerManager: ObservableObject {
     
     // Formatting for display
     func formatTime(_ timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        let decimal = Int((timeInterval.truncatingRemainder(dividingBy: 1)) * 10)
+        let totalSeconds = Int(timeInterval)
         
-        if minutes > 0 {
-            return String(format: "%02d:%02d.%d", minutes, seconds, decimal)
-        } else {
-            return String(format: "%02d.%d", seconds, decimal)
+        // Use hours format if 60 minutes or more
+        if totalSeconds >= 3600 {
+            let hours = totalSeconds / 3600
+            let minutes = (totalSeconds % 3600) / 60
+            let seconds = totalSeconds % 60
+            return "\(hours)hr \(minutes)min \(seconds)sec"
+        } 
+        // Use minutes format if 60 seconds or more
+        else if totalSeconds >= 60 {
+            let minutes = totalSeconds / 60
+            let seconds = totalSeconds % 60
+            return "\(minutes)min \(seconds)sec"
+        } 
+        // Use seconds only format if less than 60 seconds
+        else {
+            return "\(totalSeconds)sec"
         }
     }
     

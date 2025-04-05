@@ -480,11 +480,72 @@ struct CircleView: View {
     @ViewBuilder
     private var timerTextView: some View {
         if showTimer, let timerText = timerValue {
-            Text(timerText)
-                .font(.system(size: 20, weight: .bold, design: .monospaced))
-                .foregroundColor(timerColor)
-                .offset(y: 15) // Position below status text
-                .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
+            // Parse the timer text to extract numbers and units
+            let text = timerText // Example: "5min 30sec"
+            
+            // Use a HStack to display timer components with different sizes
+            HStack(spacing: 1) {
+                if text.contains("hr") {
+                    // Handle hours format: "1hr 30min 45sec"
+                    let components = text.split(separator: " ")
+                    
+                    ForEach(0..<components.count, id: \.self) { index in
+                        let component = String(components[index])
+                        let numberEndIndex = component.firstIndex(where: { !$0.isNumber }) ?? component.endIndex
+                        let number = component[..<numberEndIndex]
+                        let unit = component[numberEndIndex...]
+                        
+                        Text(String(number))
+                            .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                        
+                        Text(String(unit))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .baselineOffset(-2)
+                        
+                        if index < components.count - 1 {
+                            Text(" ")
+                                .font(.system(size: 10))
+                        }
+                    }
+                } else if text.contains("min") {
+                    // Handle minutes format: "30min 45sec"
+                    let components = text.split(separator: " ")
+                    
+                    ForEach(0..<components.count, id: \.self) { index in
+                        let component = String(components[index])
+                        let numberEndIndex = component.firstIndex(where: { !$0.isNumber }) ?? component.endIndex
+                        let number = component[..<numberEndIndex]
+                        let unit = component[numberEndIndex...]
+                        
+                        Text(String(number))
+                            .font(.system(size: 22, weight: .heavy, design: .monospaced))
+                        
+                        Text(String(unit))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .baselineOffset(-2)
+                        
+                        if index < components.count - 1 {
+                            Text(" ")
+                                .font(.system(size: 10))
+                        }
+                    }
+                } else {
+                    // Handle seconds only format: "45sec"
+                    let numberEndIndex = text.firstIndex(where: { !$0.isNumber }) ?? text.endIndex
+                    let number = text[..<numberEndIndex]
+                    let unit = text[numberEndIndex...]
+                    
+                    Text(String(number))
+                        .font(.system(size: 24, weight: .heavy, design: .monospaced))
+                    
+                    Text(String(unit))
+                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                        .baselineOffset(-2)
+                }
+            }
+            .foregroundColor(timerColor)
+            .offset(y: 15) // Position below status text
+            .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
         }
     }
 }

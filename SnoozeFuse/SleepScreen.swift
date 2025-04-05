@@ -120,9 +120,21 @@ struct SleepScreen: View {
                             .foregroundColor(Color.blue.opacity(0.7))
                             .tracking(4)
                         
-                        Text(timerManager.formatTime(effectiveNapDuration))
-                            .font(.system(size: 48, weight: .bold, design: .monospaced))
-                            .foregroundColor(napFinished ? .green : .white)
+                        let napTimerText = timerManager.formatTime(effectiveNapDuration)
+                        let components = parseTimerComponents(napTimerText)
+                        HStack(spacing: 0) {
+                            ForEach(components, id: \.number) { component in
+                                Text(component.number)
+                                    .font(.system(size: 48, weight: .bold, design: .monospaced))
+                                    .foregroundColor(napFinished ? .green : .white)
+                                
+                                Text(component.unit)
+                                    .font(.system(size: 20, weight: .medium, design: .monospaced))
+                                    .foregroundColor(napFinished ? .green.opacity(0.8) : .white.opacity(0.8))
+                                    .baselineOffset(-8)
+                                    .padding(.trailing, 4)
+                            }
+                        }
                     }
                     .padding()
                     
@@ -296,6 +308,27 @@ struct SleepScreen: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(color.opacity(0.7), lineWidth: 1)
         )
+    }
+    
+    // Helper to parse timer components for display
+    private func parseTimerComponents(_ text: String) -> [TimerComponent] {
+        var components: [TimerComponent] = []
+        let parts = text.split(separator: " ")
+        
+        for part in parts {
+            let partString = String(part)
+            let numberEndIndex = partString.firstIndex(where: { !$0.isNumber }) ?? partString.endIndex
+            let number = String(partString[..<numberEndIndex])
+            let unit = String(partString[numberEndIndex...])
+            components.append(TimerComponent(number: number, unit: unit))
+        }
+        
+        return components
+    }
+    
+    struct TimerComponent {
+        let number: String
+        let unit: String
     }
     
     // Calculate wake up time based on effective nap duration
