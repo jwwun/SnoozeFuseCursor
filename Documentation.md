@@ -144,6 +144,33 @@ Used for managers that need global access:
   - Uses seconds format for any duration < 60 seconds
   - Ensures consistent unit format for stable UI even during timer transitions
 
+### Timer Presets Feature
+- **Customizable Presets**: Users can save multiple timer configurations as presets for quick reuse
+- **Intuitive Interface**: Horizontal scrollable list of preset cards in a compact format
+- **Quick Access**: Tap any preset to instantly apply its timer settings
+- **Flexible Management**:
+  - Create new presets by saving current timer settings
+  - Rename presets through context menu (long press)
+  - Delete presets with a single tap (no confirmation required for quick workflow)
+- **Visual Feedback**: 
+  - Clear visual indication when a preset is applied
+  - Haptic feedback enhances the interaction
+- **Movable UI Component**: 
+  - Can be moved between main Settings and Advanced Settings
+  - "Hide This" button moves presets UI to Advanced Settings instantly
+  - "Show in Main" button moves presets UI back to main Settings
+  - Location preference persists between app launches
+- **Help System**: 
+  - "?" button explains preset functionality
+  - Clear instructions for creating and managing presets
+- **Compact Formatting**:
+  - Timer values display in efficient format (e.g., "5s → 1m → 2m")
+  - Space-efficient design with auto-sizing based on content
+- **Persistent Storage**: 
+  - All presets saved to UserDefaults
+  - Presets persist across app launches
+  - State restoration preserves user customizations
+
 ## Future Improvements
 
 ### Potential Refactoring Opportunities
@@ -197,6 +224,7 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 - **Delayed Max Timer Start**: Fixed Max Timer to only start when the user first presses the circle after placement, not immediately after placing the circle, ensuring user control over timer initiation
 - **Comprehensive Timer Reset**: Added proper Max Timer stopping when returning to circle placement state, ensuring all timers are fully stopped during the placement phase
 - **Proper Alarm Stopping**: Fixed issue where alarm would continue playing when navigating back to Nap or Settings screens by fully stopping audio playback and deactivating audio session
+- **Fixed Timer Value Display**: Corrected issue where Release Timer would temporarily show 0 when returning from Sleep Screen, now immediately shows the correct time value upon screen transition
 
 ### Fixed Notification Sounds
 - **Critical Alert System**: Used system-provided critical alert notifications that play at higher volume even in silent mode
@@ -298,6 +326,13 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 - **Smart Unit Formatting**: Displays values with appropriate units (seconds/minutes) and proper singular/plural forms
 - **Visual Integration**: Styled to match the app's overall design while maintaining readability
 - **Improved User Understanding**: Helps users better understand the relationship between the three timers
+- **Enhanced Unit Selection UI**:
+  - **Visible Interactivity Cues**: Added chevron up/down icon to clearly indicate unit values are tappable
+  - **Subtle Pulsing Animation**: Implemented a gentle pulsing effect around the unit button to draw attention
+  - **Improved Visual Contrast**: Added slightly colored background to make the tap target more distinctive
+  - **Clear Affordance**: Applied proper UI design principles to provide strong visual affordance for the interactive element
+  - **Consistent Styling**: Maintained the existing color scheme and visual language of the app
+  - **Increased Touch Target**: Expanded the tappable area with additional padding for easier interaction
 
 ### Button Style Enhancements
 - **Simplified Styling**: Updated buttons with flat colors for improved readability

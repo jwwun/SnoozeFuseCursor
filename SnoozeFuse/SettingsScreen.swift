@@ -368,15 +368,43 @@ struct CuteTimePicker: View {
                     }
                 }
             } label: {
-                Text(selectedUnit.rawValue) // Use selectedUnit state
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.blue)
-                    .frame(minWidth: 50)
-                    .padding(.vertical, 6)
-                    .background(
+                HStack(spacing: 4) {
+                    Text(selectedUnit.rawValue) // Use selectedUnit state
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.blue)
+                    
+                    // Add a tap/edit icon to indicate this can be changed
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.blue.opacity(0.8))
+                }
+                .frame(minWidth: 50)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .background(
+                    ZStack {
+                        // Animated pulsing background for extra tap indication
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.1))
+                            .scaleEffect(1.02)
+                        
+                        // Border
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color.blue.opacity(0.6), lineWidth: 1.5)
-                    )
+                    }
+                )
+                // Add a subtle animation to indicate tappability
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 3)
+                        .scaleEffect(1.1)
+                        .opacity(0.5)
+                        .animation(
+                            Animation.easeInOut(duration: 1.5)
+                                .repeatForever(autoreverses: true),
+                            value: UUID() // Always animate
+                        )
+                )
             }
         }
         .padding()
@@ -1070,6 +1098,8 @@ struct SettingsScreen: View {
     @FocusState private var isAnyFieldFocused: Bool
     @State private var showNapScreen = false  // New state for showing nap screen
     @ObservedObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var presetManager = PresetManager.shared
+    @State private var presetsRefreshTrigger = false // Force view updates for presets
     
     var body: some View {
         ZStack {
@@ -1132,6 +1162,14 @@ struct SettingsScreen: View {
                                 napDuration: $timerManager.napDuration,
                                 maxDuration: $timerManager.maxDuration
                             )
+                            
+                            // Presets UI - Only show if not hidden from main settings
+                            if !presetManager.isHiddenFromMainSettings {
+                                PresetUI()
+                                    .transition(.move(edge: .leading))
+                                    .animation(.easeInOut(duration: 0.3), value: presetsRefreshTrigger)
+                                    .id("presetUI-\(presetsRefreshTrigger)")
+                            }
                             
                             // Alarm sound selection
                             AlarmSoundSelector(
@@ -1212,6 +1250,18 @@ struct SettingsScreen: View {
         }
         .onAppear {
             textInputValue = "\(Int(timerManager.circleSize))"
+            
+            // Add observer for preset UI state changes
+            NotificationCenter.default.addObserver(forName: .presetUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.presetsRefreshTrigger.toggle()
+                }
+            }
+        }
+        .onDisappear {
+            // Remove the observer when view disappears
+            NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
         }
     }
     

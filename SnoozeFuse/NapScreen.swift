@@ -68,6 +68,10 @@ struct NapScreen: View {
         // Stop the maxTimer as well
         timerManager.stopMaxTimer()
         
+        // Reset the timer values to their original durations
+        timerManager.holdTimer = timerManager.holdDuration
+        timerManager.maxTimer = timerManager.maxDuration
+        
         // Ensure we're not tracking pressed state anymore
         isPressed = false
         
@@ -483,6 +487,10 @@ struct NapScreen: View {
             // Always ensure holdTimer and maxTimer are stopped when "tap anywhere" UI is showing
             timerManager.stopHoldTimer()
             timerManager.stopMaxTimer()
+            
+            // Reset the timer values to their original durations for initial display
+            timerManager.holdTimer = timerManager.holdDuration
+            timerManager.maxTimer = timerManager.maxDuration
             
             // Reset first interaction flag
             isFirstInteraction = true

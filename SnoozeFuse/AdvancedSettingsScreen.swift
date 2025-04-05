@@ -6,7 +6,9 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var hapticManager = HapticManager.shared
     @ObservedObject var orientationManager = OrientationManager.shared
     @ObservedObject var notificationManager = NotificationManager.shared
+    @ObservedObject var presetManager = PresetManager.shared
     @EnvironmentObject var timerManager: TimerManager
+    @State private var presetsRefreshTrigger = false // Force view updates for presets
     
     var body: some View {
         ZStack {
@@ -137,6 +139,14 @@ struct AdvancedSettingsScreen: View {
                         .cornerRadius(15)
                         .padding(.horizontal, 8)
                         
+                        // Show Presets UI if hidden from main settings
+                        if presetManager.isHiddenFromMainSettings {
+                            PresetUI()
+                                .transition(.move(edge: .trailing))
+                                .animation(.easeInOut(duration: 0.3), value: presetsRefreshTrigger)
+                                .id("presetUI-\(presetsRefreshTrigger)")
+                        }
+                        
                         // Haptic Settings Section
                         VStack(alignment: .center, spacing: 15) {
 
@@ -236,10 +246,21 @@ struct AdvancedSettingsScreen: View {
             orientationManager.lockOrientation()
             // Refresh notification status
             notificationManager.checkNotificationPermission()
+            
+            // Add observer for preset UI state changes
+            NotificationCenter.default.addObserver(forName: .presetUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.presetsRefreshTrigger.toggle()
+                }
+            }
         }
         .onDisappear {
             // Save orientation settings when leaving the screen
             orientationManager.saveSettings(forceOverride: true)
+            
+            // Remove the observer when view disappears
+            NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
         }
     }
 }
