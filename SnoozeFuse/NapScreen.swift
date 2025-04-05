@@ -46,19 +46,27 @@ struct CircularBackButton: View {
 }
 
 struct NapScreen: View {
-    @EnvironmentObject var timerManager: TimerManager
+    // MARK: - Environment
+    
     @Environment(\.presentationMode) var presentationMode
-    @State private var isPressed = false
-    @State private var showSleepScreen = false
-    @State private var showPositionMessage = true
+    @EnvironmentObject var timerManager: TimerManager
+    
+    // MARK: - State
+    
     @State private var circlePosition: CGPoint? = nil
-    @State private var isFirstInteraction = true
-    @State private var napFinished = false
+    @State private var isPressed: Bool = false
+    @State private var showPositionMessage: Bool = true
+    @State private var showSleepScreen: Bool = false
+    @State private var napFinished: Bool = false
+    @State private var isFirstInteraction: Bool = true
+    @State private var wasInBackground: Bool = false
     
-    // Add state for tracking if app was in background
-    @State private var wasInBackground = false
+    // Touch line state
+    @State private var currentTouchPosition: CGPoint? = nil
+    @State private var isShowingTouchLine: Bool = false
     
-    // Method to reset the placement state
+    // MARK: - Actions
+    
     func resetPlacementState() {
         showPositionMessage = true
         circlePosition = nil
@@ -405,6 +413,43 @@ struct NapScreen: View {
                     // ADD: Full-screen touch detection overlay
                     // Only show when circle is placed and full-screen mode is enabled
                     if !showPositionMessage && timerManager.isFullScreenMode, circlePosition != nil {
+                        // Sci-fi connecting line from circle to finger - show when touching but not touching the circle
+                        if isPressed, let touchPosition = currentTouchPosition, let circlePos = circlePosition, timerManager.showConnectingLine {
+                            // Check if the touch is not on the circle
+                            let distance = sqrt(pow(touchPosition.x - circlePos.x, 2) + pow(touchPosition.y - circlePos.y, 2))
+                            let isNotTouchingCircle = distance > timerManager.circleSize / 2
+                            
+                            if isNotTouchingCircle {
+                                // Calculate the point on the edge of the circle
+                                let radius = timerManager.circleSize / 2
+                                let dirX = touchPosition.x - circlePos.x
+                                let dirY = touchPosition.y - circlePos.y
+                                let dirLength = sqrt(dirX * dirX + dirY * dirY)
+                                let normalizedDirX = dirX / dirLength
+                                let normalizedDirY = dirY / dirLength
+                                
+                                let circleEdgePoint = CGPoint(
+                                    x: circlePos.x + normalizedDirX * radius,
+                                    y: circlePos.y + normalizedDirY * radius
+                                )
+                                
+                                // The connecting line
+                                ConnectingLine(
+                                    startPoint: circleEdgePoint,
+                                    endPoint: touchPosition,
+                                    isActive: isPressed && isNotTouchingCircle,
+                                    useRedColor: true
+                                )
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .zIndex(9)
+                                
+                                // Add mini touch circle overlay
+                                TouchPointCircle(position: touchPosition)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .zIndex(11)
+                            }
+                        }
+
                         // Replace DragGesture with FullScreenTouchHandler for better multi-touch handling
                         FullScreenTouchHandler(
                             onTouchesChanged: { isTouching in
@@ -428,6 +473,10 @@ struct NapScreen: View {
                                         timerManager.startHoldTimer()
                                     }
                                 }
+                            },
+                            onTouchMoved: { location in
+                                // Update touch position for connecting line
+                                currentTouchPosition = location
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -574,4 +623,162 @@ struct NapScreen: View {
 #Preview {
     NapScreen()
         .environmentObject(TimerManager())
+}
+
+// MARK: - ConnectingLine View
+struct ConnectingLine: View {
+    var startPoint: CGPoint
+    var endPoint: CGPoint
+    var isActive: Bool = true
+    var useRedColor: Bool = false
+    
+    @State private var animationPhase: CGFloat = 0
+    @State private var particleSpeed: [CGFloat] = [1.0, 1.3, 0.8, 1.1, 0.9]
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Blur glow effect underneath
+                Path { path in
+                    path.move(to: startPoint)
+                    path.addLine(to: endPoint)
+                }
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: useRedColor ? 
+                                         [.red.opacity(0.7), .orange.opacity(0.5)] : 
+                                         [.blue.opacity(0.7), .cyan.opacity(0.5)]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    style: StrokeStyle(lineWidth: 5)
+                )
+                .blur(radius: 8)
+                
+                // Main line with animated dash pattern
+                Path { path in
+                    path.move(to: startPoint)
+                    path.addLine(to: endPoint)
+                }
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: useRedColor ? 
+                                         [.white, .orange, .red] : 
+                                         [.white, .cyan, .blue]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    style: StrokeStyle(
+                        lineWidth: 2,
+                        lineCap: .round,
+                        lineJoin: .round,
+                        dash: [8, 6],
+                        dashPhase: animationPhase
+                    )
+                )
+                
+                // Energy particles along the line
+                ForEach(0..<5, id: \.self) { index in
+                    let progress = (CGFloat(index) / 5.0 + animationPhase / (50.0 * particleSpeed[index])).truncatingRemainder(dividingBy: 1.0)
+                    let position = interpolatePoint(start: startPoint, end: endPoint, progress: progress)
+                    
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: useRedColor ? 
+                                                 [.white, .orange.opacity(0.8), .clear] : 
+                                                 [.white, .cyan.opacity(0.8), .clear]),
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 5
+                            )
+                        )
+                        .frame(width: 4 + CGFloat.random(in: 0...2), height: 4 + CGFloat.random(in: 0...2))
+                        .position(position)
+                        .blur(radius: 2)
+                }
+                
+                // Small energy burst at finger position
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(colors: useRedColor ? 
+                                             [.white, .orange, .red.opacity(0.5), .clear] : 
+                                             [.white, .cyan, .blue.opacity(0.5), .clear]),
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 10
+                        )
+                    )
+                    .frame(width: 20, height: 20)
+                    .position(endPoint)
+                    .blur(radius: 3)
+            }
+            .opacity(isActive ? 1.0 : 0.0)
+            .animation(.easeInOut(duration: 0.2), value: isActive)
+            .onAppear {
+                // Start the animation with a longer, less predictable pattern
+                withAnimation(Animation.linear(duration: 3.0).repeatForever(autoreverses: false)) {
+                    animationPhase = 120
+                }
+            }
+        }
+    }
+    
+    // Helper function to interpolate between two points
+    private func interpolatePoint(start: CGPoint, end: CGPoint, progress: CGFloat) -> CGPoint {
+        let x = start.x + (end.x - start.x) * progress
+        let y = start.y + (end.y - start.y) * progress
+        return CGPoint(x: x, y: y)
+    }
+}
+
+struct NapScreen_Previews: PreviewProvider {
+    static var previews: some View {
+        NapScreen()
+            .environmentObject(TimerManager())
+    }
+}
+
+// MARK: - TouchPointCircle View
+struct TouchPointCircle: View {
+    var position: CGPoint
+    
+    @State private var pulseSize: CGFloat = 1.0
+    
+    var body: some View {
+        ZStack {
+            // Outer glowing ring
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.red.opacity(0.7), .orange.opacity(0.5)]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: 3
+                )
+                .frame(width: 70 * pulseSize, height: 70 * pulseSize)
+                .blur(radius: 3)
+                .position(position)
+            
+            // Inner circle
+            Circle()
+                .fill(Color.orange.opacity(0.7))
+                .frame(width: 35, height: 35)
+                .position(position)
+            
+            // Center dot
+            Circle()
+                .fill(Color.white)
+                .frame(width: 15, height: 15)
+                .position(position)
+        }
+        .onAppear {
+            // Add subtle pulsing animation
+            withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                pulseSize = 1.2
+            }
+        }
+    }
 }

@@ -39,7 +39,7 @@ struct SlideToConfirmButton: View {
     // MARK: - Constants
     
     /// Size of the thumb/handle
-    private let thumbSize: CGFloat = 48
+    private let thumbSize: CGFloat = 50
     
     /// Minimum distance to register as complete
     private let completionThreshold: CGFloat = 0.85
@@ -52,21 +52,30 @@ struct SlideToConfirmButton: View {
         
         return GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // Track background - clean, minimal design
-                Capsule()
-                    .fill(Color.black.opacity(0.15))
-                    .overlay(
-                        Capsule()
-                            .stroke(accentColor.opacity(0.25), lineWidth: 1)
-                    )
+                // Track background with dashed pattern
+                ZStack {
+                    // Solid background
+                    Capsule()
+                        .fill(Color.black.opacity(0.25))
+                    
+                    // Dashed overlay pattern for track
+                    DashedTrack(isLeading: direction == .leading)
+                        .stroke(accentColor.opacity(0.4), style: StrokeStyle(lineWidth: 2, dash: [4, 6]))
+                        .frame(height: 30)
+                        .clipShape(Capsule())
+                    
+                    // Strong border outline
+                    Capsule()
+                        .stroke(accentColor.opacity(0.6), lineWidth: 2)
+                }
                 
                 // Progress fill
                 Capsule()
                     .fill(
                         LinearGradient(
                             gradient: Gradient(colors: [
-                                accentColor.opacity(0.35),
-                                accentColor.opacity(0.15)
+                                accentColor.opacity(0.6),
+                                accentColor.opacity(0.4)
                             ]),
                             startPoint: direction == .trailing ? .leading : .trailing,
                             endPoint: direction == .trailing ? .trailing : .leading
@@ -82,35 +91,55 @@ struct SlideToConfirmButton: View {
                     
                     Text(label)
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundColor(secondaryColor.opacity(0.8))
+                        .foregroundColor(secondaryColor)
                         .lineLimit(1)
                         .padding(.horizontal, thumbSize / 2)
+                        .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
                     
                     if direction == .leading {
                         Spacer()
                     }
                 }
                 
-                // Drag handle/thumb - clean, minimal design
+                // Drag handle/thumb - improved design to indicate draggability
                 ZStack {
-                    // Subtle shadow for depth without being garish
+                    // Outer glow
                     Circle()
-                        .fill(Color.black.opacity(0.1))
-                        .frame(width: thumbSize + 4, height: thumbSize + 4)
+                        .fill(accentColor.opacity(0.3))
+                        .frame(width: thumbSize + 8, height: thumbSize + 8)
                         .blur(radius: 4)
-                        .opacity(0.6)
-                        .scaleEffect(isPulsing ? 1.05 : 1.0)
+                        .scaleEffect(isPulsing ? 1.15 : 1.05)
                     
-                    // Main thumb - clean solid color
+                    // Main thumb
                     Circle()
-                        .fill(accentColor)
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    accentColor.opacity(1.0),
+                                    accentColor.opacity(0.8)
+                                ]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                         .frame(width: thumbSize, height: thumbSize)
-                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                        .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 2)
                     
-                    // Icon
+                    // Grip lines to indicate dragging
+                    VStack(spacing: 4) {
+                        ForEach(0..<3) { _ in
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(secondaryColor.opacity(0.7))
+                                .frame(width: 16, height: 2)
+                        }
+                    }
+                    
+                    // Direction indicator
                     Image(systemName: direction == .trailing ? "chevron.right" : "chevron.left")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(secondaryColor)
+                        .opacity(0.9)
+                        .offset(x: direction == .trailing ? 20 : -20)
                 }
                 .offset(x: calculateThumbOffset(geometry: geometry, dragAmount: dragAmount, direction: direction))
                 .gesture(
@@ -178,7 +207,7 @@ struct SlideToConfirmButton: View {
                         }
                 )
             }
-            .frame(height: 52)
+            .frame(height: 58) // Slightly taller for better visibility
             .opacity(opacity)
             .onAppear {
                 // Store frame width for calculations
@@ -188,7 +217,7 @@ struct SlideToConfirmButton: View {
                 self.startPulseAnimation()
             }
         }
-        .frame(height: 52)
+        .frame(height: 58)
     }
     
     // MARK: - Helper Methods
@@ -223,6 +252,30 @@ struct SlideToConfirmButton: View {
             // For leading direction, we start from the right side
             return geometry.size.width - thumbSize - (dragAmount * totalWidth)
         }
+    }
+}
+
+// MARK: - Helper Views
+
+/// Dashed track pattern that indicates direction
+struct DashedTrack: Shape {
+    var isLeading: Bool
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        // Create a dashed line in the middle of the track
+        let midY = rect.midY
+        
+        if isLeading {
+            path.move(to: CGPoint(x: rect.maxX, y: midY))
+            path.addLine(to: CGPoint(x: rect.minX, y: midY))
+        } else {
+            path.move(to: CGPoint(x: rect.minX, y: midY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: midY))
+        }
+        
+        return path
     }
 }
 

@@ -640,8 +640,8 @@ struct TimerSettingsControl: View {
             // Timer presets section - only show if not hidden
             if !presetManager.isHiddenFromMainSettings {
                 Divider()
-                    .background(Color.gray.opacity(0.5))
-                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.4))
+                    .padding(.vertical, 4)
                     .padding(.horizontal, 20)
                 
                 PresetUI()

@@ -25,7 +25,7 @@ class PresetManager: ObservableObject {
     
     // Published properties
     @Published var presets: [PresetItem] = []
-    @Published var isHiddenFromMainSettings: Bool = false
+    @Published var isHiddenFromMainSettings: Bool = true
     
     // UserDefaults keys
     private enum UserDefaultsKeys {

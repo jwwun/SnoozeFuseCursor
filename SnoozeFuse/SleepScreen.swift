@@ -239,7 +239,7 @@ struct SleepScreen: View {
             SlideToConfirmButton(
                 action: action,
                 direction: .leading,
-                label: "Slide to Nap",
+                label: "Repeat nap", //by this point the user knows what slider does
                 accentColor: .blue,
                 opacity: 0.9
             )
@@ -265,7 +265,7 @@ struct SleepScreen: View {
                     napFinished = true
                 },
                 direction: .trailing,
-                label: "Slide to skip",
+                label: "Skip",
                 accentColor: .orange,
                 opacity: 0.9
             )

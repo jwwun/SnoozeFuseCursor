@@ -245,16 +245,21 @@ struct FullScreenTouchHandler: UIViewRepresentable {
     /// Callback for when touch state changes
     var onTouchesChanged: (Bool) -> Void
     
+    /// Callback for when touch position changes (optional)
+    var onTouchMoved: ((CGPoint) -> Void)?
+    
     // MARK: - UIViewRepresentable
     
     func makeUIView(context: Context) -> FullScreenTouchView {
         let view = FullScreenTouchView(frame: .zero)
         view.onTouchesChanged = onTouchesChanged
+        view.onTouchMoved = onTouchMoved
         return view
     }
     
     func updateUIView(_ uiView: FullScreenTouchView, context: Context) {
         uiView.onTouchesChanged = onTouchesChanged
+        uiView.onTouchMoved = onTouchMoved
     }
 }
 
@@ -266,6 +271,9 @@ class FullScreenTouchView: UIView {
     
     /// Callback triggered when touch state changes
     var onTouchesChanged: ((Bool) -> Void)?
+    
+    /// Callback triggered when touch position changes
+    var onTouchMoved: ((CGPoint) -> Void)?
     
     /// Current touching state
     private var isTouching = false
@@ -326,6 +334,11 @@ class FullScreenTouchView: UIView {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             activeTouches.insert(touch)
+            // Report the position of the first touch
+            if let firstTouch = activeTouches.first {
+                let position = firstTouch.location(in: self)
+                onTouchMoved?(position)
+            }
         }
         
         // If we have any active touches, report touching
@@ -335,6 +348,12 @@ class FullScreenTouchView: UIView {
     }
     
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // Report position updates for the first touch
+        if let firstTouch = activeTouches.first {
+            let position = firstTouch.location(in: self)
+            onTouchMoved?(position)
+        }
+        
         // This is a full-screen handler, so no position checking needed
         // Just ensure the touch state is correct
         if !activeTouches.isEmpty && !isTouching {
@@ -347,6 +366,13 @@ class FullScreenTouchView: UIView {
             activeTouches.remove(touch)
         }
         
+        // If the first touch ended but there are other touches,
+        // report the position of the new first touch
+        if let firstTouch = activeTouches.first {
+            let position = firstTouch.location(in: self)
+            onTouchMoved?(position)
+        }
+        
         // If we have no more active touches, report not touching
         if activeTouches.isEmpty && isTouching {
             updateTouchState(false)
@@ -356,6 +382,13 @@ class FullScreenTouchView: UIView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
             activeTouches.remove(touch)
+        }
+        
+        // If the first touch was cancelled but there are other touches,
+        // report the position of the new first touch
+        if let firstTouch = activeTouches.first {
+            let position = firstTouch.location(in: self)
+            onTouchMoved?(position)
         }
         
         // If we have no more active touches, report not touching

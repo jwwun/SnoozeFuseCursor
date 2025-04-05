@@ -157,14 +157,15 @@ Used for managers that need global access:
   - Haptic feedback enhances the interaction
 - **Movable UI Component**: 
   - Can be moved between main Settings and Advanced Settings
-  - "Hide This" button moves presets UI to Advanced Settings instantly
-  - "Show in Main" button moves presets UI back to main Settings
+  - "Hide" button moves presets UI to Advanced Settings instantly
+  - "To Settings" button moves presets UI back to main Settings
   - Location preference persists between app launches
+  - Located in Advanced Settings by default to keep main UI clean for newcomers
 - **Help System**: 
   - "?" button explains preset functionality
   - Clear instructions for creating and managing presets
 - **Compact Formatting**:
-  - Timer values display in efficient format (e.g., "5s → 1m → 2m")
+  - Timer values display in efficient format (e.g., "5s→1m→2m")
   - Space-efficient design with auto-sizing based on content
 - **Persistent Storage**: 
   - All presets saved to UserDefaults
@@ -411,6 +412,194 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - **High-Intensity Visual**: The combination of ember glow, emitting burnt particles, and intense sparkles creates a striking visual metaphor
 
 ### Full-Screen Touch Mode
+
+When enabled, this mode allows the user to touch anywhere on the screen to trigger the hold action, not just on the circle. This is especially useful for:
+
+- Users who want to hold their device in a more comfortable position
+- Preventing accidental touch releases on the circle
+- Easier one-handed operation
+- People with motor control difficulties
+
+### Sci-Fi Connecting Line Effect
+
+When the app is in full-screen mode, a visual line connects the circle to the user's finger:
+
+- **Techy Visual Design**: The line has a sci-fi appearance with glowing red/orange effects and animated segments.
+- **Interactive Feedback**: The app tracks your finger position and connects it to the circle.
+- **Touch Position Awareness**: The line dynamically updates with your finger movement.
+- **Animated Flow Effect**: Dashed line segments are animated to flow for a futuristic look.
+- **Particle Energy Flow**: Small energy particles travel along the line.
+- **Glowing Connection**: A subtle blur effect gives the line a holographic appearance.
+- **Mode Indicator**: The line clearly indicates you're in active full-screen touch mode.
+- **Cohesive Color Scheme**: Uses red and orange gradients for a warning/energy aesthetic.
+- **Finger Touch Point Effect**: Shows a small energy burst effect at the touch point.
+- **Clean Implementation**: Implemented using SwiftUI Path and GeometryReader for performance.
+
+The connecting line can be disabled in Advanced Settings > Visual Settings if preferred while still keeping full-screen touch mode enabled.
+
+## Haptic Feedback
+
+### Implementation Details
+- Uses `UNUserNotificationCenter` API for permission management and scheduling
+- Notification permission state is checked on app launch
+- Notifications are scheduled with critical sound (`UNNotificationSound.defaultCritical`)
+- Notification UI components adapt based on current permission state
+- Advanced notification settings available in the Advanced Settings screen
+- Notification warning UI can be moved between main Settings and Advanced Settings screens
+- User preference for notification warning location is persisted across app launches
+
+### User Interaction Flow
+1. By default, if notifications are not enabled, a warning appears in the main Settings screen
+2. User can tap "Hide This" to move the warning to the Advanced Settings screen
+3. In Advanced Settings, user can tap "Show in Main Settings" to move it back
+4. Setting is persisted in UserDefaults so it remembers user preference across app launches
+5. When notifications are enabled, the warning UI disappears from both screens automatically
+
+## UI Improvements
+
+### Status Bar Management
+- **Status Bar**: Always visible on all screens to maintain system context
+
+### Home Indicator
+- **Home Indicator**: Removed attempts to hide the Home Indicator since iOS restricts fully hiding it
+- **Edge-to-edge Layout**: Maintained edge-to-edge content layout using `.edgesIgnoringSafeArea(.all)` for immersive experience
+
+### Flashy Logo Animation
+- **Smooth Sequenced Animation**: Carefully choreographed animation phases that flow naturally without jarring transitions
+- **Staggered Particle Emission**: Particles emerge gradually with subtle delays for more natural movement
+- **Physics-Based Movement**: Particles follow fluid physics with gentle gravity and turbulence for organic motion
+- **Color Harmony**: Particles use a cohesive blue-purple color theme that complements the app's aesthetic
+- **Graduated Transitions**: Every animation element uses proper easing and spring effects for smooth transitions
+- **Hue Cycling Effect**: Subtle color shifts add visual interest without overwhelming the animation
+- **Multi-Phase Rotation**: Rotation begins gently and accelerates naturally for a more fluid spin
+- **Responsive Scaling**: Logo scaling uses spring physics for natural bouncing without abrupt changes
+- **Fade Transitions**: All elements fade in and out gradually to avoid sudden appearances or disappearances
+- **Haptic Feedback**: Subtle vibration provides tactile confirmation when animation is triggered
+- **Performance Optimized**: Uses Metal rendering via drawingGroup() and efficient animation techniques
+- **Extended Duration**: Longer animation (2.0 seconds) allows for proper pacing of all animation phases
+
+### Help Button Tooltips
+- **Contextual Help**: Added subtle question mark icons next to each setting in the Settings screen
+- **On-demand Information**: Users can tap the help icons to see explanations about specific features
+- **Clear Descriptions**: Each tooltip provides concise yet informative explanations about:
+  - **Circle Size**: Controls the size of the hold circle with information about visibility vs. screen space
+  - **Timer Settings**: Explains the purpose of each timer (Release, Nap, Max) 
+  - **Alarm Sound**: Describes sound selection options including custom sounds
+- **Unobtrusive Design**: Help buttons are subtle and don't interfere with the main UI
+- **Consistent Placement**: All help buttons follow the same design pattern and positioning
+
+### Multi-Swipe Exit Protection
+- **MultiSwipeConfirmation Component**: Requires multiple consecutive swipes to exit NapScreen or SleepScreen
+- **Configurable Settings**: Swipe count, direction, and labels can be customized
+- **Visual Feedback**: Color changes provide visual indication of progression
+- **Haptic Feedback**: Triggers haptic feedback on each successful swipe
+- **Timeout Protection**: Swipe count resets after 3 seconds of inactivity
+- **Improved Safety**: Prevents accidental exits from sleep screens
+- **Conditional Swipe Requirement**: Only requires two swipes when timer is active; single swipe when timer is inactive
+- **Redesigned SleepScreen Buttons**: Added separate buttons for returning to NapScreen (left) and SettingsScreen (right)
+- **Tap-Only Mode**: When timer ends, both buttons change to tap-only versions instead of requiring swipes
+- **Consistent Design**: Swipe buttons and tap buttons maintain consistent visual design
+
+### Advanced Settings Enhancements
+- **Visual Settings Section**: Added a new category in Advanced Settings for visual customizations
+- **Timer Arcs Toggle**: Added option to enable/disable the circular timer arcs around the hold circle
+- **User Preference Persistence**: Visual settings preferences are saved across app launches
+- **Configurable UI**: Allows users to choose between minimal and informative visual styles
+- **Enabled by Default**: Timer arcs are enabled by default for the best visual experience out of the box
+- **Battery Usage Information**: Added informative text noting the estimated 2-3% battery impact of enabling timer arcs
+
+### Timer Settings Enhancements
+- **Commitment Message**: Added a clear, dynamically-updating message under timer settings that explains the timer sequence
+- **Plain Language Explanation**: Message clearly states "When you lift your finger, the countdown will start from X seconds/minutes. After that, your nap will last X seconds/minutes. If something goes wrong, the max limit is X seconds/minutes as a backup."
+- **Dynamic Value Display**: Times automatically update when the user changes any timer setting
+- **Smart Unit Formatting**: Displays values with appropriate units (seconds/minutes) and proper singular/plural forms
+- **Visual Integration**: Styled to match the app's overall design while maintaining readability
+- **Improved User Understanding**: Helps users better understand the relationship between the three timers
+- **Enhanced Unit Selection UI**:
+  - **Visible Interactivity Cues**: Added chevron up/down icon to clearly indicate unit values are tappable
+  - **Subtle Pulsing Animation**: Implemented a gentle pulsing effect around the unit button to draw attention
+  - **Improved Visual Contrast**: Added slightly colored background to make the tap target more distinctive
+  - **Clear Affordance**: Applied proper UI design principles to provide strong visual affordance for the interactive element
+  - **Consistent Styling**: Maintained the existing color scheme and visual language of the app
+  - **Increased Touch Target**: Expanded the tappable area with additional padding for easier interaction
+
+### Button Style Enhancements
+- **Simplified Styling**: Updated buttons with flat colors for improved readability
+- **Clean Aesthetic**: Removed gradients and shadows for a more minimalist appearance
+- **Clear Visual States**: Used distinct colors to indicate button states (blue for normal, orange for intermediate, red for confirming)
+- **Consistent Design**: Maintained consistent styling across all button types
+- **Visual Boundaries**: Added subtle border strokes to define button edges
+- **Optimized Contrast**: Ensured sufficient color contrast for better readability
+- **Improved Typography**: Used system rounded fonts for a friendly, legible appearance
+- **Balanced Proportions**: Optimized icon and text sizes for visual clarity
+- **Generous Padding**: Added comfortable padding around button content for better touch targets
+- **Readable Text**: Used appropriate font sizes and weights to ensure text legibility
+- **Clear Action Indicators**: Used double chevron icons for swipe actions
+- **Explicit Interaction Labels**: Added explicit "Swipe to..." prefixes to clarify required interactions
+
+### SleepScreen UI Enhancements
+- **Clear Navigation Path**: 'Back to Nap' button on left, 'Skip' button on right
+- **Proper Destination Paths**: Back to Nap button returns to NapScreen while keeping settings, Skip button completes nap immediately
+- **Visual Clarity**: Simplified button design with flat colors for better readability
+- **Proper Spacing**: Improved layout and spacing for buttons and UI elements
+- **Clearer Labels**: Updated button labels to clearly indicate their function and required actions (e.g., 'Swipe to Nap', 'Swipe to skip')
+- **Color Differentiation**: Used different colors to distinguish button functions (blue for Back to Nap, purple for Skip)
+- **Consistent Visuals**: All buttons use same visual design for consistent UX
+- **Intuitive Icons**: Used double chevron icons to indicate swipe direction
+- **Consistent Interaction Mode**: All interactive buttons use swipe gestures with MultiSwipeConfirmation for better safety
+
+### NapScreen UI Enhancements
+- **Improved Timer Display**: Modified timer to show only seconds when there are no minutes left (e.g. "08.3" instead of "00:08.3") for cleaner presentation
+- **Immediate Timer Value Display**: Modified NapScreen to show MAX TIMER and NAP DURATION values immediately upon entry, rather than waiting for circle placement
+- **Optimized Message Positioning**: Improved the positioning of the "Tap anywhere" message to coexist with timer displays using GeometryReader for proper centering
+- **Enhanced Position Text**: Redesigned the "Tap anywhere to position your circle" message with:
+  - **Glass Morphism Effect**: Added subtle glass reflection gradient overlay for a modern look
+  - **Enhanced Shadow**: Improved shadow depth and spread for better visual prominence
+  - **Subtle Blur Effect**: Added slight blur to the background rectangle for a frosted glass appearance
+  - **Improved Contrast**: Enhanced the text and background contrast for better readability
+  - **Refined Animations**: Animated decorative elements for visual interest
+  - **Polished Typography**: Maintained the existing font styles for consistency with app design
+  - **Responsive Layout**: Preserved the responsive positioning to work across different device sizes
+- **Timer Visual Hierarchy Improvements**:
+  - **Larger Release Timer**: Increased size and added subtle shadow for the most important timer
+  - **Enhanced Max Timer**: Made more prominent with purple accent color and larger text
+  - **Distinct Nap Duration Display**: Clearly separated with its own style but less emphasis
+  - **Visual Container Separation**: Added distinct containers with subtle borders for timers
+  - **Direct Circle Timer Display**: Added Max Timer readout directly on the circle for at-a-glance information
+  - **Responsive Placement**: Maintained proper spacing and layout across different device sizes
+- **Dual-Arc Progress System**: 
+  - **Concentric Timer Arcs**: Implemented two concentric arcs that show both the Max Timer and Release Timer progress
+  - **Outer Arc**: Represents Max Timer progress with a consistent purple color that matches the MAX TIMER UI element
+  - **Inner Arc**: Shows Release Timer progress with elegant white color that shifts to pink when pressed
+  - **Visual Separation**: Arcs positioned at different distances for clear visual hierarchy
+  - **Clear Visual Hierarchy**: Immediate visual understanding of both timer states without looking away from circle
+  - **Intuitive Design**: The concentric circle design naturally communicates the nested timer relationship
+  - **Compact Layout**: Both arcs positioned within or just at the edge of the circle for a cohesive design
+  - **Minimalist Styling**: Clean, distraction-free arcs without glow effects or animations
+  - **Color-Coded Timers**: Distinct colors for each timer type (blue/purple for Max Timer, white/pink for Release Timer)
+  - **Consistent Color Theme**: Release Timer arc color (white/pink) matches the timer text for perfect color coordination
+  - **Optimized Arc Thickness**: Thinner outer Max Timer arc (5px) with thicker inner Release Timer arc (8px) for better visual hierarchy
+  - **Burning Fuse Effect**: Added sparking particle animation to the Release Timer arc when the circle is not pressed
+  - **Thematic Visual Design**: Sparking effect visually represents the app's "SnoozeFuse" name, showing a burning fuse that extinguishes when pressed
+  - **Star-Shaped Sparkles**: Used custom star shapes that resemble the sparkle emoji ✨ instead of simple circles
+  - **Varied Sparkle Sizes**: Multiple sparkle sizes create visual depth and realism in the effect
+  - **Dynamic Rotations**: Sparkles rotate as they animate for enhanced visual interest
+  - **Random Timing**: Randomized fade timing makes the sparkling appear more organic and realistic
+  - **Increased Particle Count**: More particles (12 instead of 5) for a richer visual effect
+  - **Position-Aware Particles**: Sparks always appear at the exact position of the current Release Timer progress point
+  - **Intuitive Interaction Model**: Pressing the circle "extinguishes" the burning fuse, releasing lets it burn with visible sparks
+  - **Realistic Burning Ember**: Added orange-red glowing ember behind the blackened burnt tip for authentic burning effect
+  - **Enhanced Color Palette**: Used a vibrant orange-red-yellow palette to simulate real fire and ember effects
+  - **Rapid Animation**: Faster, more intense animations give the impression of a vigorously burning fuse
+  - **Directional Burnt Particles**: Black particles emit opposite to the burning direction, flying away from the fuse as it burns
+  - **Long-Distance Emission**: Particles travel 30-60 pixels away from the tip, creating a dramatic trailing effect
+  - **Angle-Based Trajectory**: Particles move in relation to the actual burning angle, creating realistic physics
+  - **Subtle Angular Variation**: Small random angle adjustments create a natural spread pattern rather than a perfectly straight line
+  - **Size Variation**: Tiny particles of different sizes (1.5-3px) create a more natural, organic burnt effect
+  - **Increased Flight Time**: Longer animation durations (1-2 seconds) allow particles to travel their greater distances
+  - **High-Intensity Visual**: The combination of ember glow, emitting burnt particles, and intense sparkles creates a striking visual metaphor
+
+### Full-Screen Touch Mode
 - **Enhanced Accessibility Feature**: Added a toggle in Settings to enable Full-Screen Touch Mode
 - **Effortless Interaction**: When enabled, the entire screen becomes touch-sensitive instead of just the circle
 - **Compact UI Control**: Toggle is positioned next to the Circle Size control for logical grouping of related settings
@@ -434,6 +623,17 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - **Active Touch Set Management**: Maintains a set of active touches to ensure proper state in multi-touch scenarios
   - **App Lifecycle Awareness**: Listens for app state notifications to properly handle backgrounding and foregrounding
   - **Top-Level Touch Detection**: Positioned at the highest level of the view hierarchy to capture all touches regardless of what UI elements are underneath
+  - **Sci-Fi Connecting Line Effect**: Visual line that connects the circle to the user's finger in full-screen mode:
+    - **Techy Visual Design**: Line has a sci-fi appearance with glowing effect and animated segments
+    - **Interactive Feedback**: Shows users that the app is tracking their finger position across the screen
+    - **Touch Position Awareness**: Dynamically updates as the user's finger moves across the screen
+    - **Animated Flow Effect**: Dashed line segments animate along the connection for a futuristic energy flow effect
+    - **Particle Energy Flow**: Small energy particles travel along the line toward the finger for enhanced visual interest
+    - **Glowing Connection**: Line has a subtle blur effect creating a holographic appearance
+    - **Mode Indicator**: Serves as a clear visual indicator that full-screen touch mode is active
+    - **Cohesive Color Scheme**: Uses blue and cyan gradients that match the app's color palette
+    - **Finger Touch Point Effect**: Small energy burst effect where the finger touches for enhanced visual feedback
+    - **Clean Implementation**: Uses efficient SwiftUI Path and GeometryReader for smooth performance
 
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`

@@ -55,7 +55,7 @@ struct CustomSound: Identifiable, Codable, Equatable {
 
 // Available alarm sounds
 enum AlarmSound: String, CaseIterable, Identifiable {
-    case testAlarm = "Test Alarm"
+    case testAlarm = "Korone-Gura-Amelia-Kureiji Alarm"
     case firecracker = "Firecracker"
     case vtuberAlarm = "Korone Alarm"
     case warAmbience = "War Ambience"
@@ -121,6 +121,7 @@ class TimerManager: ObservableObject {
     
     // Visual settings
     @Published var showTimerArcs: Bool = true
+    @Published var showConnectingLine: Bool = true
     
     // Animation state
     @Published var isLogoAnimating = false
@@ -149,6 +150,7 @@ class TimerManager: ObservableObject {
         static let selectedCustomSoundID = "selectedCustomSoundID"
         static let customSounds = "customSounds"
         static let showTimerArcs = "showTimerArcs"
+        static let showConnectingLine = "showConnectingLine"
         static let isFullScreenMode = "isFullScreenMode"
     }
     
@@ -743,44 +745,20 @@ class TimerManager: ObservableObject {
     
     // Save all settings to UserDefaults
     func saveSettings() {
-        // Create a serial queue for settings operations
-        let settingsQueue = DispatchQueue(label: "com.app.snoozefuse.settings", qos: .utility)
+        let defaults = UserDefaults.standard
+        defaults.set(holdDuration, forKey: UserDefaultsKeys.holdDuration)
+        defaults.set(napDuration, forKey: UserDefaultsKeys.napDuration)
+        defaults.set(maxDuration, forKey: UserDefaultsKeys.maxDuration)
+        defaults.set(circleSize, forKey: UserDefaultsKeys.circleSize)
+        defaults.set(selectedAlarmSound.rawValue, forKey: UserDefaultsKeys.selectedAlarmSound)
+        defaults.set(selectedCustomSoundID?.uuidString, forKey: UserDefaultsKeys.selectedCustomSoundID)
+        defaults.set(showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
+        defaults.set(showConnectingLine, forKey: UserDefaultsKeys.showConnectingLine)
+        defaults.set(isFullScreenMode, forKey: UserDefaultsKeys.isFullScreenMode)
         
-        settingsQueue.async { [weak self] in
-            guard let self = self else { return }
-            let defaults = UserDefaults.standard
-            
-            // Save timer durations
-            defaults.set(self.holdDuration, forKey: UserDefaultsKeys.holdDuration)
-            defaults.set(self.napDuration, forKey: UserDefaultsKeys.napDuration)
-            defaults.set(self.maxDuration, forKey: UserDefaultsKeys.maxDuration)
-            
-            // Save circle size
-            defaults.set(self.circleSize, forKey: UserDefaultsKeys.circleSize)
-            
-            // Save full-screen mode setting
-            defaults.set(self.isFullScreenMode, forKey: UserDefaultsKeys.isFullScreenMode)
-            
-            // Save selected alarm type
-            defaults.set(self.selectedAlarmSound.rawValue, forKey: UserDefaultsKeys.selectedAlarmSound)
-            
-            // Save selected custom sound ID
-            if let id = self.selectedCustomSoundID {
-                defaults.set(id.uuidString, forKey: UserDefaultsKeys.selectedCustomSoundID)
-            } else {
-                defaults.removeObject(forKey: UserDefaultsKeys.selectedCustomSoundID)
-            }
-            
-            // Save custom sounds list - this is more expensive so do it less frequently
-            if let encodedSounds = try? JSONEncoder().encode(self.customSounds) {
-                defaults.set(encodedSounds, forKey: UserDefaultsKeys.customSounds)
-            }
-            
-            // Save showTimerArcs setting
-            defaults.set(self.showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
-            
-            // UserDefaults automatically synchronizes when the app goes to background
-            // Explicit synchronize is no longer needed and can cause performance issues
+        // Encode and save custom sounds
+        if let encodedSounds = try? JSONEncoder().encode(customSounds) {
+            defaults.set(encodedSounds, forKey: UserDefaultsKeys.customSounds)
         }
     }
     
@@ -788,28 +766,36 @@ class TimerManager: ObservableObject {
     func loadSettings() {
         let defaults = UserDefaults.standard
         
-        // Load timer durations
-        if let hold = defaults.object(forKey: UserDefaultsKeys.holdDuration) as? TimeInterval {
-            holdDuration = hold
-            holdTimer = hold
+        if defaults.object(forKey: UserDefaultsKeys.holdDuration) != nil {
+            holdDuration = defaults.double(forKey: UserDefaultsKeys.holdDuration)
+            holdTimer = holdDuration
         }
         
-        if let nap = defaults.object(forKey: UserDefaultsKeys.napDuration) as? TimeInterval {
-            napDuration = nap
-            napTimer = nap
+        if defaults.object(forKey: UserDefaultsKeys.napDuration) != nil {
+            napDuration = defaults.double(forKey: UserDefaultsKeys.napDuration)
+            napTimer = napDuration
         }
         
-        if let max = defaults.object(forKey: UserDefaultsKeys.maxDuration) as? TimeInterval {
-            maxDuration = max
-            maxTimer = max
+        if defaults.object(forKey: UserDefaultsKeys.maxDuration) != nil {
+            maxDuration = defaults.double(forKey: UserDefaultsKeys.maxDuration)
+            maxTimer = maxDuration
         }
         
-        // Load circle size
-        if let size = defaults.object(forKey: UserDefaultsKeys.circleSize) as? CGFloat {
-            circleSize = size
+        if defaults.object(forKey: UserDefaultsKeys.circleSize) != nil {
+            circleSize = defaults.double(forKey: UserDefaultsKeys.circleSize)
         }
         
-        // Load full-screen mode setting
+        if defaults.object(forKey: UserDefaultsKeys.showTimerArcs) != nil {
+            showTimerArcs = defaults.bool(forKey: UserDefaultsKeys.showTimerArcs)
+        }
+        
+        if defaults.object(forKey: UserDefaultsKeys.showConnectingLine) != nil {
+            showConnectingLine = defaults.bool(forKey: UserDefaultsKeys.showConnectingLine)
+        } else {
+            // If not set yet, default to true (enabled by default)
+            showConnectingLine = true
+        }
+        
         if defaults.object(forKey: UserDefaultsKeys.isFullScreenMode) != nil {
             isFullScreenMode = defaults.bool(forKey: UserDefaultsKeys.isFullScreenMode)
         }
@@ -825,17 +811,6 @@ class TimerManager: ObservableObject {
            let id = UUID(uuidString: idString) {
             selectedCustomSoundID = id
         }
-        
-        // Load showTimerArcs setting (default to true if not found)
-        if defaults.object(forKey: UserDefaultsKeys.showTimerArcs) != nil {
-            self.showTimerArcs = defaults.bool(forKey: UserDefaultsKeys.showTimerArcs)
-        } else {
-            // Keep the default value of true that was set in the property declaration
-            self.showTimerArcs = true
-        }
-        
-        // Defer loading of custom sounds until needed (don't access files at startup)
-        // This prevents file access permission prompts until the user actually needs them
     }
     
     // Load custom sounds - only called when needed

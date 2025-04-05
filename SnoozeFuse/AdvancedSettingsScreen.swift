@@ -207,19 +207,36 @@ struct AdvancedSettingsScreen: View {
                                     timerManager.saveSettings()
                                 }
                             
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("If disabled, the circular timer arcs will not be displayed around the circle during nap sessions.")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .fixedSize(horizontal: false, vertical: true)
+                            if timerManager.showTimerArcs {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("If disabled, the circular timer arcs will not be displayed around the circle during nap sessions.")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white.opacity(0.7))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(.horizontal)
+                                    
+                                    Text("Battery impact: Enabling timer arcs may increase battery usage by approximately 2-3% during active sessions due to additional rendering.")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.white.opacity(0.6))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(.horizontal)
+                                        .padding(.top, 4)
+                                }
+                            }
+                            
+                            Toggle("Show sci-fi connecting line effect", isOn: $timerManager.showConnectingLine)
+                                .padding(.horizontal)
+                                .onChange(of: timerManager.showConnectingLine) { _ in
+                                    timerManager.saveSettings()
+                                }
+                                .tint(Color.red.opacity(0.8)) // Red tint to match the line color
+                            
+                            if timerManager.showConnectingLine {
+                                Text("Displays a red energy line when touching the screen in full-screen mode")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
                                     .padding(.horizontal)
-                                
-                                Text("Battery impact: Enabling timer arcs may increase battery usage by approximately 2-3% during active sessions due to additional rendering.")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .padding(.horizontal)
-                                    .padding(.top, 4)
+                                    .multilineTextAlignment(.center)
                             }
                         }
                         .padding(.vertical, 16)
@@ -227,6 +244,7 @@ struct AdvancedSettingsScreen: View {
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(15)
                         .padding(.horizontal, 8)
+                        .padding(.bottom, 12)
                         
                         // More advanced settings can be added here
                         

@@ -32,15 +32,15 @@ struct PresetUI: View {
     }
     
     var body: some View {
-        VStack(alignment: .center, spacing: 8) {
+        VStack(alignment: .center, spacing: 4) {
             // Header with title and help button
             HStack {
                 Text("PRESETS")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundColor(Color.blue.opacity(0.7))
-                    .tracking(3)
+                    .tracking(2)
                 
-                HelpButton(helpText: "Tap a preset to apply those timer settings instantly.\n\nTap 'Add' to save your current timer settings as a new preset.\n\nLong press a preset to rename or delete it.")
+                HelpButton(helpText: "Tap a preset to apply those timer settings instantly.\n\nTap '+' to add your current timer settings as a new preset.\n\nLong press a preset to rename or delete it.")
                 
                 Spacer()
                 
@@ -68,31 +68,30 @@ struct PresetUI: View {
                         NotificationCenter.default.post(name: .presetUIStateChanged, object: nil)
                     }
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 2) {
                         Image(systemName: presetManager.isHiddenFromMainSettings ? 
                               "arrow.up.left" : "arrow.down.right")
-                            .font(.system(size: 10))
+                            .font(.system(size: 9))
                         Text(presetManager.isHiddenFromMainSettings ? 
-                             "To Main" : "Hide")
-                            .font(.system(size: 11, weight: .medium))
+                             "To Settings" : "Hide")
+                            .font(.system(size: 10, weight: .medium))
                     }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
                     .background(Color.gray.opacity(0.3))
-                    .cornerRadius(8)
+                    .cornerRadius(6)
                     .foregroundColor(.white.opacity(0.8))
                 }
             }
-            .padding(.bottom, 2)
+            .padding(.bottom, 0)
             
             // No presets view
             if presetManager.presets.isEmpty {
                 HStack {
-                    Text("No presets yet - Tap '+' to add current settings")
+                    Text("No presets - Tap '+' to add")
                         .foregroundColor(.white.opacity(0.7))
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
                     
                     // Add preset button
                     Button(action: {
@@ -100,17 +99,17 @@ struct PresetUI: View {
                         HapticManager.shared.trigger()
                     }) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 18))
+                            .font(.system(size: 16))
                             .foregroundColor(.white.opacity(0.8))
                     }
-                    .padding(.horizontal, 5)
+                    .padding(.horizontal, 2)
                 }
-                .padding(.vertical, 10)
+                .padding(.vertical, 4)
             } else {
-                HStack {
+                HStack(spacing: 2) {
                     // Presets horizontal scroll view
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             ForEach(presetManager.presets) { preset in
                                 PresetBox(
                                     preset: preset,
@@ -147,11 +146,11 @@ struct PresetUI: View {
                                 )
                             }
                         }
-                        .padding(.vertical, 2)
-                        .padding(.leading, 5)
-                        .padding(.trailing, 8)
+                        .padding(.vertical, 0)
+                        .padding(.leading, 2)
+                        .padding(.trailing, 2)
                     }
-                    .frame(height: 70)
+                    .frame(height: 50)
                     
                     // Add preset button
                     Button(action: {
@@ -159,18 +158,20 @@ struct PresetUI: View {
                         HapticManager.shared.trigger()
                     }) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 18))
+                            .font(.system(size: 16))
                             .foregroundColor(.white.opacity(0.8))
                     }
-                    .padding(.horizontal, 5)
+                    .padding(.horizontal, 2)
                 }
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
         .background(Color.gray.opacity(0.15))
-        .cornerRadius(12)
-        .padding(.horizontal, 4)
+        .cornerRadius(10)
+        .padding(.horizontal, 0)
+        .padding(.top, -8) // Use negative padding at the top
+        .padding(.bottom, -4) // Use negative padding at the bottom
         .offset(x: showMoveAnimation ? (moveOutDirection == .trailing ? 500 : -500) : 0)
         .alert("Rename Preset", isPresented: $showingRenameAlert) {
             TextField("Preset Name", text: $newPresetName)
@@ -206,7 +207,7 @@ struct PresetBox: View {
         let napStr = formatTime(preset.napDuration)
         let maxStr = formatTime(preset.maxDuration)
         
-        return "\(holdStr) → \(napStr) → \(maxStr)"
+        return "\(holdStr)→\(napStr)→\(maxStr)"
     }
     
     // Format a single duration
@@ -223,34 +224,34 @@ struct PresetBox: View {
     @State private var showContextMenu = false
     
     var body: some View {
-        VStack(alignment: .center, spacing: 6) {
+        VStack(alignment: .center, spacing: 2) {
             // Preset name
             Text(preset.name)
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             
             // Timer values
             Text(formatTimers())
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.7))
                 .lineLimit(1)
         }
-        .padding(.vertical, 9)
-        .padding(.horizontal, 12)
-        .frame(width: 120, height: 65)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .frame(width: 100, height: 50)
         .background(
             ZStack {
                 // Fill
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(isSelected ? 
                           LinearGradient(colors: [Color.green.opacity(0.3), Color.blue.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing) : 
                           LinearGradient(colors: [Color.black.opacity(0.3), Color.black.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 
                 // Border
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.green.opacity(0.7) : Color.gray.opacity(0.5), lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.green.opacity(0.7) : Color.gray.opacity(0.5), lineWidth: 1)
             }
         )
         .scaleEffect(isSelected ? 1.05 : 1.0)
