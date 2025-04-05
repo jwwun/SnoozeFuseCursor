@@ -39,6 +39,38 @@ class HapticManager: ObservableObject {
         generator.notificationOccurred(type)
     }
     
+    /// Triggers a continuous alarm vibration pattern
+    /// - Returns: Timer that controls the vibration loop (can be used to stop vibration)
+    @discardableResult
+    func triggerAlarmVibration() -> Timer? {
+        guard isHapticEnabled else { return nil }
+        
+        // Use error notification for first hit (strongest vibration pattern)
+        triggerNotification(type: .error)
+        
+        // Create a repeating timer to trigger vibrations in a pattern
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            // Alternating pattern of different vibrations for a more noticeable effect
+            self.triggerNotification(type: .error)
+            
+            // Add secondary vibration with slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // Use heavy impact for second vibration in pattern
+                let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
+                heavyGenerator.impactOccurred()
+            }
+        }
+        
+        return timer
+    }
+    
+    /// Stops the alarm vibration by invalidating the provided timer
+    func stopAlarmVibration(timer: Timer?) {
+        timer?.invalidate()
+    }
+    
     // MARK: - Settings Persistence
     
     /// Saves haptic settings to UserDefaults

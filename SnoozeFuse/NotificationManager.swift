@@ -1,6 +1,8 @@
 import Foundation
 import UserNotifications
 import SwiftUI
+import AVFoundation
+import AudioToolbox  // Add this import for system sounds
 
 class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
@@ -166,6 +168,105 @@ class NotificationManager: ObservableObject {
     private func saveSettings() {
         let defaults = UserDefaults.standard
         defaults.set(isHiddenFromMainSettings, forKey: UserDefaultsKeys.isHiddenFromMainSettings)
+    }
+    
+    // Function to trigger an immediate notification with vibration
+    func triggerImmediateAlarmWithVibration() {
+        // Use the system's vibration pattern with AudioServices
+        // This will vibrate the device even if sound is muted
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        
+        // For a stronger alarm-like continuous vibration pattern, we alternate between
+        // system sounds and vibrations at short intervals
+        
+        // Start a repeating timer that alternates vibrations
+        let vibrateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            // First vibration (stronger)
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            
+            // After a short delay, add another vibration for a pattern effect
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            }
+        }
+        
+        // Store the timer for later cancellation
+        alarmSoundTimer = vibrateTimer
+        
+        // Also schedule an immediate notification to use both mechanisms
+        let content = UNMutableNotificationContent()
+        content.title = "Wake Up!"
+        content.body = "Your nap time is over."
+        content.sound = UNNotificationSound.defaultCritical
+        content.categoryIdentifier = "alarmCategory"
+        
+        // Create trigger for immediate delivery
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        
+        // Create request with unique ID
+        let request = UNNotificationRequest(
+            identifier: "immediateAlarmNotification",
+            content: content,
+            trigger: trigger
+        )
+        
+        // Add request to notification center
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling immediate notification: \(error.localizedDescription)")
+            } else {
+                print("Immediate notification scheduled for system vibration")
+            }
+        }
+    }
+    
+    // MARK: - Authorization
+    func requestNotificationAuthorization() {
+        // Create authorization options array
+        var options: UNAuthorizationOptions = [.alert, .sound, .badge]
+        
+        // Add critical alerts option - requires special entitlement from Apple
+        options.insert(.criticalAlert)
+        
+        // Request authorization
+        UNUserNotificationCenter.current().requestAuthorization(options: options) { [weak self] success, error in
+            DispatchQueue.main.async {
+                if success {
+                    self?.isNotificationAuthorized = true
+                    print("Notification authorization granted, including critical alerts if available")
+                    
+                    // Register notification categories
+                    self?.registerNotificationCategories()
+                } else if let error = error {
+                    print("Notification authorization denied: \(error.localizedDescription)")
+                    self?.isNotificationAuthorized = false
+                }
+            }
+        }
+    }
+    
+    // Published property to track critical alerts status
+    @Published var isCriticalAlertsAuthorized: Bool = false
+    
+    func checkCriticalAlertsAuthorization() {
+        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                self?.isCriticalAlertsAuthorized = settings.criticalAlertSetting == .enabled
+                print("Critical alerts authorization status: \(settings.criticalAlertSetting == .enabled ? "enabled" : "disabled")")
+            }
+        }
+    }
+    
+    func checkNotificationAuthorization() {
+        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                self?.isNotificationAuthorized = settings.authorizationStatus == .authorized
+                
+                // Also check critical alerts authorization while we're at it
+                self?.isCriticalAlertsAuthorized = settings.criticalAlertSetting == .enabled
+                print("Critical alerts authorized: \(settings.criticalAlertSetting == .enabled)")
+            }
+        }
     }
 }
 

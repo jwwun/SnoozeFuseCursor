@@ -10,7 +10,16 @@ fileprivate let orientationFixVersion = "1.0.2" // Only change this when making 
 
 // App delegate to handle orientation
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Register for remote notifications if needed
+        application.registerForRemoteNotifications()
+        
+        // Configure notification center delegate
+        UNUserNotificationCenter.current().delegate = self
+        
+        // Request notification permissions during app launch
+        requestNotificationPermissions()
+        
         // Check if we're launching from a notification
         if let notification = launchOptions?[.remoteNotification] as? [String: AnyObject],
            let aps = notification["aps"] as? [String: AnyObject],
@@ -53,9 +62,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             print("First launch flag set to false")
         }
         
-        // Setup notification handling
-        UNUserNotificationCenter.current().delegate = self
-        
         // Register for background modes
         application.beginReceivingRemoteControlEvents()
         
@@ -69,6 +75,51 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         return true
+    }
+    
+    // Request permissions for notifications
+    private func requestNotificationPermissions() {
+        // Request both regular and critical alert permissions
+        let options: UNAuthorizationOptions = [.alert, .sound, .badge, .criticalAlert]
+        
+        UNUserNotificationCenter.current().requestAuthorization(options: options) { success, error in
+            if success {
+                print("Notification authorization granted")
+                
+                // Register for actions
+                self.registerNotificationActions()
+            } else if let error = error {
+                print("Notification authorization failed: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // Register notification actions and categories
+    private func registerNotificationActions() {
+        // Define the snooze action
+        let snoozeAction = UNNotificationAction(
+            identifier: "SNOOZE_ACTION",
+            title: "Snooze 5 Minutes",
+            options: .foreground
+        )
+        
+        // Define the view action
+        let viewAction = UNNotificationAction(
+            identifier: "VIEW_ACTION",
+            title: "Open App",
+            options: .foreground
+        )
+        
+        // Create a category for alarm notifications with actions
+        let alarmCategory = UNNotificationCategory(
+            identifier: "alarmCategory",
+            actions: [snoozeAction, viewAction],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
+        // Register the category with the notification center
+        UNUserNotificationCenter.current().setNotificationCategories([alarmCategory])
     }
     
     // Support all orientations by default
@@ -115,13 +166,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                willPresent notification: UNNotification,
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // If this is our alarm notification, do NOT show it in the foreground
+        // If this is our immediate alarm notification, allow it to present with sound and vibration
+        if notification.request.identifier == "immediateAlarmNotification" {
+            // Pass options that include sound for the vibration pattern
+            completionHandler([.sound])
+            print("🔔 Allowing immediateAlarmNotification to present with system vibration in foreground")
+        }
+        // If this is our regular alarm notification, do NOT show it in the foreground
         // SleepScreen already handles playing the sound internally when its timer finishes.
-        if notification.request.identifier == "alarmNotification" {
+        else if notification.request.identifier == "alarmNotification" {
             // Pass empty options to prevent alert/sound/badge in foreground
             completionHandler([])
             
-            // REMOVED redundant TimerManager.shared.playAlarmSound() call
             print("🔔 Foreground alarm notification received, but presentation suppressed as SleepScreen handles it.")
         } else {
             // For other notifications, allow standard presentation (banner, sound, badge)

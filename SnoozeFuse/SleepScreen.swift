@@ -201,12 +201,13 @@ struct SleepScreen: View {
             }
         }
         .onDisappear {
-            // Cleanup
-            NotificationCenter.default.removeObserver(self)
-            timerManager.stopAlarmSound() // Ensure alarm is stopped
+            // Stop timers and alarms when screen is dismissed
+            timerManager.stopNapTimer()
+            timerManager.stopMaxTimer()
+            timerManager.stopAlarmSound()
             
-            // Cancel any pending notifications when leaving the screen
-            NotificationManager.shared.cancelPendingNotifications()
+            // Clean up notification observers
+            NotificationCenter.default.removeObserver(self)
         }
         // Hide home indicator but keep status bar visible
         .edgesIgnoringSafeArea(.all)

@@ -186,12 +186,25 @@ struct CircleView: View {
         Group {
             if let progress = releaseTimerProgress, progress < 1.0 {
                 ZStack {
-                    // Release timer arc - now where max timer was
+                    // Add thin black background arc for better contrast
+                    Circle()
+                        .trim(from: 0, to: 1.0)
+                        .stroke(
+                            style: StrokeStyle(
+                                lineWidth: 6,
+                                lineCap: .round
+                            )
+                        )
+                        .foregroundColor(Color.black.opacity(0.4))
+                        .rotationEffect(Angle(degrees: -90))
+                        .padding(25) // Same inset as the colored arc
+                    
+                    // Release timer arc - now thinner for more elegant look
                     Circle()
                         .trim(from: 0, to: CGFloat(progress))
                         .stroke(
                             style: StrokeStyle(
-                                lineWidth: 8,
+                                lineWidth: 5,  // Reduced from 8 to 5
                                 lineCap: .round
                             )
                         )

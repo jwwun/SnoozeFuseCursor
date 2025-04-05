@@ -52,6 +52,22 @@ struct AdvancedSettingsScreen: View {
                                         .font(.system(size: 14))
                                         .foregroundColor(.white.opacity(0.8))
                                         .fixedSize(horizontal: false, vertical: true)
+                                        
+                                    // Add critical alerts status if notifications are enabled
+                                    if notificationManager.isNotificationAuthorized {
+                                        HStack {
+                                            Image(systemName: notificationManager.isCriticalAlertsAuthorized ? 
+                                                  "bell.and.waves.left.and.right.fill" : "bell.and.waves.left.and.right")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
+                                                                Color.green : Color.orange)
+                                            
+                                            Text("Critical Alerts: \(notificationManager.isCriticalAlertsAuthorized ? "Enabled" : "Disabled")")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
+                                                                Color.green.opacity(0.8) : Color.orange.opacity(0.8))
+                                        }
+                                    }
                                 }
                                                             Button(action: {
                                 if notificationManager.isHiddenFromMainSettings {
@@ -149,12 +165,28 @@ struct AdvancedSettingsScreen: View {
                         
                         // Haptic Settings Section
                         VStack(alignment: .center, spacing: 15) {
+                            Text("Haptic Feedback")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                            
+                            Divider()
+                                .background(Color.gray.opacity(0.5))
+                                .padding(.horizontal)
 
                             Toggle("Enable haptics when pressing circle", isOn: $hapticManager.isHapticEnabled)
                                 .padding(.horizontal)
                                 .onChange(of: hapticManager.isHapticEnabled) { _ in
                                     hapticManager.saveSettings()
                                 }
+                            
+                            // Update note about system alarm vibration
+                            Text("Haptics control touch feedback only. Alarms will always use the system's standard alarm vibration pattern")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
                             
                             if hapticManager.isHapticEnabled {
                                 Picker("Intensity", selection: $hapticManager.hapticStyle) {
@@ -245,6 +277,50 @@ struct AdvancedSettingsScreen: View {
                         .cornerRadius(15)
                         .padding(.horizontal, 8)
                         .padding(.bottom, 12)
+                        
+                        // Add info about critical alerts
+                        if notificationManager.isNotificationAuthorized {
+                            VStack(alignment: .center, spacing: 8) {
+                                Text("Critical Alerts")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white)
+                                
+                                Text("Critical alerts allow the app to make sounds and vibrations even when your device is in silent mode or Do Not Disturb is on. This is important for reliable alarm behavior.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                
+                                if !notificationManager.isCriticalAlertsAuthorized {
+                                    Text("Note: Critical alerts require special permission from Apple. SnoozeFuse may have requested this permission, but if it was denied, you'll need to enable it in Settings.")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange.opacity(0.8))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                    
+                                    Button(action: {
+                                        // Request critical alerts specifically
+                                        notificationManager.requestNotificationAuthorization()
+                                    }) {
+                                        Text("Request Critical Alerts Permission")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.white)
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 16)
+                                            .background(
+                                                Capsule()
+                                                    .fill(LinearGradient(
+                                                        colors: [Color.orange, Color.orange.opacity(0.7)],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    ))
+                                            )
+                                    }
+                                    .padding(.top, 5)
+                                }
+                            }
+                            .padding(.vertical, 10)
+                        }
                         
                         // More advanced settings can be added here
                         

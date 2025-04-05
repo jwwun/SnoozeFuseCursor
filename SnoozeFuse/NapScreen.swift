@@ -155,7 +155,7 @@ struct NapScreen: View {
                         .padding(.top, 60)
                         .padding(.bottom, 10)
                         
-                        // Always show session timer info
+                        // Always show session timer info - But only Max Timer now, moved Nap Duration to top right
                         HStack(spacing: 35) {
                             VStack(spacing: 2) {
                                 Text("MAX TIMER")
@@ -189,44 +189,61 @@ struct NapScreen: View {
                                             .stroke(Color.purple.opacity(0.3), lineWidth: 1)
                                     )
                             )
+                        }
+                        
+                        Spacer()
+                    }
+                    .zIndex(0)
+                    
+                    // Add "Up Next" nap duration in top right corner
+                    VStack {
+                        HStack {
+                            Spacer()
                             
-                            VStack(spacing: 2) {
-                                Text("NAP DURATION")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundColor(Color.blue.opacity(0.7))
-                                    .tracking(1)
+                            VStack(spacing: 4) {
+                                Text("UP NEXT:")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color.blue.opacity(0.6))
+                                    .tracking(0.5)
                                 
                                 let napTimerText = timerManager.formatTime(timerManager.napDuration)
                                 let napComponents = parseTimerComponents(napTimerText)
                                 HStack(spacing: 0) {
                                     ForEach(napComponents, id: \.number) { component in
                                         Text(component.number)
-                                            .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                            .foregroundColor(.white.opacity(0.9))
+                                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.white.opacity(0.85))
                                         
                                         Text(component.unit)
-                                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
                                             .foregroundColor(.white.opacity(0.7))
                                             .baselineOffset(-2)
                                             .padding(.trailing, 2)
                                     }
                                 }
+                                
+                                Text("NAP DURATION")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color.blue.opacity(0.7))
+                                    .tracking(1)
                             }
                             .padding(.vertical, 8)
-                            .padding(.horizontal, 15)
+                            .padding(.horizontal, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.black.opacity(0.2))
+                                    .fill(Color.black.opacity(0.25))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                                            .stroke(Color.blue.opacity(0.25), lineWidth: 1)
                                     )
                             )
+                            .padding(.trailing, -5)
+                            .padding(.top, -5)
                         }
                         
                         Spacer()
                     }
-                    .zIndex(0)
+                    .zIndex(1)
                     
                     // Circle positioned at tap location
                     if let position = circlePosition {
@@ -239,7 +256,7 @@ struct NapScreen: View {
                                 showInitialInstructions: timerManager.maxTimer == timerManager.maxDuration,
                                 normalColor: .blue,
                                 pressedColor: .purple,
-                                timerValue: timerManager.formatTime(timerManager.maxTimer),
+                                timerValue: timerManager.formatTime(timerManager.holdTimer),
                                 showTimer: true,
                                 timerColor: .white.opacity(0.9),
                                 timerProgress: timerManager.maxTimer / timerManager.maxDuration,
@@ -500,10 +517,23 @@ struct NapScreen: View {
                     HStack {
                         SlideToConfirmButton(
                             action: {
-                                timerManager.stopHoldTimer()
-                                timerManager.stopMaxTimer()
-                                timerManager.stopAlarmSound()
-                                presentationMode.wrappedValue.dismiss()
+                                // Check if the hold timer is close to finishing (less than 0.5 seconds)
+                                // This prevents the race condition where the timer finishes during slide
+                                if timerManager.isHoldTimerRunning && timerManager.holdTimer < 0.5 {
+                                    // If timer is about to finish, force the proper transition
+                                    // Stop timers but don't dismiss to Settings
+                                    timerManager.stopHoldTimer()
+                                    timerManager.stopMaxTimer()
+                                    
+                                    // Force transition to sleep screen
+                                    showSleepScreen = true
+                                } else {
+                                    // Normal behavior - go back to settings
+                                    timerManager.stopHoldTimer()
+                                    timerManager.stopMaxTimer() 
+                                    timerManager.stopAlarmSound()
+                                    presentationMode.wrappedValue.dismiss()
+                                }
                             },
                             direction: .leading,
                             label: "Slide to exit",
@@ -607,6 +637,13 @@ struct NapScreen: View {
         .onDisappear {
             // Clean up notification observer
             NotificationCenter.default.removeObserver(self)
+            
+            // Stop any active timers to ensure clean state
+            timerManager.stopHoldTimer()
+            timerManager.stopMaxTimer()
+            
+            // Stop alarms to ensure they don't continue playing
+            timerManager.stopAlarmSound()
         }
         .fullScreenCover(isPresented: $showSleepScreen) {
             // Simple transition - no fancy effects

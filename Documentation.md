@@ -236,6 +236,17 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 - **Audio Interruption Recovery**: Added proper handling of audio interruptions to resume alarm sounds after phone calls
 - **Cross-Device Compatibility**: Ensured alarm sounds work reliably across different iOS devices and versions
 
+### Race Condition Fixes
+- **Timer/Navigation Race Condition**: Fixed a race condition where sliding back from NapScreen at exactly the moment when the timer expires would cause unexpected behavior (transition to Settings while alarm plays)
+- **Improved State Handling**: Added guard conditions to check timer state before triggering transitions
+- **Timing Threshold Detection**: Added code that detects when timer is about to expire (< 0.5 seconds) and handles the transition appropriately
+- **Comprehensive Cleanup**: Enhanced the resource cleanup when screens are dismissed:
+  - All notification observers are properly removed
+  - Timers are always stopped when screens are dismissed
+  - Alarms are properly canceled to prevent lingering sounds
+  - Pending notifications are canceled to prevent unwanted alerts
+- **User Experience Improvement**: The app now consistently shows the correct screen based on timer state
+
 ## Build and Run Instructions
 
 1. Open the project in Xcode
@@ -377,7 +388,11 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - **Enhanced Max Timer**: Made more prominent with purple accent color and larger text
   - **Distinct Nap Duration Display**: Clearly separated with its own style but less emphasis
   - **Visual Container Separation**: Added distinct containers with subtle borders for timers
-  - **Direct Circle Timer Display**: Added Max Timer readout directly on the circle for at-a-glance information
+  - **Prioritized Release Timer**: Display release timer in the circle instead of max timer for better at-a-glance information about the immediate countdown
+  - **De-emphasized Nap Duration**: Moved nap duration to a subtle "Up Next" display in the top right corner
+  - **Improved Information Priority**: UI now emphasizes the most immediately relevant timer (release timer) both in the main display and circle
+  - **More Intuitive Layout**: Created a logical hierarchy of information based on immediate relevance
+  - **Cleaner Design**: Reduced visual clutter by moving less critical information (nap duration) to the periphery
   - **Responsive Placement**: Maintained proper spacing and layout across different device sizes
 - **Dual-Arc Progress System**: 
   - **Concentric Timer Arcs**: Implemented two concentric arcs that show both the Max Timer and Release Timer progress
@@ -390,7 +405,7 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - **Minimalist Styling**: Clean, distraction-free arcs without glow effects or animations
   - **Color-Coded Timers**: Distinct colors for each timer type (blue/purple for Max Timer, white/pink for Release Timer)
   - **Consistent Color Theme**: Release Timer arc color (white/pink) matches the timer text for perfect color coordination
-  - **Optimized Arc Thickness**: Thinner outer Max Timer arc (5px) with thicker inner Release Timer arc (8px) for better visual hierarchy
+  - **Optimized Arc Thickness**: Thinner Release Timer arc (5px vs 8px) with subtle black background arc for improved visibility and elegance
   - **Burning Fuse Effect**: Added sparking particle animation to the Release Timer arc when the circle is not pressed
   - **Thematic Visual Design**: Sparking effect visually represents the app's "SnoozeFuse" name, showing a burning fuse that extinguishes when pressed
   - **Star-Shaped Sparkles**: Used custom star shapes that resemble the sparkle emoji ✨ instead of simple circles
@@ -447,6 +462,31 @@ The connecting line can be disabled in Advanced Settings > Visual Settings if pr
 - Advanced notification settings available in the Advanced Settings screen
 - Notification warning UI can be moved between main Settings and Advanced Settings screens
 - User preference for notification warning location is persisted across app launches
+
+### Haptic and Vibration Features
+- **Regular Haptic Feedback**: Provides tactile feedback when touching the circle
+- **Customizable Intensity**: Users can choose between Light, Medium, and Heavy haptic feedback
+- **Toggle Control**: Users can enable/disable all haptic feedback from Advanced Settings
+- **System Alarm Vibration**: Uses a multi-layered approach for maximum wake-up effectiveness:
+  - Uses AudioServicesPlaySystemSound API to trigger hardware-level vibration
+  - Implements continuous pattern of alternating vibrations (1.0s and 0.5s intervals)
+  - Simultaneously schedules critical notifications for additional vibration signals
+  - Vibration continues until explicitly stopped by user action
+- **Silent Mode Override**: Requests critical alert permissions to break through Do Not Disturb and silent modes
+- **Hardware-Level Vibration**: Utilizes low-level AudioToolbox functions for direct vibration motor access
+- **Redundant Systems**: Combines notification and direct hardware approaches for maximum reliability
+- **Permission Handling**: Properly requests and manages critical alert permissions (requires Apple approval)
+- **Persistent Pattern**: Creates an ongoing vibration pattern similar to the native Clock app
+- **Coordinated Sound and Vibration**: Sound and vibration are synchronized for maximum sensory effect
+- **Graceful Permission Fallback**: Still provides best-possible experience if critical alert permission is not granted
+
+### Critical Alerts Implementation
+- **Entitlement Requirement**: The app requires the `com.apple.developer.usernotifications.critical-alerts` entitlement from Apple
+- **Privacy Justification**: Required to provide effective alarm functionality for users who may be sleeping
+- **Permission Request**: Explicitly requests critical alert permission during app initialization
+- **Visual Indication**: Checks and displays critical alert permission status to users
+- **Alternative Mechanisms**: Falls back to combining multiple non-critical approaches if permission is denied
+- **User Control**: Always allows users to dismiss alarms and stop vibrations when needed
 
 ### User Interaction Flow
 1. By default, if notifications are not enabled, a warning appears in the main Settings screen
@@ -565,7 +605,11 @@ The connecting line can be disabled in Advanced Settings > Visual Settings if pr
   - **Enhanced Max Timer**: Made more prominent with purple accent color and larger text
   - **Distinct Nap Duration Display**: Clearly separated with its own style but less emphasis
   - **Visual Container Separation**: Added distinct containers with subtle borders for timers
-  - **Direct Circle Timer Display**: Added Max Timer readout directly on the circle for at-a-glance information
+  - **Prioritized Release Timer**: Display release timer in the circle instead of max timer for better at-a-glance information about the immediate countdown
+  - **De-emphasized Nap Duration**: Moved nap duration to a subtle "Up Next" display in the top right corner
+  - **Improved Information Priority**: UI now emphasizes the most immediately relevant timer (release timer) both in the main display and circle
+  - **More Intuitive Layout**: Created a logical hierarchy of information based on immediate relevance
+  - **Cleaner Design**: Reduced visual clutter by moving less critical information (nap duration) to the periphery
   - **Responsive Placement**: Maintained proper spacing and layout across different device sizes
 - **Dual-Arc Progress System**: 
   - **Concentric Timer Arcs**: Implemented two concentric arcs that show both the Max Timer and Release Timer progress
@@ -578,7 +622,7 @@ The connecting line can be disabled in Advanced Settings > Visual Settings if pr
   - **Minimalist Styling**: Clean, distraction-free arcs without glow effects or animations
   - **Color-Coded Timers**: Distinct colors for each timer type (blue/purple for Max Timer, white/pink for Release Timer)
   - **Consistent Color Theme**: Release Timer arc color (white/pink) matches the timer text for perfect color coordination
-  - **Optimized Arc Thickness**: Thinner outer Max Timer arc (5px) with thicker inner Release Timer arc (8px) for better visual hierarchy
+  - **Optimized Arc Thickness**: Thinner Release Timer arc (5px vs 8px) with subtle black background arc for improved visibility and elegance
   - **Burning Fuse Effect**: Added sparking particle animation to the Release Timer arc when the circle is not pressed
   - **Thematic Visual Design**: Sparking effect visually represents the app's "SnoozeFuse" name, showing a burning fuse that extinguishes when pressed
   - **Star-Shaped Sparkles**: Used custom star shapes that resemble the sparkle emoji ✨ instead of simple circles

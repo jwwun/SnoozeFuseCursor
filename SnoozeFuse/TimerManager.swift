@@ -306,7 +306,13 @@ class TimerManager: ObservableObject {
     }
     
     func stopHoldTimer() {
-        stopTimer(type: .hold)
+        // Only proceed if the timer is actually running 
+        if isHoldTimerRunning {
+            stopTimer(type: .hold)
+            
+            // Cancel any related notifications just to be safe
+            NotificationManager.shared.cancelPendingNotifications()
+        }
     }
     
     func startNapTimer() {
@@ -524,6 +530,9 @@ class TimerManager: ObservableObject {
             )
             print("🔊 Registered for audio interruptions.")
             
+            // Trigger robust system vibration pattern that mimics alarm behavior
+            NotificationManager.shared.triggerImmediateAlarmWithVibration()
+            
         } catch {
             print("🚨 ERROR: Could not initialize or play alarm sound from URL \(soundURL.lastPathComponent): \(error.localizedDescription)")
             // Clean up session if player fails to initialize
@@ -533,41 +542,23 @@ class TimerManager: ObservableObject {
     
     // Stop playing alarm sound - with robust handling
     func stopAlarmSound() {
-        print("Stopping all alarm sounds")
+        print("🔊 Stopping alarm sound")
         
-        // First make sure the player stops
+        // Stop vibration by canceling any active notifications and timers
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        NotificationManager.shared.cancelPendingNotifications() 
+        
+        // Then stop audio
         audioPlayer?.stop()
-        
-        // Force volume to zero as a fallback in case stopping fails
-        audioPlayer?.volume = 0
-        
-        // Set to nil to release resources
         audioPlayer = nil
         
-        // Only stop Apple Music content if we're using a custom Apple Music sound
-        // This avoids unnecessarily requesting permissions
-        if selectedAlarmSound == .custom &&
-           selectedCustomSoundID != nil &&
-           !customSounds.isEmpty {
-            
-            // Check if we have any Apple Music tracks in our custom sounds
-            let hasAppleMusicTracks = customSounds.contains { sound in
-                sound.fileURL.lastPathComponent.starts(with: "applemusic_")
-            }
-            
-            // Only stop MPMusicPlayerController if we actually might be using it
-            if hasAppleMusicTracks {
-                MPMusicPlayerController.applicationMusicPlayer.stop()
-            }
-        }
-        
-        // Remove the interruption observer
+        // Remove audio session observer
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
         
-        // Deactivate audio session to fully release audio resources
+        // Try to deactivate audio session
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            print("Successfully deactivated audio session")
+            print("🔊 Audio session deactivated")
         } catch {
             print("Warning: Failed to deactivate audio session: \(error)")
             
@@ -838,18 +829,15 @@ class TimerManager: ObservableObject {
         // This is left as a stub for future enhancement if we decide to include .caf sounds in the app bundle
     }
     
-    // New method to schedule alarm notification
+    // Schedule notification for when alarm will go off
     func scheduleAlarmNotification() {
-        // Cancel any existing notifications first
-        NotificationManager.shared.cancelPendingNotifications()
-        
-        // Only schedule if napTimer is running
-        if isNapTimerRunning {
-            // Schedule for napTimer's remaining time
-            NotificationManager.shared.scheduleAlarmNotification(after: napTimer)
-        } else if isMaxTimerRunning {
-            // Or for maxTimer if that's what's running
-            NotificationManager.shared.scheduleAlarmNotification(after: maxTimer)
-        }
+        let timeInterval = isNapTimerRunning ? napTimer : maxTimer
+        NotificationManager.shared.scheduleAlarmNotification(after: timeInterval)
+    }
+    
+    // Trigger an immediate notification to use the system's alarm vibration pattern
+    func triggerImmediateAlarmNotification() {
+        // Use our enhanced method in NotificationManager
+        NotificationManager.shared.triggerImmediateAlarmWithVibration()
     }
 }
