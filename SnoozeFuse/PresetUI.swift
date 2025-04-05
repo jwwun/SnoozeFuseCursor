@@ -32,10 +32,10 @@ struct PresetUI: View {
     }
     
     var body: some View {
-        VStack(alignment: .center, spacing: 15) {
+        VStack(alignment: .center, spacing: 8) {
             // Header with title and help button
             HStack {
-                Text("TIMER PRESETS")
+                Text("PRESETS")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
@@ -68,115 +68,109 @@ struct PresetUI: View {
                         NotificationCenter.default.post(name: .presetUIStateChanged, object: nil)
                     }
                 }) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Image(systemName: presetManager.isHiddenFromMainSettings ? 
                               "arrow.up.left" : "arrow.down.right")
-                            .font(.system(size: 12))
+                            .font(.system(size: 10))
                         Text(presetManager.isHiddenFromMainSettings ? 
-                             "Show in Main" : "Hide This")
-                            .font(.system(size: 12, weight: .medium))
+                             "To Main" : "Hide")
+                            .font(.system(size: 11, weight: .medium))
                     }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
                     .background(Color.gray.opacity(0.3))
-                    .cornerRadius(10)
+                    .cornerRadius(8)
                     .foregroundColor(.white.opacity(0.8))
                 }
             }
-            .padding(.bottom, 5)
-            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.bottom, 2)
             
             // No presets view
             if presetManager.presets.isEmpty {
-                VStack(spacing: 10) {
-                    Text("No presets yet")
+                HStack {
+                    Text("No presets yet - Tap '+' to add current settings")
                         .foregroundColor(.white.opacity(0.7))
-                        .font(.system(size: 16))
-                    
-                    Text("Tap '+' to add your current timer settings as a preset")
-                        .foregroundColor(.white.opacity(0.5))
-                        .font(.system(size: 14))
+                        .font(.system(size: 13))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
+                    
+                    // Add preset button
+                    Button(action: {
+                        presetManager.createNewPreset(from: timerManager)
+                        HapticManager.shared.trigger()
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(.horizontal, 5)
                 }
-                .frame(height: 100)
+                .padding(.vertical, 10)
             } else {
-                // Presets horizontal scroll view
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(presetManager.presets) { preset in
-                            PresetBox(
-                                preset: preset,
-                                isSelected: lastTappedPreset == preset.id,
-                                onTap: {
-                                    // Apply the preset
-                                    presetManager.applyPreset(preset, to: timerManager)
-                                    
-                                    // Visual feedback
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                        lastTappedPreset = preset.id
+                HStack {
+                    // Presets horizontal scroll view
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(presetManager.presets) { preset in
+                                PresetBox(
+                                    preset: preset,
+                                    isSelected: lastTappedPreset == preset.id,
+                                    onTap: {
+                                        // Apply the preset
+                                        presetManager.applyPreset(preset, to: timerManager)
                                         
-                                        // Reset after feedback duration
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                            withAnimation {
-                                                lastTappedPreset = nil
+                                        // Visual feedback
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                            lastTappedPreset = preset.id
+                                            
+                                            // Reset after feedback duration
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                                withAnimation {
+                                                    lastTappedPreset = nil
+                                                }
                                             }
                                         }
+                                        
+                                        // Haptic feedback
+                                        HapticManager.shared.trigger()
+                                    },
+                                    onRename: {
+                                        // Show rename alert
+                                        renameId = preset.id
+                                        newPresetName = preset.name
+                                        showingRenameAlert = true
+                                    },
+                                    onDelete: {
+                                        // Delete the preset
+                                        presetManager.deletePreset(id: preset.id)
                                     }
-                                    
-                                    // Haptic feedback
-                                    HapticManager.shared.trigger()
-                                },
-                                onRename: {
-                                    // Show rename alert
-                                    renameId = preset.id
-                                    newPresetName = preset.name
-                                    showingRenameAlert = true
-                                },
-                                onDelete: {
-                                    // Delete the preset
-                                    presetManager.deletePreset(id: preset.id)
-                                }
-                            )
+                                )
+                            }
                         }
+                        .padding(.vertical, 2)
+                        .padding(.leading, 5)
+                        .padding(.trailing, 8)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                }
-                .frame(height: 100)
-            }
-            
-            // Add preset button
-            Button(action: {
-                presetManager.createNewPreset(from: timerManager)
-                HapticManager.shared.trigger()
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18))
-                    Text("Add Current Settings as Preset")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .foregroundColor(.white)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .background(
-                    ZStack {
-                        Color.blue.opacity(0.2)
-                        
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.blue.opacity(0.7), lineWidth: 1.5)
+                    .frame(height: 70)
+                    
+                    // Add preset button
+                    Button(action: {
+                        presetManager.createNewPreset(from: timerManager)
+                        HapticManager.shared.trigger()
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.8))
                     }
-                )
-                .cornerRadius(12)
+                    .padding(.horizontal, 5)
+                }
             }
-            .padding(.top, 5)
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 12)
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(15)
-        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 10)
+        .background(Color.gray.opacity(0.15))
+        .cornerRadius(12)
+        .padding(.horizontal, 4)
         .offset(x: showMoveAnimation ? (moveOutDirection == .trailing ? 500 : -500) : 0)
         .alert("Rename Preset", isPresented: $showingRenameAlert) {
             TextField("Preset Name", text: $newPresetName)
@@ -229,33 +223,33 @@ struct PresetBox: View {
     @State private var showContextMenu = false
     
     var body: some View {
-        VStack(alignment: .center, spacing: 8) {
+        VStack(alignment: .center, spacing: 6) {
             // Preset name
             Text(preset.name)
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             
             // Timer values
             Text(formatTimers())
-                .font(.system(size: 13))
+                .font(.system(size: 12))
                 .foregroundColor(.white.opacity(0.7))
                 .lineLimit(1)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .frame(width: 140, height: 80)
+        .padding(.vertical, 9)
+        .padding(.horizontal, 12)
+        .frame(width: 120, height: 65)
         .background(
             ZStack {
                 // Fill
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 10)
                     .fill(isSelected ? 
                           LinearGradient(colors: [Color.green.opacity(0.3), Color.blue.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing) : 
                           LinearGradient(colors: [Color.black.opacity(0.3), Color.black.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 
                 // Border
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 10)
                     .stroke(isSelected ? Color.green.opacity(0.7) : Color.gray.opacity(0.5), lineWidth: 1.5)
             }
         )

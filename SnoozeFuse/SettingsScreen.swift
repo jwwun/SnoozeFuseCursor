@@ -479,6 +479,7 @@ struct TimerSettingsControl: View {
 
     @FocusState private var focusedField: TimerField?
     @EnvironmentObject var timerManager: TimerManager
+    @ObservedObject private var presetManager = PresetManager.shared
     
     // Text state for commitment message to prevent constant recalculation
     @State private var commitmentMessage: String = ""
@@ -635,6 +636,16 @@ struct TimerSettingsControl: View {
                  .foregroundColor(Color.orange.opacity(0.8))
                  .padding(.top, 8)
              }
+             
+            // Timer presets section - only show if not hidden
+            if !presetManager.isHiddenFromMainSettings {
+                Divider()
+                    .background(Color.gray.opacity(0.5))
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 20)
+                
+                PresetUI()
+            }
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
@@ -1162,14 +1173,6 @@ struct SettingsScreen: View {
                                 napDuration: $timerManager.napDuration,
                                 maxDuration: $timerManager.maxDuration
                             )
-                            
-                            // Presets UI - Only show if not hidden from main settings
-                            if !presetManager.isHiddenFromMainSettings {
-                                PresetUI()
-                                    .transition(.move(edge: .leading))
-                                    .animation(.easeInOut(duration: 0.3), value: presetsRefreshTrigger)
-                                    .id("presetUI-\(presetsRefreshTrigger)")
-                            }
                             
                             // Alarm sound selection
                             AlarmSoundSelector(
