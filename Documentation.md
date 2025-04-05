@@ -326,6 +326,8 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 
 ### NapScreen UI Enhancements
 - **Improved Timer Display**: Modified timer to show only seconds when there are no minutes left (e.g. "08.3" instead of "00:08.3") for cleaner presentation
+- **Immediate Timer Value Display**: Modified NapScreen to show MAX TIMER and NAP DURATION values immediately upon entry, rather than waiting for circle placement
+- **Optimized Message Positioning**: Improved the positioning of the "Tap anywhere" message to coexist with timer displays using GeometryReader for proper centering
 - **Enhanced Position Text**: Redesigned the "Tap anywhere to position your circle" message with:
   - **Glass Morphism Effect**: Added subtle glass reflection gradient overlay for a modern look
   - **Enhanced Shadow**: Improved shadow depth and spread for better visual prominence

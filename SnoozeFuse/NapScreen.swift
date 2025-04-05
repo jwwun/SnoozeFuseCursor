@@ -143,75 +143,73 @@ struct NapScreen: View {
                         .padding(.top, 60)
                         .padding(.bottom, 10)
                         
-                        if circlePosition != nil {
-                            // Session timer info with enhanced visual hierarchy
-                            HStack(spacing: 35) {
-                                VStack(spacing: 2) {
-                                    Text("MAX TIMER")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                                        .foregroundColor(Color.purple.opacity(0.8))
-                                        .tracking(1)
-                                    
-                                    let maxTimerText = timerManager.formatTime(timerManager.maxTimer)
-                                    let maxComponents = parseTimerComponents(maxTimerText)
-                                    HStack(spacing: 0) {
-                                        ForEach(maxComponents, id: \.number) { component in
-                                            Text(component.number)
-                                                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                                .foregroundColor(.white.opacity(0.9))
-                                            
-                                            Text(component.unit)
-                                                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                                .foregroundColor(.white.opacity(0.7))
-                                                .baselineOffset(-2)
-                                                .padding(.trailing, 2)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 15)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.black.opacity(0.3))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.purple.opacity(0.3), lineWidth: 1)
-                                        )
-                                )
+                        // Always show session timer info
+                        HStack(spacing: 35) {
+                            VStack(spacing: 2) {
+                                Text("MAX TIMER")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color.purple.opacity(0.8))
+                                    .tracking(1)
                                 
-                                VStack(spacing: 2) {
-                                    Text("NAP DURATION")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                                        .foregroundColor(Color.blue.opacity(0.7))
-                                        .tracking(1)
-                                    
-                                    let napTimerText = timerManager.formatTime(timerManager.napDuration)
-                                    let napComponents = parseTimerComponents(napTimerText)
-                                    HStack(spacing: 0) {
-                                        ForEach(napComponents, id: \.number) { component in
-                                            Text(component.number)
-                                                .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                                .foregroundColor(.white.opacity(0.9))
-                                            
-                                            Text(component.unit)
-                                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                                .foregroundColor(.white.opacity(0.7))
-                                                .baselineOffset(-2)
-                                                .padding(.trailing, 2)
-                                        }
+                                let maxTimerText = timerManager.formatTime(timerManager.maxTimer)
+                                let maxComponents = parseTimerComponents(maxTimerText)
+                                HStack(spacing: 0) {
+                                    ForEach(maxComponents, id: \.number) { component in
+                                        Text(component.number)
+                                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.white.opacity(0.9))
+                                        
+                                        Text(component.unit)
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                            .foregroundColor(.white.opacity(0.7))
+                                            .baselineOffset(-2)
+                                            .padding(.trailing, 2)
                                     }
                                 }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 15)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.black.opacity(0.2))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                                        )
-                                )
                             }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 15)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.black.opacity(0.3))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                            
+                            VStack(spacing: 2) {
+                                Text("NAP DURATION")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color.blue.opacity(0.7))
+                                    .tracking(1)
+                                
+                                let napTimerText = timerManager.formatTime(timerManager.napDuration)
+                                let napComponents = parseTimerComponents(napTimerText)
+                                HStack(spacing: 0) {
+                                    ForEach(napComponents, id: \.number) { component in
+                                        Text(component.number)
+                                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                            .foregroundColor(.white.opacity(0.9))
+                                        
+                                        Text(component.unit)
+                                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                            .foregroundColor(.white.opacity(0.7))
+                                            .baselineOffset(-2)
+                                            .padding(.trailing, 2)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 15)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.black.opacity(0.2))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                                    )
+                            )
                         }
                         
                         Spacer()
@@ -277,6 +275,7 @@ struct NapScreen: View {
                     
                     // Initial message
                     if showPositionMessage {
+                        // This transparent layer captures taps
                         Color.clear
                             .contentShape(Rectangle())
                             .onTapGesture { location in
@@ -291,101 +290,111 @@ struct NapScreen: View {
                             }
                             .zIndex(3)
                         
-                        VStack(spacing: 10) {
-                            Text("Tap Anywhere")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .tracking(1.5)
-                                .shadow(color: .blue.opacity(0.6), radius: 3, x: 0, y: 1)
-                            
-                            Text("to position your circle")
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(.white.opacity(0.9))
-                                .tracking(1)
-                            
-                            Image(systemName: "hand.tap.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(.white)
-                                .padding(.top, 6)
-                                .shadow(color: .white.opacity(0.6), radius: 4, x: 0, y: 0)
+                        // Position the "tap anywhere" message in the center of the screen
+                        GeometryReader { geometry in
+                            VStack {
+                                Spacer()
                                 
-                            // Add full-screen mode indicator text
-                            if timerManager.isFullScreenMode {
-                                Text("Full-Screen Touch Mode is ON")
-                                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                                    .foregroundColor(.pink.opacity(0.9))
-                                    .padding(.top, 5)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 5)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.black.opacity(0.3))
-                                            .overlay(
+                                VStack(spacing: 10) {
+                                    Text("Tap Anywhere")
+                                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .tracking(1.5)
+                                        .shadow(color: .blue.opacity(0.6), radius: 3, x: 0, y: 1)
+                                    
+                                    Text("to position your circle")
+                                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .tracking(1)
+                                    
+                                    Image(systemName: "hand.tap.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(.white)
+                                        .padding(.top, 6)
+                                        .shadow(color: .white.opacity(0.6), radius: 4, x: 0, y: 0)
+                                        
+                                    // Add full-screen mode indicator text
+                                    if timerManager.isFullScreenMode {
+                                        Text("Full-Screen Touch Mode is ON")
+                                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                                            .foregroundColor(.pink.opacity(0.9))
+                                            .padding(.top, 5)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 5)
+                                            .background(
                                                 RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(Color.pink.opacity(0.5), lineWidth: 1)
+                                                    .fill(Color.black.opacity(0.3))
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .stroke(Color.pink.opacity(0.5), lineWidth: 1)
+                                                    )
                                             )
-                                    )
-                            }
-                        }
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                        .padding(.vertical, 25)
-                        .background(
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 22)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color.purple.opacity(0.7),
-                                                Color.blue.opacity(0.6)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
+                                    }
+                                }
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                                .padding(.vertical, 25)
+                                .background(
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 22)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [
+                                                        Color.purple.opacity(0.7),
+                                                        Color.blue.opacity(0.6)
+                                                    ],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .blur(radius: 0.5)
+                                        
+                                        // Animated pulsing effect
+                                        Circle()
+                                            .fill(Color.white.opacity(0.1))
+                                            .frame(width: 20, height: 20)
+                                            .offset(x: -60, y: -30)
+                                        
+                                        Circle()
+                                            .fill(Color.white.opacity(0.1))
+                                            .frame(width: 15, height: 15)
+                                            .offset(x: 65, y: 40)
+                                        
+                                        Circle()
+                                            .fill(Color.white.opacity(0.1))
+                                            .frame(width: 25, height: 25)
+                                            .offset(x: 70, y: -35)
+                                    }
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 22)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [.white.opacity(0.7), .blue.opacity(0.3)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
                                         )
-                                    )
-                                    .blur(radius: 0.5)
+                                )
+                                .shadow(color: .black.opacity(0.5), radius: 15, x: 0, y: 8)
+                                .overlay(
+                                    // Add subtle glass reflection
+                                    RoundedRectangle(cornerRadius: 22)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.white.opacity(0.15), .clear],
+                                                startPoint: .topLeading,
+                                                endPoint: .center
+                                            )
+                                        )
+                                        .padding(2)
+                                )
                                 
-                                // Animated pulsing effect
-                                Circle()
-                                    .fill(Color.white.opacity(0.1))
-                                    .frame(width: 20, height: 20)
-                                    .offset(x: -60, y: -30)
-                                
-                                Circle()
-                                    .fill(Color.white.opacity(0.1))
-                                    .frame(width: 15, height: 15)
-                                    .offset(x: 65, y: 40)
-                                
-                                Circle()
-                                    .fill(Color.white.opacity(0.1))
-                                    .frame(width: 25, height: 25)
-                                    .offset(x: 70, y: -35)
+                                Spacer()
                             }
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 22)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [.white.opacity(0.7), .blue.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.5), radius: 15, x: 0, y: 8)
-                        .overlay(
-                            // Add subtle glass reflection
-                            RoundedRectangle(cornerRadius: 22)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.white.opacity(0.15), .clear],
-                                        startPoint: .topLeading,
-                                        endPoint: .center
-                                    )
-                                )
-                                .padding(2)
-                        )
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                        }
                         .zIndex(2)
                     }
                     
