@@ -55,6 +55,9 @@ struct NapScreen: View {
     @State private var isFirstInteraction = true
     @State private var napFinished = false
     
+    // Add state for tracking if app was in background
+    @State private var wasInBackground = false
+    
     // Method to reset the placement state
     func resetPlacementState() {
         showPositionMessage = true
@@ -328,35 +331,34 @@ struct NapScreen: View {
                     // ADD: Full-screen touch detection overlay
                     // Only show when circle is placed and full-screen mode is enabled
                     if !showPositionMessage && timerManager.isFullScreenMode, circlePosition != nil {
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .allowsHitTesting(true)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .gesture(
-                                DragGesture(minimumDistance: 0)
-                                    .onChanged { _ in
-                                        if !isPressed {
-                                            isPressed = true
-                                            
-                                            // If this is the first interaction since placing the circle,
-                                            // start the max timer when user first holds down
-                                            if isFirstInteraction {
-                                                timerManager.startMaxTimer()
-                                                isFirstInteraction = false
-                                            }
-                                            
-                                            // Stop the hold timer when holding
-                                            timerManager.stopHoldTimer()
+                        // Replace DragGesture with FullScreenTouchHandler for better multi-touch handling
+                        FullScreenTouchHandler(
+                            onTouchesChanged: { isTouching in
+                                if isTouching != isPressed {
+                                    isPressed = isTouching
+                                    if isTouching {
+                                        // User is touching the screen
+                                        
+                                        // If this is the first interaction since placing the circle,
+                                        // start the max timer when user first holds down
+                                        if isFirstInteraction {
+                                            timerManager.startMaxTimer()
+                                            isFirstInteraction = false
                                         }
-                                    }
-                                    .onEnded { _ in
-                                        isPressed = false
+                                        
+                                        // Stop the hold timer when holding
+                                        timerManager.stopHoldTimer()
+                                    } else {
                                         // User has released the screen
                                         // Start/resume the hold timer
                                         timerManager.startHoldTimer()
                                     }
-                            )
-                            .zIndex(10) // Set high zIndex to ensure it's above all other content
+                                }
+                            }
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                        .zIndex(10) // Set high zIndex to ensure it's above all other content
                     }
                 }
                 .contentShape(Rectangle())
@@ -415,6 +417,9 @@ struct NapScreen: View {
             // Reset first interaction flag
             isFirstInteraction = true
             
+            // Reset background flag
+            wasInBackground = false
+            
             // Subscribe to holdTimer reaching zero
             NotificationCenter.default.addObserver(
                 forName: .holdTimerFinished,
@@ -435,6 +440,35 @@ struct NapScreen: View {
                 
                 // Start playing alarm sound immediately
                 self.timerManager.playAlarmSound()
+            }
+            
+            // Add observers for app state changes
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                // Set flag that we went to background
+                wasInBackground = true
+                
+                // If user was pressing, release the press
+                if isPressed {
+                    isPressed = false
+                    // Start the hold timer when going to background if it was being held
+                    timerManager.startHoldTimer()
+                }
+            }
+            
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.willEnterForegroundNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                // When coming back from background, ensure press state is reset
+                if isPressed {
+                    isPressed = false
+                    timerManager.startHoldTimer()
+                }
             }
         }
         .onDisappear {

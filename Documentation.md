@@ -357,6 +357,9 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 - **Informative Tooltip**: Help tooltip provides clear explanation of the feature's purpose and functionality
 - **Persistent Setting**: User preference for Full-Screen Mode is saved in UserDefaults and persists across app launches
 - **Clear Status Indication**: Initial "Tap Anywhere" screen displays a notice when Full-Screen Mode is enabled
+- **Robust Multi-Touch Handling**: Properly maintains touch state even when multiple fingers are used simultaneously
+- **App Switching Protection**: Gracefully handles app backgrounding and foregrounding to maintain proper timer states
+- **Consistent Experience**: Provides the same reliable experience as the original circle touch mechanism
 - **Implementation Details**:
   - **Smart Touch Handling**: Maintains the original circle visuals while expanding the touch detection area
   - **Optimized Gesture Recognition**: Uses efficient gesture detection that responds to the lightest touch
@@ -366,6 +369,10 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - **Visual Mode Indicator**: Animated rotating gradient dashed circle provides subtle but clear indication of mode status
   - **Visual Integration**: Gradient colors match the app's overall color scheme for a cohesive appearance
   - **Manual Size Control**: Users can still adjust the visual circle size independently from the touch area
+  - **Native Touch Tracking**: Uses UIKit's native touch handling for maximum reliability and performance
+  - **Active Touch Set Management**: Maintains a set of active touches to ensure proper state in multi-touch scenarios
+  - **App Lifecycle Awareness**: Listens for app state notifications to properly handle backgrounding and foregrounding
+  - **Top-Level Touch Detection**: Positioned at the highest level of the view hierarchy to capture all touches regardless of what UI elements are underneath
 
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`

@@ -236,6 +236,150 @@ struct MultiTouchHandler: UIViewRepresentable {
     }
 }
 
+// MARK: - FullScreenTouchHandler
+
+/// SwiftUI wrapper for handling multiple touches across the entire screen
+struct FullScreenTouchHandler: UIViewRepresentable {
+    // MARK: - Properties
+    
+    /// Callback for when touch state changes
+    var onTouchesChanged: (Bool) -> Void
+    
+    // MARK: - UIViewRepresentable
+    
+    func makeUIView(context: Context) -> FullScreenTouchView {
+        let view = FullScreenTouchView(frame: .zero)
+        view.onTouchesChanged = onTouchesChanged
+        return view
+    }
+    
+    func updateUIView(_ uiView: FullScreenTouchView, context: Context) {
+        uiView.onTouchesChanged = onTouchesChanged
+    }
+}
+
+// MARK: - FullScreenTouchView
+
+/// View that detects touches anywhere on the screen
+class FullScreenTouchView: UIView {
+    // MARK: - Properties
+    
+    /// Callback triggered when touch state changes
+    var onTouchesChanged: ((Bool) -> Void)?
+    
+    /// Current touching state
+    private var isTouching = false
+    
+    /// Active touches set to ensure consistent state
+    private var activeTouches = Set<UITouch>()
+    
+    // MARK: - Initialization
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isMultipleTouchEnabled = true
+        
+        // Listen for app state changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    // MARK: - App State Handling
+    
+    @objc private func appDidEnterBackground() {
+        // When app goes to background, ensure we report no touching
+        if isTouching {
+            updateTouchState(false)
+        }
+        activeTouches.removeAll()
+    }
+    
+    @objc private func appWillEnterForeground() {
+        // Ensure we're in the correct state when coming back to foreground
+        // This is a safety measure - state should already be false at this point
+        if isTouching {
+            updateTouchState(false)
+        }
+    }
+    
+    // MARK: - Touch Handling
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for touch in touches {
+            activeTouches.insert(touch)
+        }
+        
+        // If we have any active touches, report touching
+        if !activeTouches.isEmpty && !isTouching {
+            updateTouchState(true)
+        }
+    }
+    
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // This is a full-screen handler, so no position checking needed
+        // Just ensure the touch state is correct
+        if !activeTouches.isEmpty && !isTouching {
+            updateTouchState(true)
+        }
+    }
+    
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for touch in touches {
+            activeTouches.remove(touch)
+        }
+        
+        // If we have no more active touches, report not touching
+        if activeTouches.isEmpty && isTouching {
+            updateTouchState(false)
+        }
+    }
+    
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for touch in touches {
+            activeTouches.remove(touch)
+        }
+        
+        // If we have no more active touches, report not touching
+        if activeTouches.isEmpty && isTouching {
+            updateTouchState(false)
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Updates the touch state and triggers callbacks if state changed
+    private func updateTouchState(_ newState: Bool) {
+        guard isTouching != newState else { return }
+        
+        isTouching = newState
+        onTouchesChanged?(newState)
+        
+        // Trigger haptic feedback on state change
+        if newState {
+            HapticManager.shared.trigger()
+        }
+    }
+}
+
 // MARK: - MultiSwipeConfirmation
 
 /// A component that requires multiple consecutive swipes to confirm an action
