@@ -289,6 +289,8 @@ class TimerManager: ObservableObject {
         case .hold:
             isHoldTimerRunning = false
             holdCancellable?.cancel()
+            // Immediately reset to original duration when timer is stopped
+            holdTimer = holdDuration
         case .nap:
             isNapTimerRunning = false
             napCancellable?.cancel()

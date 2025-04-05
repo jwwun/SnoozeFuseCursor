@@ -269,6 +269,9 @@ struct NapScreen: View {
                                                     
                                                     // Stop the hold timer when holding
                                                     timerManager.stopHoldTimer()
+                                                    
+                                                    // Immediately reset hold timer to original duration when pressed
+                                                    timerManager.holdTimer = timerManager.holdDuration
                                                 } else {
                                                     // User has released the circle
                                                     // Start/resume the hold timer
@@ -467,6 +470,9 @@ struct NapScreen: View {
                                         
                                         // Stop the hold timer when holding
                                         timerManager.stopHoldTimer()
+                                        
+                                        // Immediately reset hold timer to original duration when pressed
+                                        timerManager.holdTimer = timerManager.holdDuration
                                     } else {
                                         // User has released the screen
                                         // Start/resume the hold timer
