@@ -268,6 +268,18 @@ class NotificationManager: ObservableObject {
             }
         }
     }
+    
+    // Function to stop the vibration alarm
+    func stopVibrationAlarm() {
+        // Stop the vibration timer if it exists
+        alarmSoundTimer?.invalidate()
+        alarmSoundTimer = nil
+        
+        // Remove any delivered notifications
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        
+        print("🔔 Stopped vibration alarm")
+    }
 }
 
 // SwiftUI View component for notification warning

@@ -3,6 +3,10 @@ import Combine
 import AVFoundation
 import UserNotifications
 import MediaPlayer
+import SwiftUI
+
+// Import additional dependencies
+import AudioToolbox
 
 // Define notification names
 extension Notification.Name {
@@ -155,7 +159,13 @@ class TimerManager: ObservableObject {
     }
     
     // Audio player for alarm sounds
-    private var audioPlayer: AVAudioPlayer?
+    var audioPlayer: AVAudioPlayer?
+    var backupPlayer: AVAudioPlayer?
+    
+    // snooze stuff
+    @Published var snoozeCount = 0
+    @Published var isAlarmActive = false
+    @Published var isPlayingAlarm = false
     
     init() {
         // Initialize timers with default values
@@ -381,53 +391,42 @@ class TimerManager: ObservableObject {
     
     // Setup audio session for background playback
     func setupBackgroundAudio() {
+        // First, safely deactivate any existing session
         do {
-            // Apply the user's audio output preference with stronger enforcement
-            if AudioOutputManager.shared.useSpeaker {
-                // Use nuclear approach for forcing device speaker
-                print("🔊 NUCLEAR APPROACH: Forcing background audio to device speaker...")
-                
-                // 1. Deactivate any existing session
+            if !AVAudioSession.sharedInstance().isOtherAudioPlaying {
                 try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-                
-                // 2. Use playAndRecord category which is more aggressive for speaker routing
-                try AVAudioSession.sharedInstance().setCategory(
-                    .playAndRecord,
-                    mode: .default,
-                    options: [.defaultToSpeaker, .duckOthers]
-                )
-                
-                // 3. Activate session
-                try AVAudioSession.sharedInstance().setActive(true)
-                
-                // 4. Force output to speaker
-                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                
-                // 5. Verify route
-                let currentRoute = AVAudioSession.sharedInstance().currentRoute
-                if let output = currentRoute.outputs.first {
-                    print("🔊 BACKGROUND AUDIO: Using output port: \(output.portName) (Type: \(output.portType.rawValue))")
-                    
-                    // 6. If we're still not on speaker, try even more aggressive approach
-                    if output.portType != .builtInSpeaker {
-                        print("🔊 STILL NOT ON SPEAKER! Trying extreme fallback method...")
-                        try AVAudioSession.sharedInstance().setActive(false)
-                        try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
-                        try AVAudioSession.sharedInstance().setActive(true)
-                        try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                    }
-                }
-                
-                print("🔊 Background audio session set up with FORCED speaker output")
-            } else {
-                // Use default route (Bluetooth/headphones if available)
-                try AVAudioSession.sharedInstance().setCategory(.playback, options: [.allowBluetooth, .mixWithOthers])
-                try AVAudioSession.sharedInstance().setActive(true)
-                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
-                print("🔊 Background audio session set up with default route (Bluetooth/headphones)")
             }
         } catch {
-            print("Failed to set up background audio session: \(error)")
+            // Non-critical error, continue
+        }
+        
+        // Check user preference
+        let useSpeaker = AudioOutputManager.shared.useSpeaker
+        
+        do {
+            if useSpeaker {
+                // Set up for speaker output
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                
+                // If not on speaker yet, try alternative method
+                if AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType != .builtInSpeaker {
+                    try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
+                                                                  mode: .default,
+                                                                  options: [.defaultToSpeaker])
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                }
+            } else {
+                // Set up for external device output
+                try AVAudioSession.sharedInstance().setCategory(.playback, 
+                                                              mode: .default, 
+                                                              options: [.allowBluetooth, .allowAirPlay])
+                try AVAudioSession.sharedInstance().setActive(true)
+            }
+        } catch {
+            print("🚨 Audio session setup error: \(error)")
         }
     }
     
@@ -437,7 +436,7 @@ class TimerManager: ObservableObject {
         playAlarmSound()
     }
     
-    // Handle audio interruptions (calls, etc)
+    // Handle audio interruptions efficiently
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -447,37 +446,44 @@ class TimerManager: ObservableObject {
         
         switch type {
         case .began:
-            // Audio has been interrupted, pause if needed
+            // Just pause when interrupted
             audioPlayer?.pause()
-            print("Audio interrupted: pausing playback")
+            
         case .ended:
-            // Interruption ended, check if should resume
+            // Check if we should resume
             guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
                   AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) else {
                 return
             }
-            // Resume audio
-            print("Audio interruption ended: resuming playback")
             
-            // Re-setup audio session with correct output routing
+            // Restore audio session based on speaker preference
             do {
-                try AVAudioSession.sharedInstance().setActive(true)
+                let useSpeaker = AudioOutputManager.shared.useSpeaker
                 
-                // Apply the correct audio routing based on user preference
-                if AudioOutputManager.shared.useSpeaker {
-                    // Force to device speaker
+                if useSpeaker {
+                    // 3-step speaker enforcement for resume
+                    try AVAudioSession.sharedInstance().setActive(false)
+                    try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    try AVAudioSession.sharedInstance().setActive(false)
+                    try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
+                    try AVAudioSession.sharedInstance().setActive(true)
                     try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                    print("🔊 Restored audio to device speaker after interruption")
                 } else {
-                    // Use default route (Bluetooth/headphones)
-                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
-                    print("🔊 Restored audio to default route after interruption")
+                    // Standard approach for external devices
+                    try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowAirPlay])
+                    try AVAudioSession.sharedInstance().setActive(true)
+                }
+                
+                // Reset volume and resume playback
+                if let player = audioPlayer {
+                    player.volume = AudioVolumeManager.shared.getAdjustedPlayerVolume()
+                    player.play()
                 }
             } catch {
-                print("🚨 Error re-setting up audio after interruption: \(error)")
+                print("🚨 Failed to restore audio after interruption: \(error)")
             }
             
-            audioPlayer?.play()
         @unknown default:
             break
         }
@@ -548,216 +554,183 @@ class TimerManager: ObservableObject {
         return url
     }
 
-    // Play the selected alarm sound
+    // Play the selected alarm sound with speaker enforcement
     func playAlarmSound() {
-        print("🔊 ATTEMPTING TO PLAY ALARM SOUND... Current selection: \(selectedAlarmSound.rawValue)")
+        print("🔊 Playing alarm sound: \(selectedAlarmSound.rawValue)")
         
-        // Stop any existing audio first
+        isPlayingAlarm = true
         stopAlarmSound()
         
-        // Get the sound URL using the helper
         guard let soundURL = getAlarmSoundURL() else {
-            print("🚨 ERROR: Could not get a valid sound URL to play.")
-            return // Cannot proceed without a URL
+            print("🚨 ERROR: Could not get a valid sound URL")
+            return
         }
         
-        // Setup audio session for playback with NUCLEAR APPROACH to force speaker
+        let useSpeaker = AudioOutputManager.shared.useSpeaker
+        
+        // STEP 1: Set the system volume to match our alarm volume setting
+        // (This will now affect both speaker and headphones, and show the system volume UI)
+        AudioVolumeManager.shared.setSystemVolume(to: AudioVolumeManager.shared.alarmVolume)
+        
+        // STEP 2: Set up audio session with speaker enforcement if needed
         do {
-            if AudioOutputManager.shared.useSpeaker {
-                print("🔊 NUCLEAR APPROACH: Forcing audio to device speaker...")
+            // Always break existing connections first
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            
+            if useSpeaker {
+                // SPEAKER ENFORCEMENT: 3-step reliable approach
                 
-                // STEP 1: Completely deactivate current session
-                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                // Step 1: Break Bluetooth with soloAmbient
+                try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
+                try AVAudioSession.sharedInstance().setActive(true)
+                try AVAudioSession.sharedInstance().setActive(false)
                 
-                // STEP 2: Set category to PlayAndRecord with specific options known to force speaker
-                // This is more aggressive than .playback for forcing speaker output
-                try AVAudioSession.sharedInstance().setCategory(
-                    .playAndRecord,
-                    mode: .default,
-                    options: [.defaultToSpeaker, .allowBluetooth]
-                )
-                
-                // STEP 3: Activate session
+                // Step 2: Set playAndRecord with defaultToSpeaker (no Bluetooth options)
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
+                                                           mode: .spokenAudio,
+                                                           options: [.defaultToSpeaker])
                 try AVAudioSession.sharedInstance().setActive(true)
                 
-                // STEP 4: Explicitly override to speaker
+                // Step 3: Force speaker override
                 try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
                 
-                // STEP 5: Double check - log current route
-                let currentRoute = AVAudioSession.sharedInstance().currentRoute
-                if let output = currentRoute.outputs.first {
-                    print("🔊 CURRENT AUDIO PORT: \(output.portName) (Type: \(output.portType.rawValue))")
-                    
-                    // STEP 6: If we're still not on built-in speaker, try more extreme methods
-                    if output.portType != .builtInSpeaker {
-                        print("🔊 STILL NOT ON SPEAKER! Trying extreme method...")
-                        
-                        // Try deactivating again
-                        try AVAudioSession.sharedInstance().setActive(false)
-                        
-                        // Try playAndRecord with different options
-                        try AVAudioSession.sharedInstance().setCategory(
-                            .playAndRecord, 
-                            mode: .spokenAudio,
-                            options: [.defaultToSpeaker, .duckOthers, .mixWithOthers]
-                        )
-                        
-                        // Reactivate
-                        try AVAudioSession.sharedInstance().setActive(true)
-                        
-                        // Force to speaker again
-                        try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                        
-                        // LAST RESORT: Try disabling Bluetooth audio entirely
-                        print("🔊 LAST RESORT: Attempting to disable Bluetooth audio routing completely")
-                        try AVAudioSession.sharedInstance().setCategory(
-                            .playAndRecord,
-                            mode: .default,
-                            options: [.defaultToSpeaker, .duckOthers, .mixWithOthers]
-                        )
-                        try AVAudioSession.sharedInstance().setActive(true)
-                    }
-                }
+                // Quick verification
+                let isOnSpeaker = AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType == .builtInSpeaker
+                print("🔊 Speaker routing status: \(isOnSpeaker ? "Success" : "Failed")")
             } else {
-                // User wants to use default route (Bluetooth/headphones if available)
-                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowBluetooth, .mixWithOthers])
+                // Standard approach for headphones/Bluetooth
+                try AVAudioSession.sharedInstance().setCategory(.playback, 
+                                                             mode: .default, 
+                                                             options: [.allowBluetooth, .allowAirPlay])
                 try AVAudioSession.sharedInstance().setActive(true)
-                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
-                print("🔊 Using default audio route (Bluetooth/headphones if available)")
             }
-            
-            print("🔊 Audio session setup complete")
         } catch {
-            print("🚨 ERROR: Failed to setup audio session: \(error)")
-            // Attempt to continue playback even if session setup fails partially
+            print("🚨 Audio session error: \(error)")
         }
         
-        // Now play the sound from the determined URL
+        // STEP 3: Initialize player and start playback
         do {
-            print("🔊 Initializing AVAudioPlayer with URL: \(soundURL.lastPathComponent)")
             audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
             audioPlayer?.prepareToPlay()
-            audioPlayer?.numberOfLoops = -1 // Loop continuously (-1 means loop indefinitely)
-            audioPlayer?.volume = 1.0
+            audioPlayer?.numberOfLoops = -1 // Loop indefinitely
             
-            // Add a slight delay before playing to ensure session is ready
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if AudioOutputManager.shared.useSpeaker {
-                    // LAST CHECK: Ensure we're still on speaker right before playing
-                    do {
-                        try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                        
-                        // Force output port to speaker again just to be safe
-                        let currentRoute = AVAudioSession.sharedInstance().currentRoute
-                        if let output = currentRoute.outputs.first {
-                            print("🔊 FINAL CHECK - CURRENT AUDIO PORT: \(output.portName) (Type: \(output.portType.rawValue))")
-                        }
-                    } catch {
-                        print("🚨 ERROR: Final check failed: \(error)")
-                    }
+            // Apply player volume settings and ensure system volume is set
+            let playerVolume = AudioVolumeManager.shared.getAdjustedPlayerVolume()
+            audioPlayer?.volume = playerVolume
+            
+            // Log both player and system volume for clarity
+            let currentSystemVolume = AVAudioSession.sharedInstance().outputVolume
+            print("🔊 Player volume: \(Int(playerVolume * 100))%, System volume: \(Int(currentSystemVolume * 100))%, Target volume: \(Int(AudioVolumeManager.shared.alarmVolume * 100))%")
+            
+            // Register for interruptions and route changes
+            setupAudioNotifications()
+            
+            // Add slight delay to ensure session is fully configured
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                guard let self = self else { return }
+                
+                // One final speaker check
+                if useSpeaker && AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType != .builtInSpeaker {
+                    try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
                 }
                 
-                let playResult = self.audioPlayer?.play() ?? false
-                print("🔊 Audio player play() called. Result: \(playResult)")
-                if !playResult {
-                    print("🚨 ERROR: audioPlayer.play() returned false.")
+                // Double-check system volume one more time
+                let finalSystemVolume = AVAudioSession.sharedInstance().outputVolume
+                if abs(finalSystemVolume - AudioVolumeManager.shared.alarmVolume) > 0.05 {
+                    // If system volume doesn't match our setting, try one more time with force UI
+                    AudioVolumeManager.shared.setSystemVolume(to: AudioVolumeManager.shared.alarmVolume)
                 }
+                
+                // Start playback
+                self.audioPlayer?.play()
+                
+                // Trigger vibration
+                NotificationManager.shared.triggerImmediateAlarmWithVibration()
             }
-            
-            // Register for interruptions *after* successfully initializing the player
-            NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleAudioInterruption),
-                name: AVAudioSession.interruptionNotification,
-                object: AVAudioSession.sharedInstance()
-            )
-            
-            // Also register for route change notifications to catch if system tries to switch back to Bluetooth
-            NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: nil)
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleRouteChange),
-                name: AVAudioSession.routeChangeNotification,
-                object: AVAudioSession.sharedInstance()
-            )
-            
-            print("🔊 Registered for audio notifications")
-            
-            // Trigger robust system vibration pattern that mimics alarm behavior
-            NotificationManager.shared.triggerImmediateAlarmWithVibration()
-            
         } catch {
-            print("🚨 ERROR: Could not initialize or play alarm sound from URL \(soundURL.lastPathComponent): \(error.localizedDescription)")
-            // Clean up session if player fails to initialize
+            print("🚨 Audio player error: \(error)")
             stopAlarmSound()
         }
     }
     
-    // Handle audio route changes (new function)
-    @objc private func handleRouteChange(notification: Notification) {
-        // Only care about route changes if we want to force speaker
-        guard AudioOutputManager.shared.useSpeaker else { return }
+    // Setup listeners for audio interruptions and route changes
+    private func setupAudioNotifications() {
+        // Remove any existing observers first
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: nil)
         
+        // Register for key audio events
+        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioInterruption), 
+                                              name: AVAudioSession.interruptionNotification, 
+                                              object: AVAudioSession.sharedInstance())
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(handleRouteChange), 
+                                              name: AVAudioSession.routeChangeNotification, 
+                                              object: AVAudioSession.sharedInstance())
+    }
+    
+    // Handle audio route changes efficiently
+    @objc private func handleRouteChange(notification: Notification) {
         guard let userInfo = notification.userInfo,
               let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
             return
         }
         
-        print("🔊 Audio route changed. Reason: \(reason.rawValue)")
+        // Only enforce speaker if alarm is playing AND user wants speaker
+        guard isPlayingAlarm && AudioOutputManager.shared.useSpeaker else { return }
         
-        // Get current route
+        // Check if we need to reclaim speaker
         let currentRoute = AVAudioSession.sharedInstance().currentRoute
-        if let output = currentRoute.outputs.first {
-            print("🔊 New audio route: \(output.portName) (Type: \(output.portType.rawValue))")
+        let isOnSpeaker = currentRoute.outputs.first?.portType == .builtInSpeaker
+        
+        // Only act if we're not already on speaker
+        if !isOnSpeaker {
+            print("🔊 Route change detected - enforcing speaker output")
             
-            // If we're not on the built-in speaker but we should be, force it back
-            if output.portType != .builtInSpeaker && AudioOutputManager.shared.useSpeaker {
-                print("🔊 ROUTE CHANGED AWAY FROM SPEAKER! Forcing back to speaker...")
-                
-                do {
-                    // Force back to speaker
-                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                    print("🔊 Forced back to speaker after route change")
-                } catch {
-                    print("🚨 ERROR: Failed to force back to speaker: \(error)")
-                }
+            do {
+                // Quick 3-step approach to reclaim speaker
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
+                try AVAudioSession.sharedInstance().setActive(true)
+                try AVAudioSession.sharedInstance().setActive(false)
+                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
+                try AVAudioSession.sharedInstance().setActive(true)
+                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+            } catch {
+                print("🚨 Failed to enforce speaker: \(error)")
             }
         }
     }
     
-    // Stop playing alarm sound - with robust handling
+    // Stop playing alarm sound
     func stopAlarmSound() {
-        print("🔊 Stopping alarm sound")
+        isPlayingAlarm = false
         
-        // Stop vibration by canceling any active notifications and timers
-        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-        NotificationManager.shared.cancelPendingNotifications() 
-        
-        // Then stop audio
+        // Stop playback and clean up player
         audioPlayer?.stop()
         audioPlayer = nil
         
-        // Remove audio session observer
+        // Remove audio session observers
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: nil)
         
-        // Try to deactivate audio session
+        // Reset audio session
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            print("🔊 Audio session deactivated")
+            try AVAudioSession.sharedInstance().setCategory(.ambient)
+            try AVAudioSession.sharedInstance().setActive(false)
         } catch {
-            print("Warning: Failed to deactivate audio session: \(error)")
-            
-            // As a backup, try to set the category to ambient which reduces volume
-            do {
-                try AVAudioSession.sharedInstance().setCategory(.ambient)
-                try AVAudioSession.sharedInstance().setActive(true)
-                print("Fallback: Set to ambient category instead")
-            } catch {
-                print("Even ambient category fallback failed: \(error)")
-            }
+            // Non-critical error
         }
+        
+        // Stop any music player if active
+        if MPMusicPlayerController.applicationMusicPlayer.playbackState == .playing {
+            MPMusicPlayerController.applicationMusicPlayer.stop()
+        }
+        
+        // Stop vibrations
+        NotificationManager.shared.stopVibrationAlarm()
     }
     
     // Test play alarm sound for preview

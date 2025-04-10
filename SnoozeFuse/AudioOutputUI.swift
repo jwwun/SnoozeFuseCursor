@@ -104,7 +104,7 @@ struct AudioOutputUI: View {
     @State private var moveOutDirection: Edge = .trailing
     
     var body: some View {
-        VStack(alignment: .center, spacing: 4) {
+        VStack(alignment: .center, spacing: 6) {
             // Header with title and help button
             HStack {
                 Text("AUDIO OUTPUT")
@@ -248,10 +248,8 @@ struct AudioOutputUI: View {
             // Reset animation state when view appears
             showMoveAnimation = false
             
-            // Update connected device info
-            audioManager.updateConnectedDeviceName()
-            
             // Apply audio output setting when UI appears
+            audioManager.updateConnectedDeviceName()
             audioManager.applyAudioOutputSetting()
         }
     }

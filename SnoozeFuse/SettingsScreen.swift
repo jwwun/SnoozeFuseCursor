@@ -1112,6 +1112,7 @@ struct SettingsScreen: View {
     @ObservedObject private var presetManager = PresetManager.shared
     @State private var presetsRefreshTrigger = false // Force view updates for presets
     @State private var audioOutputRefreshTrigger = false // Force view updates for audio output UI
+    @State private var volumeRefreshTrigger = false // Force view updates for volume UI
     
     var body: some View {
         ZStack {
@@ -1187,17 +1188,31 @@ struct SettingsScreen: View {
                                 .padding(.horizontal, 8)
                             }
                             
-                            // Audio Output UI - only show if not hidden - now as a separate section
-                            if !AudioOutputManager.shared.isHiddenFromMainSettings {
+                            // Audio UI Group
+                            if !AudioOutputManager.shared.isHiddenFromMainSettings || !AudioVolumeManager.shared.isHiddenFromMainSettings {
                                 VStack(alignment: .center, spacing: 15) {
-                                    AudioOutputUI()
+                                    Text("AUDIO SETTINGS")
+                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color.blue.opacity(0.7))
+                                        .tracking(3)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                    
+                                    // Audio Output UI - only show if not hidden
+                                    if !AudioOutputManager.shared.isHiddenFromMainSettings {
+                                        AudioOutputUI()
+                                    }
+                                    
+                                    // Audio Volume UI - only show if not hidden
+                                    if !AudioVolumeManager.shared.isHiddenFromMainSettings {
+                                        AudioVolumeUI()
+                                    }
                                 }
                                 .padding(.vertical, 16)
                                 .padding(.horizontal, 12)
                                 .background(Color.gray.opacity(0.2))
                                 .cornerRadius(15)
                                 .padding(.horizontal, 8)
-                                .id("audioOutputUI-\(audioOutputRefreshTrigger)") // Force refresh when trigger changes
+                                .id("audioGroup-\(audioOutputRefreshTrigger)-\(volumeRefreshTrigger)")
                             }
                             
                             // Alarm sound selection
@@ -1295,11 +1310,20 @@ struct SettingsScreen: View {
                     self.audioOutputRefreshTrigger.toggle()
                 }
             }
+            
+            // Add observer for volume UI state changes
+            NotificationCenter.default.addObserver(forName: .audioVolumeUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.volumeRefreshTrigger.toggle()
+                }
+            }
         }
         .onDisappear {
             // Remove the observers when view disappears
             NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
             NotificationCenter.default.removeObserver(self, name: .audioOutputUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .audioVolumeUIStateChanged, object: nil)
         }
     }
     

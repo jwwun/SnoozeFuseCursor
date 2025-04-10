@@ -199,7 +199,6 @@ Used for managers that need global access:
   - Uses enhanced AVAudioSession routing with multi-step approach to force speaker output
   - Handles interruptions (phone calls, etc.) correctly to maintain selected output
   - Updates dynamically when devices connect/disconnect
-  - Works for both alarm sounds and sound previews
 
 ## Future Improvements
 
@@ -710,3 +709,36 @@ The connecting line can be disabled in Advanced Settings > Visual Settings if pr
 
 ### Implementation Details
 - Implemented `MultiSwipeConfirmation`
+
+### Audio Controls Features
+- **Speaker/Bluetooth Control**: 
+  - Users can select whether alarm audio plays from the device speaker or Bluetooth
+  - Default Speaker Mode: App uses the device speaker by default, even when Bluetooth devices are connected
+  - Connected Device Detection: Shows what Bluetooth/external audio device is currently connected
+- **Volume Controls**:
+  - Customizable alarm volume slider (default: 100%)
+  - Option to enforce minimum volume level (default: on)
+  - Adjustable minimum volume threshold (default: 10%)
+  - When minimum volume is enforced, alarms will sound at least at the set minimum regardless of device volume
+  - Collapsible UI - can be hidden to reduce visual clutter
+- **Enhanced Speaker Routing**: 
+  - When "Device Speaker" is selected, the app routes alarm audio to the device's internal speaker
+  - Uses a graceful, reliable approach to route audio correctly without lag
+  - Intelligently checks current output state before making changes
+  - Maintains speaker preference even when Bluetooth devices are connected
+  - Prevents missed alarms from Bluetooth headphones with limited battery
+- **Visual Feedback**: 
+  - Clear visual indication of selected output mode and volume levels
+  - Haptic feedback when changing settings
+- **Movable UI Component**: 
+  - Each control can be moved independently between main Settings and Advanced Settings
+  - "Hide" button moves UI to Advanced Settings instantly
+  - "To Settings" button moves UI back to main Settings
+  - Location preference persists between app launches
+- **Help System**: 
+  - "?" button explains audio output and volume functionality
+  - Clear instructions for choosing options
+- **Technical Implementation**:
+  - Uses AVAudioSession routing with graceful handling of route changes
+  - Handles interruptions (phone calls, etc.) correctly to maintain selected output and volume
+  - Updates dynamically when devices connect/disconnect

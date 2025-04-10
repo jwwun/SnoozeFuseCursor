@@ -13,6 +13,8 @@ struct AdvancedSettingsScreen: View {
     @State private var audioOutputRefreshTrigger = false
     @State private var advancedSaveCountdown = 3
     @State private var showNewSectionBadge = false
+    @State private var presetRefreshTrigger = false
+    @State private var volumeRefreshTrigger = false
     
     var body: some View {
         ZStack {
@@ -181,6 +183,22 @@ struct AdvancedSettingsScreen: View {
                             .animation(.easeInOut(duration: 0.3), value: audioOutputRefreshTrigger)
                             .id("audioOutputUI-\(audioOutputRefreshTrigger)")
                             .padding(.top, presetManager.isHiddenFromMainSettings ? 10 : 0)
+                        }
+                        
+                        // Add Audio Volume UI if hidden from main settings - in its own frame
+                        if AudioVolumeManager.shared.isHiddenFromMainSettings {
+                            VStack(alignment: .center, spacing: 15) {
+                                AudioVolumeUI()
+                            }
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 12)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(15)
+                            .padding(.horizontal, 8)
+                            .transition(.move(edge: .trailing))
+                            .animation(.easeInOut(duration: 0.3), value: volumeRefreshTrigger)
+                            .id("volumeUI-\(volumeRefreshTrigger)")
+                            .padding(.top, 10)
                         }
                         
                         // Haptic Settings Section
@@ -376,6 +394,14 @@ struct AdvancedSettingsScreen: View {
                     self.audioOutputRefreshTrigger.toggle()
                 }
             }
+
+            // Add observer for volume UI state changes
+            NotificationCenter.default.addObserver(forName: .audioVolumeUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.volumeRefreshTrigger.toggle()
+                }
+            }
         }
         .onDisappear {
             // Save orientation settings when leaving the screen
@@ -383,6 +409,8 @@ struct AdvancedSettingsScreen: View {
             
             // Remove the observer when view disappears
             NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .audioOutputUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .audioVolumeUIStateChanged, object: nil)
         }
     }
 }
