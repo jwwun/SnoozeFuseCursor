@@ -62,7 +62,7 @@ struct AdvancedSettingsScreen: View {
                                                 .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
                                                                 Color.green : Color.orange)
                                             
-                                            Text("Critical Alerts: \(notificationManager.isCriticalAlertsAuthorized ? "Enabled" : "Disabled")")
+                                            Text("Optional Critical Alerts: \(notificationManager.isCriticalAlertsAuthorized ? "Enabled" : "Disabled")")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
                                                                 Color.green.opacity(0.8) : Color.orange.opacity(0.8))
@@ -281,7 +281,7 @@ struct AdvancedSettingsScreen: View {
                         // Add info about critical alerts
                         if notificationManager.isNotificationAuthorized {
                             VStack(alignment: .center, spacing: 8) {
-                                Text("Critical Alerts")
+                                Text("Optional Critical Alerts")
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.white)
                                 

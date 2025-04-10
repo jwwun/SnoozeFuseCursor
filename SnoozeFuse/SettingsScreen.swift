@@ -509,17 +509,27 @@ struct TimerSettingsControl: View {
             let hours = totalSeconds / 3600
             let minutes = (totalSeconds % 3600) / 60
             let seconds = totalSeconds % 60
-            return "\(hours)hr \(minutes)min \(seconds)sec"
+            
+            if seconds == 0 {
+                return "\(hours) hr \(minutes) min"
+            } else {
+                return "\(hours) hr \(minutes) min \(seconds) sec"
+            }
         } 
         // Use minutes format if 60 seconds or more
         else if totalSeconds >= 60 {
             let minutes = totalSeconds / 60
             let seconds = totalSeconds % 60
-            return "\(minutes)min \(seconds)sec"
+            
+            if seconds == 0 {
+                return "\(minutes) min"
+            } else {
+                return "\(minutes) min \(seconds) sec"
+            }
         } 
         // Use seconds only format if less than 60 seconds
         else {
-            return "\(totalSeconds)sec"
+            return "\(totalSeconds) sec"
         }
     }
     

@@ -17,7 +17,7 @@ struct PresetUI: View {
         let napStr = formatTime(napDuration)
         let maxStr = formatTime(maxDuration)
         
-        return "\(holdStr) → \(napStr) → \(maxStr)"
+        return "\(holdStr)→\(napStr)→\(maxStr)"
     }
     
     // Format a single duration
