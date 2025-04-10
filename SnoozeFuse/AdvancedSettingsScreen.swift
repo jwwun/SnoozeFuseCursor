@@ -7,8 +7,12 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var orientationManager = OrientationManager.shared
     @ObservedObject var notificationManager = NotificationManager.shared
     @ObservedObject var presetManager = PresetManager.shared
+    @ObservedObject var audioManager = AudioOutputManager.shared
     @EnvironmentObject var timerManager: TimerManager
     @State private var presetsRefreshTrigger = false // Force view updates for presets
+    @State private var audioOutputRefreshTrigger = false
+    @State private var advancedSaveCountdown = 3
+    @State private var showNewSectionBadge = false
     
     var body: some View {
         ZStack {
@@ -161,6 +165,22 @@ struct AdvancedSettingsScreen: View {
                                 .transition(.move(edge: .trailing))
                                 .animation(.easeInOut(duration: 0.3), value: presetsRefreshTrigger)
                                 .id("presetUI-\(presetsRefreshTrigger)")
+                        }
+                        
+                        // Show Audio Output UI if hidden from main settings - in its own frame
+                        if audioManager.isHiddenFromMainSettings {
+                            VStack(alignment: .center, spacing: 15) {
+                                AudioOutputUI()
+                            }
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 12)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(15)
+                            .padding(.horizontal, 8)
+                            .transition(.move(edge: .trailing))
+                            .animation(.easeInOut(duration: 0.3), value: audioOutputRefreshTrigger)
+                            .id("audioOutputUI-\(audioOutputRefreshTrigger)")
+                            .padding(.top, presetManager.isHiddenFromMainSettings ? 10 : 0)
                         }
                         
                         // Haptic Settings Section
@@ -346,6 +366,14 @@ struct AdvancedSettingsScreen: View {
                 // Toggle the refresh trigger to force UI update
                 withAnimation {
                     self.presetsRefreshTrigger.toggle()
+                }
+            }
+            
+            // Add observer for audio output UI state changes
+            NotificationCenter.default.addObserver(forName: .audioOutputUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.audioOutputRefreshTrigger.toggle()
                 }
             }
         }

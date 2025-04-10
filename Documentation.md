@@ -172,6 +172,35 @@ Used for managers that need global access:
   - Presets persist across app launches
   - State restoration preserves user customizations
 
+### Audio Output Selection Feature
+- **Speaker/Bluetooth Control**: Users can select whether alarm audio plays from the device speaker or Bluetooth
+- **Default Speaker Mode**: App uses the device speaker by default, even when Bluetooth devices are connected
+- **Bluetooth Mode Option**: Option to use connected headphones or Bluetooth devices for alarm sounds
+- **Standalone UI Section**: Implemented as a dedicated UI card on the main settings screen, similar to Circle Size and Alarm Sound
+- **Connected Device Detection**: Shows what Bluetooth/external audio device is currently connected
+- **Enhanced Speaker Enforcement**: 
+  - When "Device Speaker" is selected, the app forcibly routes alarm audio to the device's internal speaker
+  - This works even when AirPods or other Bluetooth devices are connected and active
+  - Users can listen to other audio via Bluetooth, but alarms will always play through the phone speaker
+  - Prevents missing alarms when using Bluetooth headphones with limited battery life
+- **Visual Feedback**: 
+  - Clear visual indication of selected output mode
+  - Haptic feedback when changing selection 
+- **Movable UI Component**: 
+  - Can be moved between main Settings and Advanced Settings
+  - "Hide" button moves Audio Output UI to Advanced Settings instantly
+  - "To Settings" button moves Audio Output UI back to main Settings
+  - Location preference persists between app launches
+  - Located in Advanced Settings by default to keep main UI clean
+- **Help System**: 
+  - "?" button explains audio output functionality
+  - Clear instructions for choosing between Speaker and Bluetooth
+- **Technical Implementation**:
+  - Uses enhanced AVAudioSession routing with multi-step approach to force speaker output
+  - Handles interruptions (phone calls, etc.) correctly to maintain selected output
+  - Updates dynamically when devices connect/disconnect
+  - Works for both alarm sounds and sound previews
+
 ## Future Improvements
 
 ### Potential Refactoring Opportunities

@@ -69,7 +69,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback)
             try AVAudioSession.sharedInstance().setActive(true)
-            print("Initial audio session setup succeeded")
+            
+            // Apply audio output settings from user preferences
+            AudioOutputManager.shared.applyAudioOutputSetting()
+            
+            print("Initial audio session setup succeeded with output route: \(AudioOutputManager.shared.useSpeaker ? "Speaker" : "Default/Bluetooth")")
         } catch {
             print("Warning: Failed to set up initial audio session: \(error)")
         }
@@ -191,6 +195,7 @@ struct SnoozeFuseApp: App {
     @StateObject private var timerManager = TimerManager()
     @StateObject private var orientationManager = OrientationManager.shared
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var audioOutputManager = AudioOutputManager.shared
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @Environment(\.scenePhase) private var scenePhase
     
@@ -215,6 +220,13 @@ struct SnoozeFuseApp: App {
                     
                     // Debug log for orientation settings
                     print("App appeared: Orientation Lock: \(orientationManager.isLockEnabled), Orientation: \(orientationManager.orientation.rawValue)")
+                    
+                    // Load audio output settings
+                    let savedIsHidden = UserDefaults.standard.bool(forKey: "audioOutputUIHidden")
+                    audioOutputManager.isHiddenFromMainSettings = savedIsHidden
+                    
+                    // Apply audio output settings
+                    audioOutputManager.applyAudioOutputSetting()
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
@@ -223,6 +235,9 @@ struct SnoozeFuseApp: App {
                         
                         // Clear the app badge number when app becomes active
                         UIApplication.shared.applicationIconBadgeNumber = 0
+                        
+                        // Re-apply audio output settings when app becomes active
+                        audioOutputManager.applyAudioOutputSetting()
                     }
                     
                     // Handle app going to background

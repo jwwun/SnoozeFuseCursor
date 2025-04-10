@@ -646,16 +646,6 @@ struct TimerSettingsControl: View {
                  .foregroundColor(Color.orange.opacity(0.8))
                  .padding(.top, 8)
              }
-             
-            // Timer presets section - only show if not hidden
-            if !presetManager.isHiddenFromMainSettings {
-                Divider()
-                    .background(Color.gray.opacity(0.4))
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 20)
-                
-                PresetUI()
-            }
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 12)
@@ -1121,6 +1111,7 @@ struct SettingsScreen: View {
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var presetManager = PresetManager.shared
     @State private var presetsRefreshTrigger = false // Force view updates for presets
+    @State private var audioOutputRefreshTrigger = false // Force view updates for audio output UI
     
     var body: some View {
         ZStack {
@@ -1183,6 +1174,31 @@ struct SettingsScreen: View {
                                 napDuration: $timerManager.napDuration,
                                 maxDuration: $timerManager.maxDuration
                             )
+                            
+                            // Timer presets section - only show if not hidden
+                            if !presetManager.isHiddenFromMainSettings {
+                                VStack(alignment: .center, spacing: 10) {
+                                    PresetUI()
+                                }
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 12)
+                                .background(Color.gray.opacity(0.2))
+                                .cornerRadius(15)
+                                .padding(.horizontal, 8)
+                            }
+                            
+                            // Audio Output UI - only show if not hidden - now as a separate section
+                            if !AudioOutputManager.shared.isHiddenFromMainSettings {
+                                VStack(alignment: .center, spacing: 15) {
+                                    AudioOutputUI()
+                                }
+                                .padding(.vertical, 16)
+                                .padding(.horizontal, 12)
+                                .background(Color.gray.opacity(0.2))
+                                .cornerRadius(15)
+                                .padding(.horizontal, 8)
+                                .id("audioOutputUI-\(audioOutputRefreshTrigger)") // Force refresh when trigger changes
+                            }
                             
                             // Alarm sound selection
                             AlarmSoundSelector(
@@ -1271,10 +1287,19 @@ struct SettingsScreen: View {
                     self.presetsRefreshTrigger.toggle()
                 }
             }
+            
+            // Add observer for audio output UI state changes
+            NotificationCenter.default.addObserver(forName: .audioOutputUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.audioOutputRefreshTrigger.toggle()
+                }
+            }
         }
         .onDisappear {
-            // Remove the observer when view disappears
+            // Remove the observers when view disappears
             NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .audioOutputUIStateChanged, object: nil)
         }
     }
     
