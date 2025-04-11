@@ -2,7 +2,7 @@ import SwiftUI
 
 // Completely separate preview overlay structure
 struct CirclePreviewOverlay: View {
-    let circleSize: CGFloat
+    @ObservedObject private var circleSizeManager = CircleSizeManager.shared
     @Binding var isVisible: Bool
     
     var body: some View {
@@ -20,16 +20,16 @@ struct CirclePreviewOverlay: View {
                 // Circle display
                 ZStack {
                     // Real-sized circle
-                    CircleView(size: circleSize)
+                    CircleView(size: circleSizeManager.circleSize)
                         // Don't constrain the size at all
-                        .frame(width: circleSize, height: circleSize)
+                        .frame(width: circleSizeManager.circleSize, height: circleSizeManager.circleSize)
                         .position(
                             x: fullScreen.size.width / 2,
                             y: fullScreen.size.height / 2 - 50
                         )
                     
                     // Size indicator
-                    Text("HOLD CIRCLE SIZE: \(Int(circleSize))")
+                    Text("HOLD CIRCLE SIZE: \(Int(circleSizeManager.circleSize))")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .tracking(2)
@@ -45,7 +45,7 @@ struct CirclePreviewOverlay: View {
                         )
                         .position(
                             x: fullScreen.size.width / 2,
-                            y: min(fullScreen.size.height - 100, fullScreen.size.height / 2 + circleSize / 2 + 40)
+                            y: min(fullScreen.size.height - 100, fullScreen.size.height / 2 + circleSizeManager.circleSize / 2 + 40)
                         )
                 }
             }

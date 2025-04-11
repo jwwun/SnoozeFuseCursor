@@ -460,11 +460,8 @@ class AudioPlayerManager: ObservableObject {
         
         let useSpeaker = AudioOutputManager.shared.useSpeaker
         
-        // STEP 1: Set the system volume to match our alarm volume setting
-        // (This will now affect both speaker and headphones, and show the system volume UI)
-        // Only update system volume if significantly different from current
-        let currentVolume = AVAudioSession.sharedInstance().outputVolume
-        if abs(currentVolume - AudioVolumeManager.shared.alarmVolume) > 0.1 {
+        // Only force system volume if enabled
+        if AudioVolumeManager.shared.forceSystemVolume {
             AudioVolumeManager.shared.setSystemVolume(to: AudioVolumeManager.shared.alarmVolume)
         }
         
@@ -480,87 +477,113 @@ class AudioPlayerManager: ObservableObject {
                 // Always include mixWithOthers in our options to prevent audio conflicts
                 var sessionOptions: AVAudioSession.CategoryOptions = [.mixWithOthers]
                 
-                if useSpeaker {
-                    // For speaker output, but still mix with others
-                    print("🔊 Using speaker with mixing enabled")
-                    
-                    // STRONGER SPEAKER ENFORCEMENT APPROACH:
-                    // 1. First try a clean approach with mixWithOthers
-                    sessionOptions = [.mixWithOthers, .defaultToSpeaker]
-                    try AVAudioSession.sharedInstance().setCategory(
-                        .playAndRecord, // Changed to playAndRecord which works better with defaultToSpeaker
-                        mode: .default,
-                        options: sessionOptions
-                    )
-                    try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                    
-                    // Quick verification
-                    var isOnSpeaker = AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType == .builtInSpeaker
-                    print("🔊 Initial speaker routing attempt: \(isOnSpeaker ? "Success" : "Failed")")
-                    
-                    // If the first attempt didn't work, try the more aggressive approach
-                    // But keep the mixWithOthers option to maintain compatibility with other audio
-                    if !isOnSpeaker {
-                        print("🔊 First speaker attempt failed - trying more aggressive approach while preserving mixing")
+                // Only override system settings if forceSystemVolume is enabled
+                if AudioVolumeManager.shared.forceSystemVolume {
+                    if useSpeaker {
+                        // For speaker output, but still mix with others
+                        print("🔊 Using speaker with mixing enabled")
                         
-                        // 2. More aggressive with temporary deactivation
-                        try AVAudioSession.sharedInstance().setActive(false)
-                        
-                        // 3. Reset and try spokenAudio mode which often helps force speaker
+                        // STRONGER SPEAKER ENFORCEMENT APPROACH:
+                        // 1. First try a clean approach with mixWithOthers
                         sessionOptions = [.mixWithOthers, .defaultToSpeaker]
                         try AVAudioSession.sharedInstance().setCategory(
-                            .playAndRecord,
-                            mode: .spokenAudio, // This mode often helps force speaker
+                            .playAndRecord, // Changed to playAndRecord which works better with defaultToSpeaker
+                            mode: .default,
                             options: sessionOptions
                         )
-                        try AVAudioSession.sharedInstance().setActive(true)
+                        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
                         try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
                         
-                        // Final verification
-                        isOnSpeaker = AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType == .builtInSpeaker
-                        print("🔊 Aggressive speaker routing with mixing: \(isOnSpeaker ? "Success" : "Still failed")")
+                        // Quick verification
+                        var isOnSpeaker = AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType == .builtInSpeaker
+                        print("🔊 Initial speaker routing attempt: \(isOnSpeaker ? "Success" : "Failed")")
                         
-                        // 4. Ultimate fallback - if it's absolutely critical to be on speaker and other approaches failed
-                        // The nuclear option, but keep mixWithOthers
-                        if !isOnSpeaker && !isOtherAudioPlaying {
-                            print("🔊 Final speaker enforcement attempt - temporary category change sequence")
+                        // If the first attempt didn't work, try the more aggressive approach
+                        // But keep the mixWithOthers option to maintain compatibility with other audio
+                        if !isOnSpeaker {
+                            print("🔊 First speaker attempt failed - trying more aggressive approach while preserving mixing")
                             
-                            // Temporary soloAmbient to disconnect Bluetooth, then back to mixing mode
-                            try AVAudioSession.sharedInstance().setActive(false)
-                            // Break any existing routing first (especially Bluetooth)
-                            try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
-                            try AVAudioSession.sharedInstance().setActive(true)
+                            // 2. More aggressive with temporary deactivation
                             try AVAudioSession.sharedInstance().setActive(false)
                             
-                            // Then back to our desired mixed + speaker config
+                            // 3. Reset and try spokenAudio mode which often helps force speaker
                             sessionOptions = [.mixWithOthers, .defaultToSpeaker]
                             try AVAudioSession.sharedInstance().setCategory(
                                 .playAndRecord,
-                                mode: .spokenAudio,
+                                mode: .spokenAudio, // This mode often helps force speaker
                                 options: sessionOptions
                             )
                             try AVAudioSession.sharedInstance().setActive(true)
                             try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
                             
+                            // Final verification
                             isOnSpeaker = AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType == .builtInSpeaker
-                            print("🔊 Nuclear speaker enforcement with mixing restored: \(isOnSpeaker ? "Finally worked" : "Ultimate failure")")
+                            print("🔊 Aggressive speaker routing with mixing: \(isOnSpeaker ? "Success" : "Still failed")")
+                            
+                            // 4. Ultimate fallback - if it's absolutely critical to be on speaker and other approaches failed
+                            // The nuclear option, but keep mixWithOthers
+                            if !isOnSpeaker && !isOtherAudioPlaying {
+                                print("🔊 Final speaker enforcement attempt - temporary category change sequence")
+                                
+                                // Temporary soloAmbient to disconnect Bluetooth, then back to mixing mode
+                                try AVAudioSession.sharedInstance().setActive(false)
+                                // Break any existing routing first (especially Bluetooth)
+                                try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
+                                try AVAudioSession.sharedInstance().setActive(true)
+                                try AVAudioSession.sharedInstance().setActive(false)
+                                
+                                // Then back to our desired mixed + speaker config
+                                sessionOptions = [.mixWithOthers, .defaultToSpeaker]
+                                try AVAudioSession.sharedInstance().setCategory(
+                                    .playAndRecord,
+                                    mode: .spokenAudio,
+                                    options: sessionOptions
+                                )
+                                try AVAudioSession.sharedInstance().setActive(true)
+                                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                                
+                                isOnSpeaker = AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType == .builtInSpeaker
+                                print("🔊 Nuclear speaker enforcement with mixing restored: \(isOnSpeaker ? "Finally worked" : "Ultimate failure")")
+                            }
                         }
+                    } else {
+                        // For headphones/Bluetooth, keep mixWithOthers and add device options
+                        print("🔊 Using external audio output with mixing enabled")
+                        
+                        // Add Bluetooth/AirPlay options but keep mixWithOthers
+                        sessionOptions.insert(.allowBluetooth)
+                        sessionOptions.insert(.allowAirPlay)
+                        
+                        try AVAudioSession.sharedInstance().setCategory(
+                            .playback,
+                            mode: .default,
+                            options: sessionOptions
+                        )
+                        try AVAudioSession.sharedInstance().setActive(true)
                     }
                 } else {
-                    // For headphones/Bluetooth, keep mixWithOthers and add device options
-                    print("🔊 Using external audio output with mixing enabled")
-                    
-                    // Add Bluetooth/AirPlay options but keep mixWithOthers
-                    sessionOptions.insert(.allowBluetooth)
-                    sessionOptions.insert(.allowAirPlay)
-                    
-                    try AVAudioSession.sharedInstance().setCategory(
-                        .playback,
-                        mode: .default,
-                        options: sessionOptions
-                    )
-                    try AVAudioSession.sharedInstance().setActive(true)
+                    // When forceSystemVolume is off, still respect speaker override if enabled
+                    if useSpeaker {
+                        // Use speaker but don't force volume
+                        print("🔊 Using speaker without forcing volume")
+                        sessionOptions = [.mixWithOthers, .defaultToSpeaker]
+                        try AVAudioSession.sharedInstance().setCategory(
+                            .playAndRecord,
+                            mode: .default,
+                            options: sessionOptions
+                        )
+                        try AVAudioSession.sharedInstance().setActive(true)
+                        try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                    } else {
+                        // Basic playback that respects system settings
+                        print("🔊 Using basic playback that respects system settings")
+                        try AVAudioSession.sharedInstance().setCategory(
+                            .playback,
+                            mode: .default,
+                            options: [.mixWithOthers]
+                        )
+                        try AVAudioSession.sharedInstance().setActive(true)
+                    }
                 }
                 
                 // Dispatch back to main thread for player setup
@@ -588,7 +611,8 @@ class AudioPlayerManager: ObservableObject {
             freshPlayer.numberOfLoops = -1 // Loop indefinitely
             
             // Set volume BEFORE assigning to property
-            let playerVolume = AudioVolumeManager.shared.getAdjustedPlayerVolume()
+            let playerVolume = AudioVolumeManager.shared.forceSystemVolume ? 
+                AudioVolumeManager.shared.getAdjustedPlayerVolume() : 1.0
             freshPlayer.volume = playerVolume
             
             // Now safely assign to property

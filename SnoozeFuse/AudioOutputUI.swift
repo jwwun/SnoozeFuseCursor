@@ -155,7 +155,7 @@ struct AudioOutputUI: View {
                     .foregroundColor(.white.opacity(0.8))
                 }
             }
-            .padding(.bottom, 5)
+            .padding(.bottom, 3)
             .frame(maxWidth: .infinity, alignment: .center)
             
             // Audio output selector buttons in a more compact layout
@@ -242,7 +242,7 @@ struct AudioOutputUI: View {
             }
             .padding(.horizontal, 3)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .offset(x: showMoveAnimation ? (moveOutDirection == .trailing ? 500 : -500) : 0)
         .onAppear {
             // Reset animation state when view appears

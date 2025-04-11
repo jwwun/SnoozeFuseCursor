@@ -167,7 +167,7 @@ struct PresetUI: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 6)
-        .background(Color.gray.opacity(0.15))
+        .background(Color.black.opacity(0.25))
         .cornerRadius(10)
         .padding(.horizontal, 0)
         .padding(.top, -8) // Use negative padding at the top

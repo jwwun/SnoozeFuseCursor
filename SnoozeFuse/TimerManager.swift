@@ -32,8 +32,11 @@ class TimerManager: ObservableObject {
     @Published var napDuration: TimeInterval = 60
     @Published var maxDuration: TimeInterval = 120
     
+    // Forward from CircleSizeManager
     @Published var circleSize: CGFloat = 250
     @Published var isFullScreenMode: Bool = false
+    
+    // Forward from other UI managers
     @Published var showTimerArcs: Bool = true
     @Published var showConnectingLine: Bool = true
     
@@ -57,9 +60,7 @@ class TimerManager: ObservableObject {
             guard let self = self else { return }
             
             // Now set up all the bindings
-            self.setupTimerControllerBindings()
-            self.setupSettingsManagerBindings()
-            self.setupSoundManagerBindings()
+            self.setupBindings()
         }
     }
     
@@ -85,6 +86,14 @@ class TimerManager: ObservableObject {
     }
     
     // MARK: - Property Forwarding
+    
+    private func setupBindings() {
+        setupSettingsBindings()
+        setupTimerControllerBindings()
+        setupSoundManagerBindings()
+        setupCircleSizeBindings()
+        print("📱 TimerManager bindings initialized successfully")
+    }
     
     private func setupTimerControllerBindings() {
         // Set initial values
@@ -140,7 +149,7 @@ class TimerManager: ObservableObject {
             .store(in: &cancellables)
     }
     
-    private func setupSettingsManagerBindings() {
+    private func setupSettingsBindings() {
         // Listen for changes in SettingsManager to update TimerManager
         SettingsManager.shared.$holdDuration
             .sink { [weak self] newValue in
@@ -244,6 +253,22 @@ class TimerManager: ObservableObject {
             .sink { [weak self] newValue in
                 self?.isPlayingAlarm = newValue
             }
+            .store(in: &cancellables)
+    }
+    
+    // Forward all CircleSizeManager settings
+    private func setupCircleSizeBindings() {
+        // Set initial values
+        circleSize = CircleSizeManager.shared.circleSize
+        isFullScreenMode = CircleSizeManager.shared.isFullScreenMode
+        
+        // Forward circle size properties
+        CircleSizeManager.shared.$circleSize
+            .assign(to: \.circleSize, on: self)
+            .store(in: &cancellables)
+            
+        CircleSizeManager.shared.$isFullScreenMode
+            .assign(to: \.isFullScreenMode, on: self)
             .store(in: &cancellables)
     }
     
@@ -434,15 +459,15 @@ class TimerManager: ObservableObject {
         SettingsManager.shared.maxDuration = value
     }
     
-    // UI settings
+    // UI settings - now forward to CircleSizeManager
     func setCircleSize(_ value: CGFloat) {
         circleSize = value
-        SettingsManager.shared.circleSize = value
+        CircleSizeManager.shared.circleSize = value
     }
     
     func setFullScreenMode(_ value: Bool) {
         isFullScreenMode = value
-        SettingsManager.shared.isFullScreenMode = value
+        CircleSizeManager.shared.isFullScreenMode = value
     }
     
     func setShowTimerArcs(_ value: Bool) {

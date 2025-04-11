@@ -23,7 +23,7 @@ struct AudioVolumeUI: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "This controls the device volume when the alarm plays.\n\nThis will change your device's system volume to match this setting when the alarm sounds - including volume of any connected AirPods or Bluetooth devices.")
+                HelpButton(helpText: "This controls the device volume when the alarm plays.\n\nWhen enabled, this will change your device's system volume to match the setting when the alarm sounds - including volume of any connected AirPods or Bluetooth devices.")
                 
                 Spacer()
                 
@@ -64,78 +64,90 @@ struct AudioVolumeUI: View {
             
             // Main Volume Control
             VStack(alignment: .leading, spacing: 2) {
+                // Force system volume toggle as primary control
                 HStack {
-                    Text("System Volume")
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.9))
-                    
-                    Spacer()
-                    
-                    // Volume value display
-                    Text(formatPercentage(sliderDragging ? currentVolume : volumeManager.alarmVolume))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
-                        .frame(width: 40, alignment: .trailing)
-                        .animation(.none, value: sliderDragging)
+                    Toggle(isOn: $volumeManager.forceSystemVolume) {
+                        Text("Force System Volume")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                    .onChange(of: volumeManager.forceSystemVolume) { newValue in
+                        volumeManager.saveSettings()
+                        if newValue {
+                            // When enabling, immediately apply the current volume setting
+                            volumeManager.setSystemVolume(to: volumeManager.alarmVolume)
+                        }
+                    }
                 }
+                .padding(.bottom, 4)
                 
-                // Volume slider with icons
-                HStack(spacing: 8) {
-                    Image(systemName: "speaker.wave.1.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.6))
-                    
-                    // A more responsive slider implementation
-                    SliderView(
-                        value: Binding(
-                            get: { self.sliderDragging ? self.currentVolume : self.volumeManager.alarmVolume },
-                            set: { newValue in
-                                self.currentVolume = newValue
-                                if !self.sliderDragging {
-                                    self.volumeManager.alarmVolume = newValue
+                if volumeManager.forceSystemVolume {
+                    // Volume slider with icons and percentage
+                    HStack(spacing: 8) {
+                        Image(systemName: "speaker.wave.1.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.6))
+                        
+                        // A more responsive slider implementation
+                        SliderView(
+                            value: Binding(
+                                get: { self.sliderDragging ? self.currentVolume : self.volumeManager.alarmVolume },
+                                set: { newValue in
+                                    self.currentVolume = newValue
+                                    if !self.sliderDragging {
+                                        self.volumeManager.alarmVolume = newValue
+                                        
+                                        // Immediately test the volume
+                                        self.volumeManager.setSystemVolume(to: newValue)
+                                        
+                                        // Fix: Save settings after setting volume
+                                        self.volumeManager.saveSettings()
+                                    }
+                                }
+                            ),
+                            range: 0.1...1.0,
+                            onEditingChanged: { editing in
+                                self.sliderDragging = editing
+                                if !editing {
+                                    // When slider is released, update the setting
+                                    self.volumeManager.alarmVolume = self.currentVolume
                                     
-                                    // Immediately test the volume
-                                    self.volumeManager.setSystemVolume(to: newValue)
+                                    // Apply new volume to system
+                                    self.volumeManager.setSystemVolume(to: self.currentVolume)
                                     
-                                    // Fix: Save settings after setting volume
+                                    // Fix: Save settings after slider is released
                                     self.volumeManager.saveSettings()
                                 }
                             }
-                        ),
-                        range: 0.1...1.0,
-                        onEditingChanged: { editing in
-                            self.sliderDragging = editing
-                            if !editing {
-                                // When slider is released, update the setting
-                                self.volumeManager.alarmVolume = self.currentVolume
-                                
-                                // Apply new volume to system
-                                self.volumeManager.setSystemVolume(to: self.currentVolume)
-                                
-                                // Fix: Save settings after slider is released
-                                self.volumeManager.saveSettings()
-                            }
-                        }
-                    )
-                    .accentColor(Color.blue.opacity(0.8))
-                    
-                    Image(systemName: "speaker.wave.3.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.6))
+                        )
+                        .accentColor(Color.blue.opacity(0.8))
+                        
+                        // Volume percentage display
+                        Text(formatPercentage(sliderDragging ? currentVolume : volumeManager.alarmVolume))
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                            .frame(width: 40, alignment: .trailing)
+                            .animation(.none, value: sliderDragging)
+                        
+                        Image(systemName: "speaker.wave.3.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                } else {
+                    // Warning when force system volume is disabled
+                    Text("You will still hear the alarm through Silent Mode and DnD.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                        .padding(.top, 2)
                 }
-                
-                // Add explanatory text about how this works
-                Text("Forces this volume when the alarm plays")
-                    .font(.system(size: 11))
-                    .foregroundColor(.white.opacity(0.6))
-                    .padding(.top, 4)
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             .padding(.horizontal, 6)
             .background(Color.black.opacity(0.2))
             .cornerRadius(8)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .offset(x: showMoveAnimation ? (moveOutDirection == .trailing ? 500 : -500) : 0)
         .onAppear {
             // Reset animation state when view appears

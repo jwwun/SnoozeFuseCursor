@@ -2,7 +2,7 @@ import Foundation
 
 // Available alarm sounds
 enum AlarmSound: String, CaseIterable, Identifiable {
-    case testAlarm = "Korone-Gura-Amelia-Kureiji Alarm"
+    case testAlarm = "Korone, Gura, Amelia, Kureiji - Yobio Mix"
     case firecracker = "Firecracker"
     case vtuberAlarm = "Korone Alarm"
     case warAmbience = "War Ambience"

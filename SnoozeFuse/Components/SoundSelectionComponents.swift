@@ -13,6 +13,9 @@ struct AlarmSoundSelector: View {
     @State private var showingManageSoundsSheet = false
     @State private var musicAuthStatus: MPMediaLibraryAuthorizationStatus = .notDetermined
     @State private var showPermissionAlert = false
+    @ObservedObject private var alarmSoundManager = AlarmSoundManager.shared
+    @State private var showMoveAnimation = false
+    @State private var moveOutDirection: Edge = .trailing
     
     var body: some View {
         VStack(alignment: .center, spacing: 3) {
@@ -24,8 +27,43 @@ struct AlarmSoundSelector: View {
                     .tracking(3)
                 
                 HelpButton(helpText: "Choose the sound that will play as a looping alarm when your nap ends. You can select from built-in sounds or add your own custom sounds. \n\n It was not possible for me to add the Apple default alarm sounds.")
+                
+                Spacer()
+                
+                // Hide/move button
+                Button(action: {
+                    // Set the direction for the animation
+                    moveOutDirection = alarmSoundManager.isHiddenFromMainSettings ? .leading : .trailing
+                    
+                    // Start the exit animation
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showMoveAnimation = true
+                    }
+                    
+                    // Haptic feedback
+                    HapticManager.shared.trigger()
+                    
+                    // After animation out, toggle the state and notify observers
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        alarmSoundManager.toggleHiddenState()
+                    }
+                }) {
+                    HStack(spacing: 2) {
+                        Image(systemName: alarmSoundManager.isHiddenFromMainSettings ? 
+                              "arrow.up.left" : "arrow.down.right")
+                            .font(.system(size: 9))
+                        Text(alarmSoundManager.isHiddenFromMainSettings ? 
+                             "To Settings" : "Hide")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
+                    .background(Color.gray.opacity(0.3))
+                    .cornerRadius(6)
+                    .foregroundColor(.white.opacity(0.8))
+                }
             }
-            .padding(.bottom, 5)
+            .padding(.bottom, 3) // Reduced from 5
             .frame(maxWidth: .infinity, alignment: .center)
             
             // Sound selection, import, preview, and manage
@@ -176,11 +214,8 @@ struct AlarmSoundSelector: View {
                 }
             }
         }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 12)
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(15)
-        .padding(.horizontal, 8)
+        .padding(.vertical, 8) // Reduced from 10
+        .offset(x: showMoveAnimation ? (moveOutDirection == .trailing ? 500 : -500) : 0)
         .sheet(isPresented: $showDocumentPicker) {
             DocumentPicker(selectedFileURL: onFileSelected)
         }
@@ -228,6 +263,8 @@ struct AlarmSoundSelector: View {
         .onAppear {
             // Load custom sounds when the selector is shown
             timerManager.loadCustomSounds()
+            // Reset animation state when view appears
+            showMoveAnimation = false
         }
     }
 

@@ -18,8 +18,11 @@ class AudioVolumeManager: ObservableObject {
     // Alarm volume (0.0-1.0) - this will control system volume when alarm plays
     @Published var alarmVolume: Float = 0.7  // Default is 70%
     
+    // Force system volume toggle
+    @Published var forceSystemVolume: Bool = true  // Default is true
+    
     // UI state property - controls if volume UI is shown in main or advanced settings
-    @Published var isHiddenFromMainSettings: Bool = true
+    @Published var isHiddenFromMainSettings: Bool = false
     
     // MARK: - Private Properties
     
@@ -83,12 +86,15 @@ class AudioVolumeManager: ObservableObject {
         // Set audio player volume first
         audioPlayer?.volume = getAdjustedPlayerVolume()
         
-        // Safer approach - only update system volume if we need to
-        let currentVolume = getCurrentSystemVolume()
-        if abs(currentVolume - alarmVolume) > 0.05 {  // Only update if difference is significant
-            // Also set system volume to match our desired volume 
-            // (This affects both speaker and external devices like headphones)
-            setSystemVolume(to: alarmVolume)
+        // Only update system volume if forceSystemVolume is enabled
+        if forceSystemVolume {
+            // Safer approach - only update system volume if we need to
+            let currentVolume = getCurrentSystemVolume()
+            if abs(currentVolume - alarmVolume) > 0.05 {  // Only update if difference is significant
+                // Also set system volume to match our desired volume 
+                // (This affects both speaker and external devices like headphones)
+                setSystemVolume(to: alarmVolume)
+            }
         }
     }
     
@@ -129,13 +135,22 @@ class AudioVolumeManager: ObservableObject {
             alarmVolume = 0.7 // 70% is a good default
         }
         
+        // Load force system volume setting
+        if defaults.object(forKey: "forceSystemVolume") != nil {
+            forceSystemVolume = defaults.bool(forKey: "forceSystemVolume")
+        } else {
+            // Default to true (enabled by default)
+            forceSystemVolume = true
+            defaults.set(true, forKey: "forceSystemVolume")
+        }
+        
         // Load UI state
         if defaults.object(forKey: "volumeUIHidden") != nil {
             isHiddenFromMainSettings = defaults.bool(forKey: "volumeUIHidden")
         } else {
-            // Default to hidden from main settings (shown in Advanced)
-            isHiddenFromMainSettings = true
-            defaults.set(true, forKey: "volumeUIHidden")
+            // Default to showing in main settings (not hidden)
+            isHiddenFromMainSettings = false
+            defaults.set(false, forKey: "volumeUIHidden")
         }
         
         // Prepare volume control
@@ -147,6 +162,7 @@ class AudioVolumeManager: ObservableObject {
     func saveSettings() {
         let defaults = UserDefaults.standard
         defaults.set(alarmVolume, forKey: "alarmVolume")
+        defaults.set(forceSystemVolume, forKey: "forceSystemVolume")
         defaults.set(isHiddenFromMainSettings, forKey: "volumeUIHidden")
     }
 } 

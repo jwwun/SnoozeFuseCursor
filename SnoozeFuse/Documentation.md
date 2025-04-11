@@ -105,6 +105,62 @@ These approaches help prevent common system-level warnings while maintaining fun
 - `Unable to open mach-O at path...RenderBox.framework/default.metallib Error:2`
 - `Publishing changes from background threads is not allowed`
 
+## Audio Settings Organization
+
+SnoozeFuse's audio settings are organized in a single unified cubby with the following components:
+
+1. **Alarm Volume**:
+   - Displayed in the main settings screen by default
+   - Controls the system volume when the alarm plays
+   - Implementation in `AudioVolumeManager.swift` and `AudioVolumeUI.swift`
+
+2. **Alarm Sound**:
+   - Integrated into the audio settings cubby with the other audio controls
+   - Has its own hide/show button for toggling visibility
+   - No separate background when inside the audio settings cubby, avoiding nested boxes
+   - When moved to advanced settings, it appears in the same audio settings cubby
+   - Allows selection from built-in and custom sounds
+   - Implementation in `Components/SoundSelectionComponents.swift` and `Managers/AlarmSoundManager.swift`
+
+3. **Audio Output**:
+   - Hidden from main settings by default (appears in advanced settings)
+   - Controls whether alarm plays through device speaker or connected audio devices
+   - Implementation in `AudioOutputManager.swift` and `AudioOutputUI.swift`
+
+This organization keeps all audio-related settings in a single cubby while still allowing users to customize which settings appear where based on their preferences. Each component can be independently moved between main and advanced settings.
+
+## About Screen Tutorial
+
+The About screen serves as both an introduction to SnoozeFuse and a tutorial on how to use the app. It consists of five pages:
+
+1. **Welcome Page**:
+   - Introduces the app's purpose: to help users take refreshing naps without feeling groggy
+   - Contains the app logo and a brief welcome message
+
+2. **Tap & Hold Mechanism**:
+   - Explains the core interaction method: tap and hold the circle to start
+   - Describes how the nap countdown begins after releasing your finger
+   - Emphasizes the natural transition to sleep
+
+3. **Smart Timer System**:
+   - Provides accurate explanation of the app's unique timer system:
+     - RELEASE TIMER: Counts down when you release your finger, starting your nap when it reaches zero
+     - NAP TIMER: Controls how long your nap lasts before the alarm sounds
+     - MAX TIMER: A failsafe that limits your total session time in case you fall into deep sleep
+   - Helps users understand the purpose of each timer for effective napping
+
+4. **Comfortable Positioning**:
+   - Provides guidance on different ways to hold or position the phone while napping
+   - Includes suggestions for using on beds and other soft surfaces
+   - Offers tip about holding sideways to prevent accidentally exiting the app
+   - Emphasizes finding a relaxed position for optimal sleep transition
+
+5. **Support Page**:
+   - Information about supporting the app's development
+   - Contains a donation link for users who wish to contribute
+
+The About screen is designed to be accessible at any time, providing both new users and returning users with a clear explanation of the app's functionality.
+
 ## Notification Permission Handling
 
 SnoozeFuse uses a just-in-time approach for requesting notification permissions:

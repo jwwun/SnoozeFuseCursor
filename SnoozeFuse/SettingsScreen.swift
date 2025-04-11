@@ -14,9 +14,13 @@ struct SettingsScreen: View {
     @State private var showNapScreen = false  // State for showing nap screen
     @ObservedObject private var notificationManager = NotificationManager.shared
     @ObservedObject private var presetManager = PresetManager.shared
+    @ObservedObject private var alarmSoundManager = AlarmSoundManager.shared
+    @ObservedObject private var circleSizeManager = CircleSizeManager.shared
     @State private var presetsRefreshTrigger = false // Force view updates for presets
     @State private var audioOutputRefreshTrigger = false // Force view updates for audio output UI
     @State private var volumeRefreshTrigger = false // Force view updates for volume UI
+    @State private var alarmSoundRefreshTrigger = false // Force view updates for alarm sound UI
+    @State private var circleSizeRefreshTrigger = false // Force view updates for circle size UI
     
     var body: some View {
         ZStack {
@@ -35,69 +39,74 @@ struct SettingsScreen: View {
                     
                     // ScrollView with better spacing
                     ScrollView {
-                        VStack(spacing: 10) {
+                        VStack(spacing: 8) {
                             // App title at the top - now with pixel animation!
-                            Image("logotransparent")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 132, height: 66)
-                                .scaleEffect(0.8)
-                                // Use safe Metal rendering that avoids errors
-                                .safeMetalRendering(isEnabled: true)
-                                .modifier(PixelateEffect(isActive: timerManager.isLogoAnimating))
-                                .onTapGesture {
-                                    if !timerManager.isLogoAnimating {
-                                        timerManager.isLogoAnimating = true
-                                        // Play haptic feedback
-                                        HapticManager.shared.trigger()
-                                        // Reset animation flag after animation completes
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                            timerManager.isLogoAnimating = false
+                            HStack {
+                                Image("logotransparent")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 132, height: 66)
+                                    .scaleEffect(0.8)
+                                    // Use safe Metal rendering that avoids errors
+                                    .safeMetalRendering(isEnabled: true)
+                                    .modifier(PixelateEffect(isActive: timerManager.isLogoAnimating))
+                                    .onTapGesture {
+                                        if !timerManager.isLogoAnimating {
+                                            timerManager.isLogoAnimating = true
+                                            // Play haptic feedback
+                                            HapticManager.shared.trigger()
+                                            // Reset animation flag after animation completes
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                                timerManager.isLogoAnimating = false
+                                            }
                                         }
                                     }
+                                
+                                Spacer()
+                                
+                                // About button
+                                NavigationLink(destination: AboutScreen()) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "info.circle")
+                                            .font(.system(size: 14))
+                                        Text("About")
+                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    }
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, -8) // topleft corner
-                                .padding(.top, -33) // make it go into the ui status boundary
-                                .padding(.bottom, 0)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, -8) // topleft corner
+                            .padding(.top, -33) // make it go into the ui status boundary
+                            .padding(.bottom, 0)
                             
                             // Notification permission warning - only show if not hidden from main settings
                             if !notificationManager.isHiddenFromMainSettings {
                                 NotificationPermissionWarning()
                             }
                             
-                            // Circle size control - now with fullscreen mode toggle
-                            CircleSizeControl(
-                                circleSize: $timerManager.circleSize,
-                                textInputValue: $textInputValue,
-                                onValueChanged: showPreviewBriefly,
-                                isFullScreenMode: $timerManager.isFullScreenMode
-                            )
+                            // Circle size control - only show if not hidden from main settings
+                            if !circleSizeManager.isHiddenFromMainSettings {
+                                CircleSizeControl(
+                                    textInputValue: $textInputValue,
+                                    onValueChanged: showPreviewBriefly
+                                )
+                            }
                             
-                            // Timer settings
+                            // Timer Settings Section
                             TimerSettingsControl(
                                 holdDuration: $timerManager.holdDuration,
                                 napDuration: $timerManager.napDuration,
                                 maxDuration: $timerManager.maxDuration
                             )
                             
-                            // Timer presets section - only show if not hidden
-                            if !presetManager.isHiddenFromMainSettings {
-                                VStack(alignment: .center, spacing: 10) {
-                                    PresetUI()
-                                }
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 12)
-                                .background(Color.gray.opacity(0.2))
-                                .cornerRadius(15)
-                                .padding(.horizontal, 8)
-                            }
-                            
                             // Audio UI Group
-                            if !AudioOutputManager.shared.isHiddenFromMainSettings || !AudioVolumeManager.shared.isHiddenFromMainSettings {
-                                VStack(alignment: .center, spacing: 15) {
+                            if !AudioOutputManager.shared.isHiddenFromMainSettings || !AudioVolumeManager.shared.isHiddenFromMainSettings || !AlarmSoundManager.shared.isHiddenFromMainSettings {
+                                VStack(alignment: .center, spacing: 3) {
                                     Text("AUDIO SETTINGS")
-                                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                                        .font(.system(size: 14, weight: .bold, design: .rounded))
                                         .foregroundColor(Color.blue.opacity(0.7))
                                         .tracking(3)
                                         .frame(maxWidth: .infinity, alignment: .center)
@@ -111,24 +120,26 @@ struct SettingsScreen: View {
                                     if !AudioVolumeManager.shared.isHiddenFromMainSettings {
                                         AudioVolumeUI()
                                     }
+                                    
+                                    // Alarm Sound UI - only show if not hidden
+                                    if !AlarmSoundManager.shared.isHiddenFromMainSettings {
+                                        AlarmSoundSelector(
+                                            selectedAlarm: $timerManager.selectedAlarmSound,
+                                            onPreview: timerManager.previewAlarmSound
+                                        )
+                                    }
                                 }
-                                .padding(.vertical, 16)
-                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 10)
                                 .background(Color.gray.opacity(0.2))
                                 .cornerRadius(15)
                                 .padding(.horizontal, 8)
-                                .id("audioGroup-\(audioOutputRefreshTrigger)-\(volumeRefreshTrigger)")
+                                .id("audioGroup-\(audioOutputRefreshTrigger)-\(volumeRefreshTrigger)-\(alarmSoundRefreshTrigger)")
                             }
-                            
-                            // Alarm sound selection
-                            AlarmSoundSelector(
-                                selectedAlarm: $timerManager.selectedAlarmSound,
-                                onPreview: timerManager.previewAlarmSound
-                            )
                             
                             // Start button
                             bottomButtonBar
-                                .padding(.top, 10)
+                                .padding(.top, 6)
                             
                             // Add extra padding at the bottom for better scrolling
                             Spacer()
@@ -192,13 +203,12 @@ struct SettingsScreen: View {
             // Completely separate preview overlay that doesn't affect layout
             if showPreview {
                 CirclePreviewOverlay(
-                    circleSize: timerManager.circleSize,
                     isVisible: $showPreview
                 )
             }
         }
         .onAppear {
-            textInputValue = "\(Int(timerManager.circleSize))"
+            textInputValue = "\(Int(circleSizeManager.circleSize))"
             
             // Add observer for preset UI state changes
             NotificationCenter.default.addObserver(forName: .presetUIStateChanged, object: nil, queue: .main) { _ in
@@ -223,12 +233,30 @@ struct SettingsScreen: View {
                     self.volumeRefreshTrigger.toggle()
                 }
             }
+            
+            // Add observer for alarm sound UI state changes
+            NotificationCenter.default.addObserver(forName: .alarmSoundUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.alarmSoundRefreshTrigger.toggle()
+                }
+            }
+            
+            // Add observer for circle size UI state changes
+            NotificationCenter.default.addObserver(forName: .circleSizeUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.circleSizeRefreshTrigger.toggle()
+                }
+            }
         }
         .onDisappear {
             // Remove the observers when view disappears
             NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
             NotificationCenter.default.removeObserver(self, name: .audioOutputUIStateChanged, object: nil)
             NotificationCenter.default.removeObserver(self, name: .audioVolumeUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .alarmSoundUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .circleSizeUIStateChanged, object: nil)
         }
     }
     

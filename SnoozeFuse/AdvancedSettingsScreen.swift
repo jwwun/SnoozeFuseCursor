@@ -8,6 +8,8 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var notificationManager = NotificationManager.shared
     @ObservedObject var presetManager = PresetManager.shared
     @ObservedObject var audioManager = AudioOutputManager.shared
+    @ObservedObject var alarmSoundManager = AlarmSoundManager.shared
+    @ObservedObject var circleSizeManager = CircleSizeManager.shared
     @EnvironmentObject var timerManager: TimerManager
     @State private var presetsRefreshTrigger = false // Force view updates for presets
     @State private var audioOutputRefreshTrigger = false
@@ -15,6 +17,8 @@ struct AdvancedSettingsScreen: View {
     @State private var showNewSectionBadge = false
     @State private var presetRefreshTrigger = false
     @State private var volumeRefreshTrigger = false
+    @State private var circleSizeRefreshTrigger = false
+    @State private var textInputValue: String = ""  // For circle size input
     
     var body: some View {
         ZStack {
@@ -170,7 +174,7 @@ struct AdvancedSettingsScreen: View {
                         }
                         
                         // AUDIO SETTINGS SECTION - Combine AudioOutput and AudioVolume in one cubby
-                        if audioManager.isHiddenFromMainSettings || AudioVolumeManager.shared.isHiddenFromMainSettings {
+                        if audioManager.isHiddenFromMainSettings || AudioVolumeManager.shared.isHiddenFromMainSettings || alarmSoundManager.isHiddenFromMainSettings {
                             VStack(alignment: .center, spacing: 15) {
                                 // Section header
                                 Text("Audio Settings")
@@ -194,8 +198,10 @@ struct AdvancedSettingsScreen: View {
                                     .id("audioOutputUI-\(audioOutputRefreshTrigger)")
                                 }
                                 
-                                // Add a divider between output and volume if both are shown
-                                if audioManager.isHiddenFromMainSettings && AudioVolumeManager.shared.isHiddenFromMainSettings {
+                                // Add a divider between components if multiple are shown
+                                if (audioManager.isHiddenFromMainSettings && AudioVolumeManager.shared.isHiddenFromMainSettings) ||
+                                   (audioManager.isHiddenFromMainSettings && alarmSoundManager.isHiddenFromMainSettings) ||
+                                   (AudioVolumeManager.shared.isHiddenFromMainSettings && alarmSoundManager.isHiddenFromMainSettings) {
                                     Divider()
                                         .background(Color.gray.opacity(0.5))
                                         .padding(.horizontal, 30)
@@ -211,6 +217,29 @@ struct AdvancedSettingsScreen: View {
                                     .transition(.move(edge: .trailing))
                                     .animation(.easeInOut(duration: 0.3), value: volumeRefreshTrigger)
                                     .id("volumeUI-\(volumeRefreshTrigger)")
+                                }
+                                
+                                // Add a divider before alarm sound if needed
+                                if (audioManager.isHiddenFromMainSettings || AudioVolumeManager.shared.isHiddenFromMainSettings) && 
+                                   alarmSoundManager.isHiddenFromMainSettings {
+                                    Divider()
+                                        .background(Color.gray.opacity(0.5))
+                                        .padding(.horizontal, 30)
+                                        .padding(.vertical, 5)
+                                }
+                                
+                                // Alarm Sound Selector if hidden from main settings
+                                if alarmSoundManager.isHiddenFromMainSettings {
+                                    VStack(alignment: .center, spacing: 10) {
+                                        AlarmSoundSelector(
+                                            selectedAlarm: $timerManager.selectedAlarmSound,
+                                            onPreview: timerManager.previewAlarmSound
+                                        )
+                                    }
+                                    .padding(.top, 5)
+                                    .transition(.move(edge: .trailing))
+                                    .animation(.easeInOut(duration: 0.3), value: presetsRefreshTrigger)
+                                    .id("alarmSoundUI-\(presetsRefreshTrigger)")
                                 }
                             }
                             .padding(.vertical, 16)
@@ -297,36 +326,26 @@ struct AdvancedSettingsScreen: View {
                                     timerManager.saveSettings()
                                 }
                             
-                            if timerManager.showTimerArcs {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("If disabled, the circular timer arcs will not be displayed around the circle during nap sessions.")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.white.opacity(0.7))
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(.horizontal)
-                                    
-                                    Text("Battery impact: Enabling timer arcs may increase battery usage by approximately 2-3% during active sessions due to additional rendering.")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.white.opacity(0.6))
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(.horizontal)
-                                        .padding(.top, 4)
-                                }
-                            }
-                            
-                            Toggle("Show sci-fi connecting line effect", isOn: $timerManager.showConnectingLine)
+                            Toggle("Show connecting line", isOn: $timerManager.showConnectingLine)
                                 .padding(.horizontal)
                                 .onChange(of: timerManager.showConnectingLine) { _ in
                                     timerManager.saveSettings()
                                 }
-                                .tint(Color.red.opacity(0.8)) // Red tint to match the line color
                             
-                            if timerManager.showConnectingLine {
-                                Text("Displays a red energy line when touching the screen in full-screen mode")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
+                            // Circle size control when hidden from main settings
+                            if circleSizeManager.isHiddenFromMainSettings {
+                                Divider()
+                                    .background(Color.gray.opacity(0.5))
                                     .padding(.horizontal)
-                                    .multilineTextAlignment(.center)
+                                    .padding(.vertical, 5)
+                                
+                                CircleSizeControl(
+                                    textInputValue: $textInputValue,
+                                    onValueChanged: {
+                                        // Preview isn't needed in advanced settings
+                                    }
+                                )
+                                .padding(.horizontal, 8)
                             }
                         }
                         .padding(.vertical, 16)
@@ -423,6 +442,14 @@ struct AdvancedSettingsScreen: View {
                     self.volumeRefreshTrigger.toggle()
                 }
             }
+
+            // Add observer for circle size UI state changes
+            NotificationCenter.default.addObserver(forName: .circleSizeUIStateChanged, object: nil, queue: .main) { _ in
+                // Toggle the refresh trigger to force UI update
+                withAnimation {
+                    self.circleSizeRefreshTrigger.toggle()
+                }
+            }
         }
         .onDisappear {
             // Save orientation settings when leaving the screen
@@ -432,6 +459,7 @@ struct AdvancedSettingsScreen: View {
             NotificationCenter.default.removeObserver(self, name: .presetUIStateChanged, object: nil)
             NotificationCenter.default.removeObserver(self, name: .audioOutputUIStateChanged, object: nil)
             NotificationCenter.default.removeObserver(self, name: .audioVolumeUIStateChanged, object: nil)
+            NotificationCenter.default.removeObserver(self, name: .circleSizeUIStateChanged, object: nil)
         }
     }
 }

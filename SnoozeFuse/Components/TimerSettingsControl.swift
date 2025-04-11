@@ -153,12 +153,18 @@ struct TimerSettingsControl: View {
                 .font(.system(size: 13))
                 .foregroundColor(.white.opacity(0.8))
                 .multilineTextAlignment(.center)
-                .padding(.top, 12)
-                .padding(.horizontal, 12)
+                .padding(.top, 8)
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle()) // Make sure it has the right hit test shape
                 .allowsHitTesting(false) // Don't let it intercept touch events
                 .safeMetalRendering() // Use safer Metal rendering approach
+
+            // Timer presets section - integrated into main cell
+            if !presetManager.isHiddenFromMainSettings {
+                PresetUI()
+                    .padding(.top, 8)
+            }
 
             // Subtle warning messages (remain the same)
              if isMaxLessThanNap || isHoldTooLong {
@@ -172,8 +178,8 @@ struct TimerSettingsControl: View {
                  .padding(.top, 8)
              }
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
         .background(Color.gray.opacity(0.2))
         .cornerRadius(15)
         .padding(.horizontal, 8)
