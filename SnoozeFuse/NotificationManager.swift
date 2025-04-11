@@ -10,6 +10,7 @@ class NotificationManager: ObservableObject {
     @Published var isNotificationAuthorized = false
     @Published var isCheckingPermission = false
     @Published var isHiddenFromMainSettings = false
+    @Published var isCriticalAlertsAuthorized: Bool = false
     
     // Keep a reference to the scheduled alarm sound timer
     private var alarmSoundTimer: Timer?
@@ -86,8 +87,15 @@ class NotificationManager: ObservableObject {
         content.title = "Wake Up!"
         content.body = "Your nap time is over."
         
-        // Use critical alert for maximum volume
-        content.sound = UNNotificationSound.defaultCritical
+        // Check if we need to use a custom CAF sound
+        if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
+            // Use the sound name directly for notifications
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
+            print("Using custom CAF sound for notification: \(cafSoundName)")
+        } else {
+            // Use critical alert for maximum volume with default sound
+            content.sound = UNNotificationSound.defaultCritical
+        }
         
         // Important: set this category
         content.categoryIdentifier = "alarmCategory"
@@ -224,7 +232,15 @@ class NotificationManager: ObservableObject {
             let content = UNMutableNotificationContent()
             content.title = "Wake Up!"
             content.body = "Your nap time is over."
-            content.sound = UNNotificationSound.defaultCritical
+            
+            // Check if we need to use a custom CAF sound
+            if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
+                // Use the sound name directly for notifications
+                content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
+            } else {
+                content.sound = UNNotificationSound.defaultCritical
+            }
+            
             content.categoryIdentifier = "alarmCategory"
             
             // Create trigger for immediate delivery with DIFFERENT identifier
@@ -272,9 +288,6 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    // Published property to track critical alerts status
-    @Published var isCriticalAlertsAuthorized: Bool = false
-    
     func checkCriticalAlertsAuthorization() {
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             DispatchQueue.main.async {
@@ -292,6 +305,47 @@ class NotificationManager: ObservableObject {
                 // Also check critical alerts authorization while we're at it
                 self?.isCriticalAlertsAuthorized = settings.criticalAlertSetting == .enabled
                 print("Critical alerts authorized: \(settings.criticalAlertSetting == .enabled)")
+            }
+        }
+    }
+    
+    // Test a CAF notification immediately with a custom sound
+    func testCAFNotification() {
+        // Make sure we have permission first
+        guard isNotificationAuthorized else { return }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Custom Sound Test"
+        content.body = "Testing your custom notification sound."
+        
+        // Check if we need to use a custom CAF sound
+        if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
+            // Use the sound name directly for notifications
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
+            print("Testing custom CAF sound: \(cafSoundName)")
+        } else {
+            // Use default sound
+            content.sound = UNNotificationSound.default
+            print("Testing with default notification sound")
+        }
+        
+        // Create trigger for immediate delivery
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        
+        // Create request with unique ID
+        let requestID = "cafTest_\(Date().timeIntervalSince1970)"
+        let request = UNNotificationRequest(
+            identifier: requestID,
+            content: content,
+            trigger: trigger
+        )
+        
+        // Add to notification center
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling CAF test notification: \(error.localizedDescription)")
+            } else {
+                print("CAF test notification scheduled successfully")
             }
         }
     }

@@ -198,13 +198,28 @@ Used for managers that need global access:
   - "To Settings" button moves Audio Output UI back to main Settings
   - Location preference persists between app launches
   - Located in Advanced Settings by default to keep main UI clean
-- **Help System**: 
-  - "?" button explains audio output functionality
-  - Clear instructions for choosing between Speaker and Bluetooth
-- **Technical Implementation**:
-  - Uses enhanced AVAudioSession routing with multi-step approach to force speaker output
-  - Handles interruptions (phone calls, etc.) correctly to maintain selected output
-  - Updates dynamically when devices connect/disconnect
+
+### Custom CAF Sound Notifications Feature
+- **Custom Notification Sounds**: Users can import and use custom .caf format sound files for notifications outside the app
+- **iOS Format Requirement**: Clear warnings and guidance explaining that iOS requires .caf format for notification sounds
+- **File Import**: UI for importing custom .caf files from the Files app
+- **Sound Management**: 
+  - List view for managing imported CAF sounds
+  - Swipe-to-delete functionality for removing sounds
+  - Selection indication for currently active sound
+- **Sound Preview**: Test button to preview selected CAF sound before using it in notifications
+- **Default Sound Option**: Option to use the default system notification sound
+- **Dedicated Test UI**: 
+  - Separate test component for sending immediate test notifications with selected sound
+  - Can test sounds with the app in foreground or background
+  - Clear feedback on whether the test was successful
+- **Format Validation**: Checks and alerts if attempting to import non-CAF files
+- **Helpful Documentation**: Built-in information about CAF files and conversion options
+- **Integration with Existing Notifications**: 
+  - Seamless integration with existing alarm notifications
+  - Custom sounds are used for both scheduled and immediate notifications
+- **Location**: Located in Advanced Settings under the Notifications section
+- **Persistence**: All custom sounds and selection preferences are saved and persist between app launches
 
 ### UI Flexibility Improvements
 - **Movable UI Sections**: All UI sections can now be moved between Advanced Settings and Main Settings

@@ -1,0 +1,8 @@
+<!-- Add the necessary keys to the Info.plist for notification sounds to work -->
+<key>UIBackgroundModes</key>
+<array>
+    <string>audio</string>
+    <string>processing</string>
+</array>
+<key>NSUserNotificationsUsageDescription</key>
+<string>We use notifications to alert you when your nap time is over, even when the app is in the background.</string> 

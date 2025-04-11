@@ -10,6 +10,7 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var audioManager = AudioOutputManager.shared
     @ObservedObject var alarmSoundManager = AlarmSoundManager.shared
     @ObservedObject var circleSizeManager = CircleSizeManager.shared
+    @ObservedObject var cafManager = CustomCAFManager.shared
     @EnvironmentObject var timerManager: TimerManager
     @State private var presetsRefreshTrigger = false // Force view updates for presets
     @State private var audioOutputRefreshTrigger = false
@@ -157,6 +158,23 @@ struct AdvancedSettingsScreen: View {
                                 // Use NotificationPermissionWarning without the Hide button
                                 NotificationPermissionWarning(showHideButton: false)
                                     .padding(.bottom, 10)
+                            }
+                            
+                            // Add CAF Sound Selection (only when notifications are authorized)
+                            if notificationManager.isNotificationAuthorized {
+                                Divider()
+                                    .background(Color.gray.opacity(0.5))
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 5)
+                                
+                                // Add CAF sound selector component
+                                CAFSoundSelector()
+                                    .padding(.horizontal, 8)
+                                    .padding(.top, 5)
+                                
+                                // Add CAF notification test component
+                                NotificationTestUI()
+                                    .padding(.top, 10)
                             }
                         }
                         .padding(.vertical, 16)
