@@ -228,8 +228,8 @@ struct SnoozeFuseApp: App {
                     // Apply audio output settings
                     audioOutputManager.applyAudioOutputSetting()
                 }
-                .onChange(of: scenePhase) { newPhase in
-                    if newPhase == .active {
+                .onChange(of: scenePhase) {
+                    if scenePhase == .active {
                         // Refresh notification permission status when app becomes active
                         notificationManager.checkNotificationPermission()
                         
@@ -241,7 +241,7 @@ struct SnoozeFuseApp: App {
                     }
                     
                     // Handle app going to background
-                    if newPhase == .background {
+                    if scenePhase == .background {
                         print("App entering background state")
                         
                         // If any timer is running, ensure background audio is properly set up
@@ -255,7 +255,7 @@ struct SnoozeFuseApp: App {
                     }
                     
                     // Handle app becoming inactive
-                    if newPhase == .inactive {
+                    if scenePhase == .inactive {
                         print("App entering inactive state, saving orientation settings")
                         orientationManager.saveSettings(forceOverride: true)
                     }
