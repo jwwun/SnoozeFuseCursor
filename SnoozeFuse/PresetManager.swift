@@ -35,6 +35,37 @@ class PresetManager: ObservableObject {
     
     init() {
         loadSettings()
+        
+        // Create default presets if none exist
+        if presets.isEmpty {
+            createDefaultPresets()
+        }
+    }
+    
+    // Create default nap presets
+    private func createDefaultPresets() {
+        // Basic nap preset: 30s -> 20m -> 30m
+        let basicNapPreset = PresetItem(
+            name: "Basic nap",
+            holdDuration: 30, // 30 seconds
+            napDuration: 20 * 60, // 20 minutes
+            maxDuration: 30 * 60 // 30 minutes
+        )
+        
+        // Quick test preset: 5s -> 20s -> 1m
+        let quickTestPreset = PresetItem(
+            name: "Quick test",
+            holdDuration: 5, // 5 seconds
+            napDuration: 20, // 20 seconds
+            maxDuration: 60 // 1 minute
+        )
+        
+        // Add presets to the array
+        presets.append(basicNapPreset)
+        presets.append(quickTestPreset)
+        
+        // Save the presets
+        saveSettings()
     }
     
     // Save settings to UserDefaults

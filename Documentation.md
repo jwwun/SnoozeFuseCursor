@@ -161,6 +161,12 @@ Used for managers that need global access:
   - "To Settings" button moves presets UI back to main Settings
   - Location preference persists between app launches
   - Located in Advanced Settings by default to keep main UI clean for newcomers
+- **Default Nap Presets**:
+  - App now includes two built-in presets for common use cases:
+    - "Basic nap": 30s → 20m → 30m (hold → nap → max) for standard napping
+    - "Quick test": 5s → 20s → 1m for quickly testing app functionality
+  - Default presets are created automatically on first app launch
+  - Users can still modify or delete these defaults if desired
 - **Help System**: 
   - "?" button explains preset functionality
   - Clear instructions for creating and managing presets
@@ -742,3 +748,22 @@ The connecting line can be disabled in Advanced Settings > Visual Settings if pr
   - Uses AVAudioSession routing with graceful handling of route changes
   - Handles interruptions (phone calls, etc.) correctly to maintain selected output and volume
   - Updates dynamically when devices connect/disconnect
+
+## Code Structure Improvements
+
+### SettingsScreen Refactoring
+The SettingsScreen.swift file was refactored to improve maintainability and reduce its size. The large file was broken down into smaller component files:
+
+1. `Components/PixelateEffect.swift` - Animation effect for the logo
+2. `Components/HelpButton.swift` - Reusable help button component
+3. `Components/CircleSizeControl.swift` - Circle size control UI
+4. `Components/TimePickerComponents.swift` - Time unit picker components
+5. `Components/TimerSettingsControl.swift` - Timer settings UI
+6. `Components/SoundSelectionComponents.swift` - Sound selection related components
+7. `Components/CirclePreviewOverlay.swift` - Circle preview overlay
+8. `Components/ResponsiveSlider.swift` - Custom slider component
+9. `Components/ColorHelpers.swift` - Color utility functions
+
+Note: Some UI components like NotificationPermissionWarning are already defined in other files like NotificationManager.swift and should not be duplicated in the Components directory.
+
+This refactoring makes the codebase more modular, easier to maintain, and reduces the AI context size needed to process each file.

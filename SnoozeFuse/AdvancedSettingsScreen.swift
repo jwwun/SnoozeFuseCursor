@@ -169,35 +169,55 @@ struct AdvancedSettingsScreen: View {
                                 .id("presetUI-\(presetsRefreshTrigger)")
                         }
                         
-                        // Show Audio Output UI if hidden from main settings - in its own frame
-                        if audioManager.isHiddenFromMainSettings {
+                        // AUDIO SETTINGS SECTION - Combine AudioOutput and AudioVolume in one cubby
+                        if audioManager.isHiddenFromMainSettings || AudioVolumeManager.shared.isHiddenFromMainSettings {
                             VStack(alignment: .center, spacing: 15) {
-                                AudioOutputUI()
+                                // Section header
+                                Text("Audio Settings")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal)
+                                
+                                Divider()
+                                    .background(Color.gray.opacity(0.5))
+                                    .padding(.horizontal)
+                                
+                                // Audio Output UI if hidden from main settings
+                                if audioManager.isHiddenFromMainSettings {
+                                    VStack(alignment: .center, spacing: 10) {
+                                        AudioOutputUI()
+                                    }
+                                    .padding(.bottom, 10)
+                                    .transition(.move(edge: .trailing))
+                                    .animation(.easeInOut(duration: 0.3), value: audioOutputRefreshTrigger)
+                                    .id("audioOutputUI-\(audioOutputRefreshTrigger)")
+                                }
+                                
+                                // Add a divider between output and volume if both are shown
+                                if audioManager.isHiddenFromMainSettings && AudioVolumeManager.shared.isHiddenFromMainSettings {
+                                    Divider()
+                                        .background(Color.gray.opacity(0.5))
+                                        .padding(.horizontal, 30)
+                                        .padding(.vertical, 5)
+                                }
+                                
+                                // Audio Volume UI if hidden from main settings
+                                if AudioVolumeManager.shared.isHiddenFromMainSettings {
+                                    VStack(alignment: .center, spacing: 10) {
+                                        AudioVolumeUI()
+                                    }
+                                    .padding(.top, 5)
+                                    .transition(.move(edge: .trailing))
+                                    .animation(.easeInOut(duration: 0.3), value: volumeRefreshTrigger)
+                                    .id("volumeUI-\(volumeRefreshTrigger)")
+                                }
                             }
                             .padding(.vertical, 16)
                             .padding(.horizontal, 12)
                             .background(Color.gray.opacity(0.2))
                             .cornerRadius(15)
                             .padding(.horizontal, 8)
-                            .transition(.move(edge: .trailing))
-                            .animation(.easeInOut(duration: 0.3), value: audioOutputRefreshTrigger)
-                            .id("audioOutputUI-\(audioOutputRefreshTrigger)")
-                            .padding(.top, presetManager.isHiddenFromMainSettings ? 10 : 0)
-                        }
-                        
-                        // Add Audio Volume UI if hidden from main settings - in its own frame
-                        if AudioVolumeManager.shared.isHiddenFromMainSettings {
-                            VStack(alignment: .center, spacing: 15) {
-                                AudioVolumeUI()
-                            }
-                            .padding(.vertical, 16)
-                            .padding(.horizontal, 12)
-                            .background(Color.gray.opacity(0.2))
-                            .cornerRadius(15)
-                            .padding(.horizontal, 8)
-                            .transition(.move(edge: .trailing))
-                            .animation(.easeInOut(duration: 0.3), value: volumeRefreshTrigger)
-                            .id("volumeUI-\(volumeRefreshTrigger)")
                             .padding(.top, 10)
                         }
                         

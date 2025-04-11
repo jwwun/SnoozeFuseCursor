@@ -119,7 +119,7 @@ struct AudioVolumeUI: View {
                 }
                 
                 // Add explanatory text about how this works
-                Text("This will set your device's system volume when the alarm plays")
+                Text("Forces this volume when the alarm plays")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.6))
                     .padding(.top, 4)
