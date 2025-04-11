@@ -71,3 +71,17 @@ The original `TimerManager.swift` was refactored to improve:
 2. **Testability**: Decoupled managers can be tested independently
 3. **Scalability**: New features can be added to the appropriate manager
 4. **Readability**: Clean separation of concerns makes code more readable 
+
+## Notification Permission Handling
+
+SnoozeFuse uses a just-in-time approach for requesting notification permissions:
+
+1. Notification permissions are not requested at app launch
+2. Instead, permissions are requested only when the user starts a sleep timer
+3. The app checks if permission is already granted before showing the prompt
+4. This approach improves user experience by showing the permission dialog in context
+
+Implementation details:
+- The AppDelegate has a `requestNotificationsPermissionWhenNeeded()` method
+- SleepScreen calls this method when a sleep timer is started
+- This ensures notifications are only requested when they're actually needed 

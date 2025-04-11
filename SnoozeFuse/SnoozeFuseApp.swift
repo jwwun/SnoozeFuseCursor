@@ -17,8 +17,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Configure notification center delegate
         UNUserNotificationCenter.current().delegate = self
         
-        // Request notification permissions during app launch
-        requestNotificationPermissions()
+        // Remove automatic permission request
+        // requestNotificationPermissions()
         
         // Check if we're launching from a notification
         if let notification = launchOptions?[.remoteNotification] as? [String: AnyObject],
@@ -94,6 +94,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 self.registerNotificationActions()
             } else if let error = error {
                 print("Notification authorization failed: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // Add a public method to request permissions when appropriate
+    func requestNotificationsPermissionWhenNeeded() {
+        // Check current status before requesting
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                if settings.authorizationStatus == .notDetermined {
+                    self.requestNotificationPermissions()
+                }
             }
         }
     }

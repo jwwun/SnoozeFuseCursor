@@ -170,6 +170,15 @@ struct SleepScreen: View {
             // Start nap timer when screen appears
             timerManager.startNapTimer()
             
+            // Get access to the app delegate
+            let appDelegate = UIApplication.shared.delegate as? AppDelegate
+            
+            // Check and request notifications before scheduling
+            if !notificationManager.isNotificationAuthorized {
+                // Request notifications when the user is starting a sleep timer
+                appDelegate?.requestNotificationsPermissionWhenNeeded()
+            }
+            
             // Schedule notification for the nap timer
             if notificationManager.isNotificationAuthorized {
                 // We'll use the TimerManager's method which was updated to schedule notifications
