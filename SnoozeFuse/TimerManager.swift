@@ -288,7 +288,17 @@ class TimerManager: ObservableObject {
     }
     
     func stopAlarmSound() {
+        // Stop audio playback
         AudioPlayerManager.shared.stopAlarmSound()
+        isPlayingAlarm = false
+        
+        // Important: Make sure we also stop ALL vibration sources
+        // This fixes the bug where vibration continues after stopping the alarm
+        HapticManager.shared.stopAlarmVibration()
+        NotificationManager.shared.stopAlarmVibration()
+        
+        // Clear any pending notifications
+        NotificationManager.shared.cancelPendingNotifications()
     }
     
     func startBackgroundAlarmSound() {

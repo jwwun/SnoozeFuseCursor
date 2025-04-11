@@ -120,8 +120,25 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         
         // Cancel any timer
-        alarmSoundTimer?.invalidate()
-        alarmSoundTimer = nil
+        stopAlarmVibration()
+    }
+    
+    // Function to stop alarm vibration
+    func stopAlarmVibration() {
+        // Make sure to cancel any ongoing vibration timers
+        if let timer = alarmSoundTimer {
+            timer.invalidate()
+            alarmSoundTimer = nil
+        }
+        
+        // For thorough vibration stopping, use AudioServices
+        DispatchQueue.main.async {
+            // This helps reset the vibration system state
+            AudioServicesDisposeSystemSoundID(kSystemSoundID_Vibrate)
+            
+            // Also ensure HapticManager stops its vibrations
+            HapticManager.shared.stopAlarmVibration()
+        }
     }
     
     // Function to clear the app badge count

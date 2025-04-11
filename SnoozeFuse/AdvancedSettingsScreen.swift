@@ -380,8 +380,9 @@ struct AdvancedSettingsScreen: View {
                             .padding(.vertical, 10)
                         }
                         
-                        // More advanced settings can be added here
-                        
+                        // Add the notification test UI
+                        NotificationTestUI()
+                            .padding(.top, 5)
                     }
                     .padding(.top, 10)
                 }

@@ -206,6 +206,36 @@ Used for managers that need global access:
   - Handles interruptions (phone calls, etc.) correctly to maintain selected output
   - Updates dynamically when devices connect/disconnect
 
+### UI Flexibility Improvements
+- **Movable UI Sections**: All UI sections can now be moved between Advanced Settings and Main Settings
+  - Implemented a reusable `MovableSettingSection` component for consistent behavior
+  - Each section has a "Hide" button to move it to Advanced Settings
+  - Each section has a "To Main" button in Advanced Settings to move it back
+  - Smooth animation transition when moving sections
+  - Settings locations are persisted between app launches
+  - Provides complete UI customization for different user preferences
+  - Can be used to simplify the main interface by moving rarely used controls
+
+### Marquee Text for Long Labels
+- **Sliding Text Effect**: Added marquee effect for handling long text in fixed-width containers
+  - Automatically detects when text is too long for its container
+  - Only activates scrolling when necessary (static display for shorter text)
+  - Smooth, continuous horizontal scrolling animation
+  - Fade effect on both ends for a polished look
+  - Used for alarm sound titles in dropdown menus
+  - Improves readability of long custom sound names
+  - Provides visual indication that text extends beyond visible area
+
+### Notification Testing UI
+- **Out-of-App Notification Tester**: Added dedicated UI for testing notifications
+  - Located in Advanced Settings
+  - Allows testing notifications without interfering with alarm functionality
+  - User can specify test delay (3-30 seconds)
+  - Provides clear feedback when test is scheduled
+  - Shows notification permission status
+  - Uses different notification category from alarms
+  - Ideal for verifying system notification settings
+
 ## Future Improvements
 
 ### Potential Refactoring Opportunities
@@ -280,6 +310,27 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - Alarms are properly canceled to prevent lingering sounds
   - Pending notifications are canceled to prevent unwanted alerts
 - **User Experience Improvement**: The app now consistently shows the correct screen based on timer state
+
+### Vibration Bug Fix
+- **Persistent Vibration Issue**: Fixed bug where alarm vibration would continue after stopping the alarm
+  - Added property to store vibration timer reference in HapticManager
+  - Updated StopAlarmSound method to properly cancel vibration timers
+  - Added dedicated stopAlarmVibration method to NotificationManager
+  - Ensures vibration stops when alarm is dismissed from any screen
+  - Provides more consistent behavior with audio stopping
+
+### SleepScreen Skip Bug Fix
+- **Missing Alarm on Skip**: Fixed bug where skipping on SleepScreen didn't play the alarm
+  - Updated skip action to explicitly play alarm sound when skipping
+  - Ensures consistent behavior between natural timer end and manual skip
+  - Maintains expected user experience when skipping ahead
+
+### Volume Slider Persistence Fix
+- **Volume Setting Not Saved**: Fixed issue where alarm volume slider didn't save its value
+  - Added explicit saveSettings() calls after slider value changes
+  - Ensures volume setting is saved both during dragging and on release
+  - Maintains consistent volume setting between app launches
+  - Prevents unexpected volume changes when alarm triggers
 
 ## Build and Run Instructions
 

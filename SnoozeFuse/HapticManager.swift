@@ -6,6 +6,11 @@ class HapticManager: ObservableObject {
     @Published var isHapticEnabled = true
     @Published var hapticStyle: UIImpactFeedbackGenerator.FeedbackStyle = .medium
     
+    // Add a property to store the current alarm vibration timer
+    var alarmVibrationTimer: Timer?
+    // Track whether vibration is active
+    var isAlarmVibrationActive = false
+    
     // MARK: - Singleton Instance
     static let shared = HapticManager()
     
@@ -45,12 +50,18 @@ class HapticManager: ObservableObject {
     func triggerAlarmVibration() -> Timer? {
         guard isHapticEnabled else { return nil }
         
+        // Stop any existing vibration first
+        stopAlarmVibration()
+        
+        // Mark vibration as active
+        isAlarmVibrationActive = true
+        
         // Use error notification for first hit (strongest vibration pattern)
         triggerNotification(type: .error)
         
         // Create a repeating timer to trigger vibrations in a pattern
         let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
+            guard let self = self, self.isAlarmVibrationActive else { return }
             
             // Alternating pattern of different vibrations for a more noticeable effect
             self.triggerNotification(type: .error)
@@ -58,17 +69,41 @@ class HapticManager: ObservableObject {
             // Add secondary vibration with slight delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 // Use heavy impact for second vibration in pattern
-                let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
-                heavyGenerator.impactOccurred()
+                if self.isAlarmVibrationActive {
+                    let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
+                    heavyGenerator.impactOccurred()
+                }
             }
         }
+        
+        // Store the timer reference for later cancellation
+        alarmVibrationTimer = timer
         
         return timer
     }
     
-    /// Stops the alarm vibration by invalidating the provided timer
+    /// Stops the alarm vibration completely
+    func stopAlarmVibration() {
+        // First stop the flag to prevent any queued vibrations
+        isAlarmVibrationActive = false
+        
+        // Stop and clear any timers
+        if let timer = alarmVibrationTimer {
+            timer.invalidate()
+            alarmVibrationTimer = nil
+        }
+        
+        // For good measure, trigger a silent notification to reset iOS haptic state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // This empty impact may help reset the haptic engine state
+            let silentGenerator = UIImpactFeedbackGenerator(style: .light)
+            silentGenerator.prepare()
+        }
+    }
+    
+    /// Legacy method - redirects to stopAlarmVibration()
     func stopAlarmVibration(timer: Timer?) {
-        timer?.invalidate()
+        stopAlarmVibration()
     }
     
     // MARK: - Settings Persistence

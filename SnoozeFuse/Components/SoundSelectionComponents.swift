@@ -83,16 +83,21 @@ struct AlarmSoundSelector: View {
                         // Show the name of the selected sound (custom or built-in)
                         if selectedAlarm == .custom, let id = timerManager.selectedCustomSoundID,
                            let customSound = timerManager.customSounds.first(where: { $0.id == id }) {
-                            Text(customSound.name)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            MarqueeText(
+                                text: customSound.name,
+                                font: .system(size: 16, weight: .medium),
+                                textColor: .white
+                            )
+                            .frame(height: 20)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
-                            Text(selectedAlarm.rawValue)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            MarqueeText(
+                                text: selectedAlarm.rawValue,
+                                font: .system(size: 16, weight: .medium),
+                                textColor: .white
+                            )
+                            .frame(height: 20)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         
                         Image(systemName: "chevron.down")

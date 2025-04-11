@@ -96,6 +96,9 @@ struct AudioVolumeUI: View {
                                     
                                     // Immediately test the volume
                                     self.volumeManager.setSystemVolume(to: newValue)
+                                    
+                                    // Fix: Save settings after setting volume
+                                    self.volumeManager.saveSettings()
                                 }
                             }
                         ),
@@ -108,6 +111,9 @@ struct AudioVolumeUI: View {
                                 
                                 // Apply new volume to system
                                 self.volumeManager.setSystemVolume(to: self.currentVolume)
+                                
+                                // Fix: Save settings after slider is released
+                                self.volumeManager.saveSettings()
                             }
                         }
                     )

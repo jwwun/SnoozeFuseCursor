@@ -273,6 +273,9 @@ struct SleepScreen: View {
                     timerManager.stopNapTimer()
                     timerManager.napTimer = 0 // Effectively end the timer
                     napFinished = true
+                    
+                    // Fix bug: Play the alarm sound when skipping
+                    timerManager.playAlarmSound()
                 },
                 direction: .trailing,
                 label: "Skip",
