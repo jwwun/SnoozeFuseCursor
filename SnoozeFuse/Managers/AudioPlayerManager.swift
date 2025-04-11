@@ -37,6 +37,9 @@ class AudioPlayerManager: ObservableObject {
     // Current player state
     private var playerState: PlayerState = .paused
     
+    // Private background queue for audio session management
+    private let audioSessionQueue = DispatchQueue(label: "com.snoozefuse.audioSessionQueue")
+    
     // Initialize with app lifecycle observers
     init() {
         setupAppLifecycleObservers()
@@ -96,7 +99,7 @@ class AudioPlayerManager: ObservableObject {
     func nukeSoundAndVibration(preserveSession: Bool = false) {
         print("💣 NUCLEAR OPTION: Killing AudioPlayerManager state. Preserve session: \(preserveSession)")
         
-        // 1. Clear audio flags
+        // 1. Reset internal state flags
         isPlayingAlarm = false
         alarmSource = .none
         print("💣 Nuclear cleanup - clearing audio flags")
@@ -109,13 +112,17 @@ class AudioPlayerManager: ObservableObject {
         vibrationTimer?.invalidate()
         vibrationTimer = nil
         
-        // 4. Stop audio session ONLY IF NOT preserving
+        // 4. Stop audio session ONLY IF NOT preserving - MOVE TO BACKGROUND QUEUE
         if !preserveSession {
-            print("💣 Nuking Audio Session")
-            do {
-                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            } catch {
-                print("💣 Error deactivating session: \(error)")
+            print("💣 Nuking Audio Session (Dispatching to background)")
+            audioSessionQueue.async { // <-- Move to background queue
+                do {
+                    // Deactivate the session
+                    try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                    print("💣 Audio Session deactivated successfully on background thread.")
+                } catch {
+                    print("💣 Error deactivating session on background thread: \(error)")
+                }
             }
         } else {
             print("💣 Preserving Audio Session state")
@@ -124,22 +131,29 @@ class AudioPlayerManager: ObservableObject {
         // REMOVED: Calls to NotificationManager and HapticManager cleanup
         // REMOVED: System sound cleanup calls
         
-        // Also run cleanup on the main thread
+        // Also run cleanup on the main thread for UI-related or other main-thread-only tasks
         DispatchQueue.main.async {
             // Stop any music player if active
             if MPMusicPlayerController.applicationMusicPlayer.playbackState == .playing {
                 MPMusicPlayerController.applicationMusicPlayer.stop()
+                print("💣 Music Player stopped on main thread.")
             }
-            
-            // Final reset of audio session on main thread ONLY IF NOT preserving
-            if !preserveSession {
-                print("💣 Final Session Reset")
+        }
+
+        // Perform final audio session reset on the background queue ONLY IF NOT preserving
+        if !preserveSession {
+            print("💣 Final Session Reset (Dispatching to background)")
+            audioSessionQueue.async { // <-- Move to background queue
                 do {
+                    // Ensure it's inactive before changing category
                     try AVAudioSession.sharedInstance().setActive(false)
-                    try AVAudioSession.sharedInstance().setCategory(.ambient)
+                    // Set back to a neutral category
+                    try AVAudioSession.sharedInstance().setCategory(.ambient) // Or another default like .soloAmbient
+                    // Deactivate again after category change (might be redundant but safe)
                     try AVAudioSession.sharedInstance().setActive(false)
+                    print("💣 Final Audio Session reset successfully on background thread.")
                 } catch {
-                    print("💣 Error resetting session: \(error)")
+                    print("💣 Error resetting session on background thread: \(error)")
                 }
             }
         }
@@ -149,42 +163,78 @@ class AudioPlayerManager: ObservableObject {
     
     // Setup audio session for background playback
     func setupBackgroundAudio() {
-        // First, safely deactivate any existing session
-        do {
-            if !AVAudioSession.sharedInstance().isOtherAudioPlaying {
-                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            }
-        } catch {
-            // Non-critical error, continue
-        }
-        
-        // Check user preference
-        let useSpeaker = AudioOutputManager.shared.useSpeaker
-        
-        do {
-            if useSpeaker {
-                // Set up for speaker output
-                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-                try AVAudioSession.sharedInstance().setActive(true)
-                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                
-                // If not on speaker yet, try alternative method
-                if AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType != .builtInSpeaker {
-                    try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
-                                                                  mode: .default,
-                                                                  options: [.defaultToSpeaker])
-                    try AVAudioSession.sharedInstance().setActive(true)
-                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+        // Perform session setup on the dedicated background queue
+        audioSessionQueue.async { [weak self] in // <-- Use weak self
+            guard let self = self else { return }
+
+            // First, safely deactivate any existing session
+            do {
+                // Check if other audio is playing *before* trying to deactivate.
+                // Accessing sharedInstance properties might be safer on the main thread
+                // or require careful synchronization if accessed from multiple queues.
+                // Let's assume for now this check is okay here, but monitor potential issues.
+                let isOtherAudioPlaying = AVAudioSession.sharedInstance().isOtherAudioPlaying
+                if !isOtherAudioPlaying {
+                    try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
                 }
-            } else {
-                // Set up for external device output
-                try AVAudioSession.sharedInstance().setCategory(.playback, 
-                                                              mode: .default, 
-                                                              options: [.allowBluetooth, .allowAirPlay])
-                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                // Log non-critical error
+                print("⚠️ Could not deactivate existing session during setup: \(error)")
             }
-        } catch {
-            print("🚨 Audio session setup error: \(error)")
+
+            // Check user preference (Accessing AudioOutputManager.shared might need care)
+            // Assuming AudioOutputManager is thread-safe or its properties are safe to read here.
+            let useSpeaker = AudioOutputManager.shared.useSpeaker
+
+            do {
+                var categorySet: AVAudioSession.Category?
+                var optionsSet: AVAudioSession.CategoryOptions?
+                
+                if useSpeaker {
+                    // Set up for speaker output
+                    categorySet = .playback
+                    optionsSet = [] // Default options suffice for basic playback
+                    try AVAudioSession.sharedInstance().setCategory(categorySet!, mode: .default, options: optionsSet!)
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    // Overriding output port is a strong command, ensure session is active first.
+                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                    print("🔊 Audio Session configured for Speaker on background thread.")
+
+                    // Check if route is actually speaker, if not, try alternative.
+                    // Accessing currentRoute might also be best on main thread or synchronized.
+                    if AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType != .builtInSpeaker {
+                        print("🔊 Speaker route not active, attempting fallback configuration.")
+                        // Fallback using playAndRecord with defaultToSpeaker option
+                        categorySet = .playAndRecord
+                        optionsSet = [.defaultToSpeaker]
+                        // Deactivate briefly before re-configuring? Sometimes helps.
+                        try? AVAudioSession.sharedInstance().setActive(false)
+                        try AVAudioSession.sharedInstance().setCategory(categorySet!, mode: .default, options: optionsSet!)
+                        try AVAudioSession.sharedInstance().setActive(true)
+                        try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker) // Try overriding again
+                        print("🔊 Fallback speaker configuration applied on background thread.")
+                    }
+                } else {
+                    // Set up for external device output (headphones, bluetooth etc.)
+                    categorySet = .playback
+                    optionsSet = [.allowBluetooth, .allowAirPlay] // Allow appropriate external routes
+                    try AVAudioSession.sharedInstance().setCategory(categorySet!, mode: .default, options: optionsSet!)
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    print("🔊 Audio Session configured for External Output (Headphones/Bluetooth/AirPlay) on background thread.")
+                }
+                 // Post notification or update state on main thread if UI needs to react
+                 DispatchQueue.main.async {
+                     // self?.objectWillChange.send() // Example if needed
+                     print("🔊 Audio session setup completed.")
+                 }
+
+            } catch {
+                print("🚨 Audio session setup error on background thread: \(error)")
+                 // Optionally update state on main thread about the error
+                 DispatchQueue.main.async {
+                     // self?.lastError = error // Example
+                 }
+            }
         }
     }
     
@@ -238,38 +288,84 @@ class AudioPlayerManager: ObservableObject {
     
     // Handle audio route changes (e.g., headphones connected/disconnected)
     @objc private func handleRouteChange(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let reasonInt = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let _ = AVAudioSession.RouteChangeReason(rawValue: reasonInt) else {
-            return
-        }
-        
-        // Get current route
-        let currentRoute = AVAudioSession.sharedInstance().currentRoute
-        let outputs = currentRoute.outputs
-        
-        // Only enforce speaker if alarm is playing AND user wants speaker
-        guard isPlayingAlarm && AudioOutputManager.shared.useSpeaker else { return }
-        
-        // Check if we need to reclaim speaker
-        let isOnSpeaker = outputs.first?.portType == .builtInSpeaker
-        
-        // Only act if we're not already on speaker
-        if !isOnSpeaker {
-            print("🔊 Route change detected - enforcing speaker output")
-            
-            do {
-                // Quick 3-step approach to reclaim speaker
-                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-                try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
-                try AVAudioSession.sharedInstance().setActive(true)
-                try AVAudioSession.sharedInstance().setActive(false)
-                try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
-                try AVAudioSession.sharedInstance().setActive(true)
-                try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-            } catch {
-                print("🚨 Failed to enforce speaker: \(error)")
+        // Perform route change handling on the background queue
+        audioSessionQueue.async { [weak self] in // <-- Use weak self and background queue
+            guard let self = self, // Ensure self is valid
+                  let userInfo = notification.userInfo,
+                  let reasonInt = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonInt) else {
+                print("🔊 Route change notification received, but couldn't parse details.")
+                return
             }
+
+            // Get current route (safe to access properties here within the serial queue)
+            let currentRoute = AVAudioSession.sharedInstance().currentRoute
+            let outputs = currentRoute.outputs
+            let currentOutputPort = outputs.first?.portType
+
+            print("🔊 Route change detected. Reason: \(self.routeName(reason)). Current output: \(currentOutputPort?.rawValue ?? "None")")
+
+            // Only enforce speaker if alarm is playing AND user wants speaker
+            // Accessing isPlayingAlarm and AudioOutputManager.shared might need synchronization
+            // if they can be modified from other threads. Assuming read is safe for now.
+            let shouldEnforceSpeaker = self.isPlayingAlarm && AudioOutputManager.shared.useSpeaker
+
+            guard shouldEnforceSpeaker else {
+                print("🔊 No need to enforce speaker currently.")
+                return
+            }
+
+            // Check if we need to reclaim speaker
+            let isOnSpeaker = currentOutputPort == .builtInSpeaker
+
+            if !isOnSpeaker {
+                print("🔊 Route change detected - Not on speaker, enforcing speaker output.")
+                do {
+                    // Attempt to reclaim speaker output
+                    // Deactivate session first
+                    try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                    
+                    // Set category for speaker playback
+                    // Using playAndRecord with defaultToSpeaker is often reliable
+                    try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+                    
+                    // Activate the session
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    
+                    // Explicitly override to speaker
+                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                    
+                    print("🔊 Successfully enforced speaker output on background thread.")
+                } catch {
+                    print("🚨 Failed to enforce speaker on background thread: \(error)")
+                    // Consider attempting a simpler configuration as a fallback
+                    do {
+                         try? AVAudioSession.sharedInstance().setActive(false)
+                         try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                         try AVAudioSession.sharedInstance().setActive(true)
+                         try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+                         print("🔊 Fallback speaker enforcement attempted.")
+                    } catch {
+                         print("🚨 Fallback speaker enforcement also failed: \(error)")
+                    }
+                }
+            } else {
+                print("🔊 Already on speaker, no action needed.")
+            }
+        }
+    }
+    
+    // Helper to get readable route change reason name
+    private func routeName(_ reason: AVAudioSession.RouteChangeReason) -> String {
+        switch reason {
+        case .newDeviceAvailable: return "New Device Available"
+        case .oldDeviceUnavailable: return "Old Device Unavailable"
+        case .categoryChange: return "Category Change"
+        case .override: return "Override"
+        case .wakeFromSleep: return "Wake From Sleep"
+        case .noSuitableRouteForCategory: return "No Suitable Route"
+        case .routeConfigurationChange: return "Route Configuration Change"
+        default: return "Unknown (\(reason.rawValue))"
         }
     }
     

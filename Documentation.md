@@ -818,3 +818,9 @@ The SettingsScreen.swift file was refactored to improve maintainability and redu
 Note: Some UI components like NotificationPermissionWarning are already defined in other files like NotificationManager.swift and should not be duplicated in the Components directory.
 
 This refactoring makes the codebase more modular, easier to maintain, and reduces the AI context size needed to process each file.
+
+## AudioPlayerManager Threading
+
+- **Main Thread Safety:** Interactions with `AVAudioSession` (like `setActive`, `setCategory`, `overrideOutputAudioPort`) can block the main thread, causing UI hangs.
+- **Solution:** All `AVAudioSession` calls within `AudioPlayerManager` (`cleanupAudio`, `setupBackgroundAudio`, `handleRouteChange`) have been moved to a dedicated serial background queue (`audioSessionQueue`) to prevent main thread blocking.
+- **Synchronization:** Care must be taken if shared state (e.g., `isPlayingAlarm`, properties from other managers like `AudioOutputManager`) is accessed or modified from this background queue. Currently, reads are assumed safe, but writes would require proper synchronization (e.g., using `DispatchQueue.main.async` or locks). UI updates triggered by background queue operations should be dispatched back to the main thread.
