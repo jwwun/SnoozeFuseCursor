@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import UserNotifications
 import AVFoundation
+import AudioToolbox
 
 // Version tracking for app updates
 fileprivate let appVersionKey = "appVersion"
@@ -54,7 +55,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         // Force portrait orientation at launch
-        UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                do {
+                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+                    windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                } catch {
+                    print("Could not update to portrait orientation: \(error)")
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+        }
         
         // Reset first launch flag after a longer delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -138,6 +151,25 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         UNUserNotificationCenter.current().setNotificationCategories([alarmCategory])
     }
     
+    // Handle application termination
+    func applicationWillTerminate(_ application: UIApplication) {
+        print("🚨 Application will terminate")
+        
+        // Emergency stop all vibrations at system level
+        AudioPlayerManager.emergencyStopAllVibrations()
+        
+        // Also use notification manager directly
+        NotificationManager.shared.stopVibrationAlarm()
+        
+        // Clean up any other audio resources
+        AudioPlayerManager.shared.cleanupOnExit()
+        
+        // One final direct call to system APIs
+        AudioServicesDisposeSystemSoundID(kSystemSoundID_Vibrate)
+        
+        print("🔔 All cleanup complete before termination")
+    }
+    
     // Support all orientations by default
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         // Always start in portrait during first launch or when forcedInitialPortrait is true
@@ -172,6 +204,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 // We won't restart the custom loop here.
                 print("🔔 Handling notification tap/open action. Stopping any existing TimerManager sound.")
                 TimerManager.shared.stopAlarmSound() // <<< Ensure sound stops, but DO NOT call playAlarmSound() here anymore
+                
+                // Clear the badge count when handling notifications
+                try? UNUserNotificationCenter.current().setBadgeCount(0)
             }
         }
         
@@ -219,7 +254,19 @@ struct SnoozeFuseApp: App {
                 .lockToOrientation(orientationManager)
                 .onAppear {
                     // Force portrait orientation immediately
-                    UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+                    if #available(iOS 16.0, *) {
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                            do {
+                                try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+                                windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                            } catch {
+                                print("Could not update to portrait orientation: \(error)")
+                            }
+                        }
+                    } else {
+                        // Fallback for older iOS versions
+                        UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+                    }
                     
                     // Check notification permission on startup
                     notificationManager.checkNotificationPermission()
@@ -250,6 +297,9 @@ struct SnoozeFuseApp: App {
                         
                         // Re-apply audio output settings when app becomes active
                         audioOutputManager.applyAudioOutputSetting()
+                        
+                        // If we're coming from background, make sure vibrations are stopped
+                        AudioPlayerManager.shared.nukeSoundAndVibration()
                     }
                     
                     // Handle app going to background
@@ -260,6 +310,10 @@ struct SnoozeFuseApp: App {
                         if timerManager.isNapTimerRunning || timerManager.isMaxTimerRunning {
                             print("Timer is active - ensuring background audio will work")
                             timerManager.setupBackgroundAudio()
+                        } else {
+                            // No timers running, make sure to stop all sounds and vibrations
+                            print("No timers active - stopping all sounds and vibrations")
+                            AudioPlayerManager.shared.nukeSoundAndVibration()
                         }
                         
                         // Save settings
@@ -269,6 +323,14 @@ struct SnoozeFuseApp: App {
                     // Handle app becoming inactive
                     if scenePhase == .inactive {
                         print("App entering inactive state, saving orientation settings")
+                        
+                        // Only stop sounds and vibrations if no timer is active
+                        if !timerManager.isNapTimerRunning && !timerManager.isMaxTimerRunning {
+                            print("No timers active while going inactive - stopping all sounds")
+                            AudioPlayerManager.shared.nukeSoundAndVibration()
+                        }
+                        
+                        // Save settings
                         orientationManager.saveSettings(forceOverride: true)
                     }
                 }

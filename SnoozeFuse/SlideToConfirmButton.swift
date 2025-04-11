@@ -47,8 +47,8 @@ struct SlideToConfirmButton: View {
     // MARK: - Body
     
     var body: some View {
-        // Get drag direction multiplier
-        let dragDirectionMultiplier: CGFloat = direction == .trailing ? 1 : -1
+        // Get drag direction multiplier (for future reference)
+        let _ = direction == .trailing ? 1 : -1
         
         return GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -233,7 +233,8 @@ struct SlideToConfirmButton: View {
     /// Calculates the drag percentage based on the drag value and direction
     private func calculateDragPercentage(value: DragGesture.Value, geometry: GeometryProxy, direction: Edge) -> CGFloat {
         let totalWidth = geometry.size.width - thumbSize
-        let directionalMultiplier: CGFloat = direction == .trailing ? 1 : -1
+        // Directional multiplier (kept for future reference)
+        let _ = direction == .trailing ? 1 : -1
         
         if direction == .trailing {
             return min(max(0, value.translation.width), totalWidth) / totalWidth

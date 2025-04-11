@@ -187,47 +187,75 @@ class OrientationManager: ObservableObject {
             }
         }
         
-        UIViewController.attemptRotationToDeviceOrientation()
+        // Use the modern approach to request orientation update
+        if #available(iOS 16.0, *) {
+            for scene in UIApplication.shared.connectedScenes {
+                if let windowScene = scene as? UIWindowScene {
+                    windowScene.windows.forEach { window in
+                        window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                    }
+                }
+            }
+        } else {
+            // Fallback for older iOS versions
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
     }
     
     private func forciblyRotateDevice() {
         // If we're in the forced initial portrait state, only allow portrait
         if isFirstLaunch || forcedInitialPortrait {
-            UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+            // Use the modern approach for iOS 16+
+            if #available(iOS 16.0, *) {
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                    // The requestGeometryUpdate call can actually throw, so keep the try/catch
+                    do {
+                        try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+                        windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                    } catch {
+                        print("Could not update to portrait orientation: \(error)")
+                    }
+                }
+            } else {
+                // Fallback for older iOS versions
+                UIDevice.current.setValue(UIDeviceOrientation.portrait.rawValue, forKey: "orientation")
+            }
             print("Forcing portrait orientation during first launch")
             return
         }
         
         // Determine the correct orientation value based on visual appearance
         var targetValue: Int
+        let targetMask: UIInterfaceOrientationMask
+        
         switch orientation {
         case .portrait:
             targetValue = UIDeviceOrientation.portrait.rawValue
+            targetMask = .portrait
             print("Setting orientation to portrait")
         case .portraitUpsideDown:
             targetValue = UIDeviceOrientation.portraitUpsideDown.rawValue
+            targetMask = .portraitUpsideDown
             print("Setting orientation to portrait upside down")
         case .landscapeLeft:
             targetValue = UIDeviceOrientation.landscapeLeft.rawValue
+            targetMask = .landscapeLeft
             print("Setting orientation to Landscape Left (UIDevice.landscapeLeft)")
         case .landscapeRight:
             targetValue = UIDeviceOrientation.landscapeRight.rawValue
+            targetMask = .landscapeRight
             print("Setting orientation to Landscape Right (UIDevice.landscapeRight)")
         }
         
-        // This is a direct way to force orientation change
-        UIDevice.current.setValue(targetValue, forKey: "orientation")
-        
-        // For iOS 16 and later, use the more modern approach
+        // For iOS 16 and later, use the more modern approach exclusively
         if #available(iOS 16.0, *) {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                // Map our orientation to the correct mask
+                print("Requesting geometry update with mask: \(targetMask)")
+                
+                // The requestGeometryUpdate call can actually throw, so keep the try/catch
                 do {
-                    // Map our orientation to the correct mask
-                    let mask = orientation.orientationMask
-                    print("Requesting geometry update with mask: \(mask)")
-                    
-                    // Always use the correct orientation mask
-                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: mask))
+                    try windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: targetMask))
                     
                     // Force the preferred orientation
                     windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
@@ -237,10 +265,24 @@ class OrientationManager: ObservableObject {
                     return
                 }
             }
+        } else {
+            // Fallback for older iOS versions
+            UIDevice.current.setValue(targetValue, forKey: "orientation")
+            
+            // Force rotation for all iOS versions with modern approach if available
+            if #available(iOS 16.0, *) {
+                for scene in UIApplication.shared.connectedScenes {
+                    if let windowScene = scene as? UIWindowScene {
+                        windowScene.windows.forEach { window in
+                            window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                        }
+                    }
+                }
+            } else {
+                // Fallback for older iOS versions
+                UIViewController.attemptRotationToDeviceOrientation()
+            }
         }
-        
-        // Force rotation for all iOS versions
-        UIViewController.attemptRotationToDeviceOrientation()
         
         // Indicate success
         orientationChangeSuccess = true

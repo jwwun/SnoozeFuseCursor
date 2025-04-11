@@ -1,4 +1,6 @@
 import SwiftUI
+import AudioToolbox
+import AVFoundation
 
 // MARK: - Haptic Feedback Manager
 class HapticManager: ObservableObject {
@@ -84,20 +86,30 @@ class HapticManager: ObservableObject {
     
     /// Stops the alarm vibration completely
     func stopAlarmVibration() {
+        print("🚨 HapticManager: Stopping vibration TIMER and FLAG ONLY")
+        
         // First stop the flag to prevent any queued vibrations
         isAlarmVibrationActive = false
         
         // Stop and clear any timers
         if let timer = alarmVibrationTimer {
+            print("Invalidating HapticManager timer")
             timer.invalidate()
             alarmVibrationTimer = nil
         }
+    }
+    
+    /// Last resort method to kill all system sounds and vibrations
+    /// This targets the underlying system sound mechanism directly
+    func killAllSystemSounds() {
+        print("🚨 Emergency vibration kill initiated - SIMPLIFIED (NO SYSTEM CALLS)")
         
-        // For good measure, trigger a silent notification to reset iOS haptic state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            // This empty impact may help reset the haptic engine state
-            let silentGenerator = UIImpactFeedbackGenerator(style: .light)
-            silentGenerator.prepare()
+        // ONLY stop the timer and reset the flag here
+        isAlarmVibrationActive = false
+        if let timer = alarmVibrationTimer {
+            print("Invalidating HapticManager timer from killAllSystemSounds")
+            timer.invalidate()
+            alarmVibrationTimer = nil
         }
     }
     

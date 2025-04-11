@@ -78,14 +78,10 @@ struct TimerSettingsControl: View {
         
         // Create a new timer with a reasonable delay
         messageUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-            // Use a background queue for the settings save to avoid UI blocking
-            DispatchQueue.global(qos: .userInitiated).async {
+            // Always save settings on the main thread to avoid publishing changes from background threads
+            DispatchQueue.main.async {
                 self.timerManager.saveSettings()
-                
-                // Update UI elements back on the main thread
-                DispatchQueue.main.async {
-                    self.updateCommitmentMessage()
-                }
+                self.updateCommitmentMessage()
             }
         }
     }
@@ -162,7 +158,7 @@ struct TimerSettingsControl: View {
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle()) // Make sure it has the right hit test shape
                 .allowsHitTesting(false) // Don't let it intercept touch events
-                .drawingGroup() // Use Metal for better rendering performance
+                .safeMetalRendering() // Use safer Metal rendering approach
 
             // Subtle warning messages (remain the same)
              if isMaxLessThanNap || isHoldTooLong {

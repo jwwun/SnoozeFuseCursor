@@ -79,28 +79,54 @@ class CustomSoundManager: ObservableObject {
             exporter?.outputURL = destinationURL
             exporter?.outputFileType = .m4a
             
-            // This is now handled via completion handler
-            var resultSound: CustomSound? = nil
-            
-            exporter?.exportAsynchronously {
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
+            // Use modern export approach with Task for iOS 18+ compatibility
+            if #available(iOS 18.0, *) {
+                // Use the newer async/await version
+                Task { [weak self] in
+                    guard let self = self, let exporter = exporter else { return }
                     
-                    // Set exporting flag to false when complete
-                    defer { self.isExportingMusic = false }
-                    
-                    if let error = exporter?.error {
-                        print("Failed to export Apple Music item: \(error)")
-                        resultSound = self.handleExportFailure(item: item, displayName: displayName)
-                        return
+                    do {
+                        try await exporter.export(to: destinationURL, as: .m4a)
+                        
+                        DispatchQueue.main.async {
+                            // Set exporting flag to false when complete
+                            defer { self.isExportingMusic = false }
+                            
+                            // Success! Create and add the custom sound
+                            let newSound = CustomSound(name: displayName, fileURL: destinationURL)
+                            self.customSounds.append(newSound)
+                            
+                            print("Successfully added Apple Music sound: \(displayName)")
+                        }
+                    } catch {
+                        DispatchQueue.main.async {
+                            print("Failed to export Apple Music item: \(error)")
+                            self.isExportingMusic = false
+                            _ = self.handleExportFailure(item: item, displayName: displayName)
+                        }
                     }
-                    
-                    // Success! Create and add the custom sound
-                    let newSound = CustomSound(name: displayName, fileURL: destinationURL)
-                    self.customSounds.append(newSound)
-                    resultSound = newSound
-                    
-                    print("Successfully added Apple Music sound: \(displayName)")
+                }
+            } else {
+                // Fallback to older approach for iOS 17 and earlier
+                exporter?.exportAsynchronously {
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        
+                        // Set exporting flag to false when complete
+                        defer { self.isExportingMusic = false }
+                        
+                        if let error = exporter?.error {
+                            print("Failed to export Apple Music item: \(error)")
+                            _ = self.handleExportFailure(item: item, displayName: displayName)
+                            return
+                        }
+                        
+                        // Success! Create and add the custom sound
+                        let newSound = CustomSound(name: displayName, fileURL: destinationURL)
+                        self.customSounds.append(newSound)
+                        
+                        print("Successfully added Apple Music sound: \(displayName)")
+                    }
                 }
             }
             

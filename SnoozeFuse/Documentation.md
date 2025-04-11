@@ -72,6 +72,39 @@ The original `TimerManager.swift` was refactored to improve:
 3. **Scalability**: New features can be added to the appropriate manager
 4. **Readability**: Clean separation of concerns makes code more readable 
 
+## System-Level Error Prevention
+
+SnoozeFuse includes several mitigation strategies for common iOS system-level warnings and errors:
+
+1. **Orientation API Warning**: 
+   - Modern approach using `UIWindowScene.requestGeometryUpdate(.iOS(interfaceOrientations:))` for iOS 16+
+   - Fallback to legacy method for older iOS versions
+   - Implementation in `OrientationManager.swift` and `SnoozeFuseApp.swift`
+
+2. **Audio Output Errors**: 
+   - Optimized volume control in `AudioVolumeManager.swift`
+   - Conditional system volume updates only when significant changes are needed (>10% difference)
+   - Direct slider access without notification triggering to avoid errors
+   - Avoids using private APIs that can throw errors
+
+3. **Metal Rendering Errors**:
+   - Created `ConditionalMetalRenderer` modifier to safely handle Metal rendering
+   - Provides graceful fallbacks for devices with Metal library issues
+   - Version-specific implementations for different iOS versions
+   - Implemented with the convenient `.safeMetalRendering()` extension
+
+4. **Background Thread Publishing**:
+   - Ensuring all ObservableObject updates happen on the main thread
+   - Fixed `DispatchQueue.global().async` calls in UI components
+   - Using `DispatchQueue.main.async` for any state updates
+   - Prevents "Publishing changes from background threads is not allowed" warnings
+
+These approaches help prevent common system-level warnings while maintaining functionality:
+- `BUG IN CLIENT OF UIKIT: Setting UIDevice.orientation isn't supported`
+- `Failed to set audio output: NSOSStatusErrorDomain Code=-50 (null)`
+- `Unable to open mach-O at path...RenderBox.framework/default.metallib Error:2`
+- `Publishing changes from background threads is not allowed`
+
 ## Notification Permission Handling
 
 SnoozeFuse uses a just-in-time approach for requesting notification permissions:

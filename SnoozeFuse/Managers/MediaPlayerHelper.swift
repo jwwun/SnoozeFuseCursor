@@ -105,7 +105,7 @@ class MediaPlayerHelper {
         
         // Create a placeholder file
         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let displayName = item.artist != nil ? "\(item.artist!) - \(title)" : title
+        let _displayName = item.artist != nil ? "\(item.artist!) - \(title)" : title
         let placeholderURL = documentsDirectory.appendingPathComponent("applemusic_\(item.playbackStoreID).txt")
         
         // Save media ID to the placeholder file

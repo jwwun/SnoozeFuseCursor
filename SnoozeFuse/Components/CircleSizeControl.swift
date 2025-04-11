@@ -44,13 +44,10 @@ struct CircleSizeControl: View {
                     
                     // Create new debounced timer for saving
                     saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in    
-                        DispatchQueue.global(qos: .userInitiated).async {
+                        // Always update models on the main thread to avoid publishing changes from background threads
+                        DispatchQueue.main.async {
                             self.timerManager.saveSettings()
-                            
-                            // Reset adjusting state
-                            DispatchQueue.main.async {
-                                self.isAdjusting = false
-                            }
+                            self.isAdjusting = false
                         }
                     }
                 }
@@ -74,7 +71,7 @@ struct CircleSizeControl: View {
                     )
                     .frame(width: CGFloat(max(textInputValue.count, 1) * 20 + 28))
                     .focused($isTextFieldFocused)
-                    .onChange(of: textInputValue) { newValue in
+                    .onChange(of: textInputValue) { oldValue, newValue in
                         // Update the circleSize binding when the text changes.
                         // The Slider's onChange will handle the saving and callback.
                         if let newSize = Int(newValue) {
@@ -99,7 +96,7 @@ struct CircleSizeControl: View {
                     Toggle("", isOn: $isFullScreenMode)
                         .labelsHidden()
                         .toggleStyle(SwitchToggleStyle(tint: Color.blue))
-                        .onChange(of: isFullScreenMode) { newValue in
+                        .onChange(of: isFullScreenMode) { oldValue, newValue in
                             // Save settings when toggle changes
                             timerManager.saveSettings()
                         }

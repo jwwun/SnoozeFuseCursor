@@ -154,7 +154,7 @@ struct SleepScreen: View {
             napFinished = false
             
             // Clear notification badge directly
-            UIApplication.shared.applicationIconBadgeNumber = 0
+            try? UNUserNotificationCenter.current().setBadgeCount(0)
             
             // Don't reset timers here, we need to preserve the current timer values
             // timerManager.resetTimers() - Removing this line
@@ -210,6 +210,9 @@ struct SleepScreen: View {
             }
         }
         .onDisappear {
+            // Clear any badge count when leaving the sleep screen
+            try? UNUserNotificationCenter.current().setBadgeCount(0)
+            
             // Stop timers and alarms when screen is dismissed
             timerManager.stopNapTimer()
             timerManager.stopMaxTimer()

@@ -555,14 +555,13 @@ struct NapScreen: View {
         }
         .navigationViewStyle(StackNavigationViewStyle())
         .onAppear {
+            // Reset badge count when the screen appears
+            try? UNUserNotificationCenter.current().setBadgeCount(0)
+            
             // Reset nap state
             napFinished = false
             
-            // Clear notification badge directly
-            UIApplication.shared.applicationIconBadgeNumber = 0
-            
             // Don't reset timers here, we need to preserve the current timer values
-            // timerManager.resetTimers() - Removing this line
             
             // Reset state when screen appears
             showPositionMessage = true

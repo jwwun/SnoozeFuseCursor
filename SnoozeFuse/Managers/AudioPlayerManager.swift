@@ -3,6 +3,8 @@ import AVFoundation
 import MediaPlayer
 import AudioToolbox
 import Combine
+import UIKit
+import UserNotifications
 
 class AudioPlayerManager: ObservableObject {
     // Shared instance
@@ -14,6 +16,134 @@ class AudioPlayerManager: ObservableObject {
     
     // State tracking
     @Published private(set) var isPlayingAlarm = false
+    private var alarmSource: AlarmSource = .none
+    private var vibrationTimer: Timer?
+    
+    // Enum to track alarm source
+    enum AlarmSource {
+        case none
+        case regularAlarm
+        case maxTimer
+        case backgroundAlarm
+    }
+    
+    // Player state enum to track interruptions
+    private enum PlayerState {
+        case playing
+        case paused
+        case wasPlaying
+    }
+    
+    // Current player state
+    private var playerState: PlayerState = .paused
+    
+    // Initialize with app lifecycle observers
+    init() {
+        setupAppLifecycleObservers()
+    }
+    
+    // Setup observers for app lifecycle
+    private func setupAppLifecycleObservers() {
+        NotificationCenter.default.addObserver(self, 
+                                               selector: #selector(handleAppTermination), 
+                                               name: UIApplication.willTerminateNotification, 
+                                               object: nil)
+        
+        NotificationCenter.default.addObserver(self, 
+                                               selector: #selector(handleAppBackground), 
+                                               name: UIApplication.didEnterBackgroundNotification, 
+                                               object: nil)
+        
+        // Add more observers for different app states
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(forceStopAllSounds),
+                                               name: UIApplication.willResignActiveNotification,
+                                               object: nil)
+        
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(forceStopAllSounds),
+                                               name: UIApplication.didEnterBackgroundNotification,
+                                               object: nil)
+    }
+    
+    // Force stop all sounds and vibrations when app state changes
+    @objc private func forceStopAllSounds() {
+        print("🚨 App state changing - emergency stopping all sounds and vibrations")
+        nukeSoundAndVibration()
+    }
+    
+    // Handle app termination
+    @objc private func handleAppTermination() {
+        print("🚨 App terminating - stopping all alarms and vibrations")
+        nukeSoundAndVibration()
+    }
+    
+    // Handle app going to background
+    @objc private func handleAppBackground() {
+        // Only if we're exiting the app but not playing a background alarm
+        if isPlayingAlarm && UIApplication.shared.applicationState == .background {
+            print("📱 App entering background with active alarm")
+            // Make sure vibration continues properly in background
+            NotificationManager.shared.stopVibrationAlarm()
+            NotificationManager.shared.triggerImmediateAlarmWithVibration()
+        } else {
+            // If not playing intentional alarm, kill everything
+            nukeSoundAndVibration()
+        }
+    }
+    
+    // Nuclear option - kill ALL sounds and vibrations at system level
+    func nukeSoundAndVibration(preserveSession: Bool = false) {
+        print("💣 NUCLEAR OPTION: Killing AudioPlayerManager state. Preserve session: \(preserveSession)")
+        
+        // 1. Clear audio flags
+        isPlayingAlarm = false
+        alarmSource = .none
+        print("💣 Nuclear cleanup - clearing audio flags")
+        
+        // 2. Stop audio player
+        audioPlayer?.stop()
+        audioPlayer = nil
+        
+        // 3. Kill any active vibration timer (ONLY internal to this manager)
+        vibrationTimer?.invalidate()
+        vibrationTimer = nil
+        
+        // 4. Stop audio session ONLY IF NOT preserving
+        if !preserveSession {
+            print("💣 Nuking Audio Session")
+            do {
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                print("💣 Error deactivating session: \(error)")
+            }
+        } else {
+            print("💣 Preserving Audio Session state")
+        }
+        
+        // REMOVED: Calls to NotificationManager and HapticManager cleanup
+        // REMOVED: System sound cleanup calls
+        
+        // Also run cleanup on the main thread
+        DispatchQueue.main.async {
+            // Stop any music player if active
+            if MPMusicPlayerController.applicationMusicPlayer.playbackState == .playing {
+                MPMusicPlayerController.applicationMusicPlayer.stop()
+            }
+            
+            // Final reset of audio session on main thread ONLY IF NOT preserving
+            if !preserveSession {
+                print("💣 Final Session Reset")
+                do {
+                    try AVAudioSession.sharedInstance().setActive(false)
+                    try AVAudioSession.sharedInstance().setCategory(.ambient)
+                    try AVAudioSession.sharedInstance().setActive(false)
+                } catch {
+                    print("💣 Error resetting session: \(error)")
+                }
+            }
+        }
+    }
     
     // MARK: - Audio Session Management
     
@@ -65,82 +195,64 @@ class AudioPlayerManager: ObservableObject {
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: nil)
         
         // Register for key audio events
-        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioInterruption), 
+        NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption), 
                                               name: AVAudioSession.interruptionNotification, 
-                                              object: AVAudioSession.sharedInstance())
+                                              object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleRouteChange), 
                                               name: AVAudioSession.routeChangeNotification, 
-                                              object: AVAudioSession.sharedInstance())
+                                              object: nil)
     }
     
-    // Handle audio interruptions efficiently
-    @objc private func handleAudioInterruption(notification: Notification) {
+    // Handle audio session interruptions (e.g., phone calls)
+    @objc private func handleInterruption(notification: Notification) {
         guard let userInfo = notification.userInfo,
-              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+              let typeInt = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeInt) else {
             return
         }
         
-        switch type {
-        case .began:
-            // Just pause when interrupted
+        if type == .began {
+            // Interruption began, pause audio
+            playerState = audioPlayer?.isPlaying == true ? .wasPlaying : .paused
             audioPlayer?.pause()
+            print("🔊 Audio interrupted, pausing playback")
+        } else if type == .ended {
+            // Interruption ended, resume audio if it was playing before
+            guard let optionsInt = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsInt)
             
-        case .ended:
             // Check if we should resume
-            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
-                  AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) else {
-                return
-            }
-            
-            // Restore audio session based on speaker preference
-            do {
-                let useSpeaker = AudioOutputManager.shared.useSpeaker
-                
-                if useSpeaker {
-                    // 3-step speaker enforcement for resume
-                    try AVAudioSession.sharedInstance().setActive(false)
-                    try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
+            if options.contains(.shouldResume) && playerState == .wasPlaying {
+                // Try to resume our session
+                do {
                     try AVAudioSession.sharedInstance().setActive(true)
-                    try AVAudioSession.sharedInstance().setActive(false)
-                    try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
-                    try AVAudioSession.sharedInstance().setActive(true)
-                    try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
-                } else {
-                    // Standard approach for external devices
-                    try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowAirPlay])
-                    try AVAudioSession.sharedInstance().setActive(true)
+                    audioPlayer?.play()
+                    print("🔊 Interruption ended, resuming playback")
+                } catch {
+                    print("🚨 Failed to resume audio session after interruption: \(error)")
                 }
-                
-                // Reset volume and resume playback
-                if let player = audioPlayer {
-                    player.volume = AudioVolumeManager.shared.getAdjustedPlayerVolume()
-                    player.play()
-                }
-            } catch {
-                print("🚨 Failed to restore audio after interruption: \(error)")
             }
-            
-        @unknown default:
-            break
         }
     }
     
-    // Handle audio route changes efficiently
+    // Handle audio route changes (e.g., headphones connected/disconnected)
     @objc private func handleRouteChange(notification: Notification) {
         guard let userInfo = notification.userInfo,
-              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+              let reasonInt = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let _ = AVAudioSession.RouteChangeReason(rawValue: reasonInt) else {
             return
         }
+        
+        // Get current route
+        let currentRoute = AVAudioSession.sharedInstance().currentRoute
+        let outputs = currentRoute.outputs
         
         // Only enforce speaker if alarm is playing AND user wants speaker
         guard isPlayingAlarm && AudioOutputManager.shared.useSpeaker else { return }
         
         // Check if we need to reclaim speaker
-        let currentRoute = AVAudioSession.sharedInstance().currentRoute
-        let isOnSpeaker = currentRoute.outputs.first?.portType == .builtInSpeaker
+        let isOnSpeaker = outputs.first?.portType == .builtInSpeaker
         
         // Only act if we're not already on speaker
         if !isOnSpeaker {
@@ -224,11 +336,24 @@ class AudioPlayerManager: ObservableObject {
     }
 
     // Play the selected alarm sound with speaker enforcement
-    func playAlarmSound(selectedAlarmSound: AlarmSound, selectedCustomSoundID: UUID?, customSounds: [CustomSound]) {
-        print("🔊 Playing alarm sound: \(selectedAlarmSound.rawValue)")
+    func playAlarmSound(selectedAlarmSound: AlarmSound, selectedCustomSoundID: UUID?, customSounds: [CustomSound], source: AlarmSource = .regularAlarm) {
+        print("🔊 Playing alarm sound: \(selectedAlarmSound.rawValue) from source: \(source)")
+        
+        // Only stop existing alarm if necessary - don't cancel ourselves
+        if isPlayingAlarm && source != alarmSource {
+            print("🔊 Already playing alarm, stopping before starting new one")
+            
+            // Don't use nuclear option here - just stop the player cleanly
+            audioPlayer?.stop()
+            audioPlayer = nil
+            
+            // Stop vibrations but don't affect audio session
+            NotificationManager.shared.stopVibrationAlarm()
+            HapticManager.shared.stopAlarmVibration() 
+        }
         
         isPlayingAlarm = true
-        stopAlarmSound()
+        alarmSource = source
         
         guard let soundURL = getAlarmSoundURL(selectedAlarmSound: selectedAlarmSound, 
                                              selectedCustomSoundID: selectedCustomSoundID, 
@@ -241,12 +366,20 @@ class AudioPlayerManager: ObservableObject {
         
         // STEP 1: Set the system volume to match our alarm volume setting
         // (This will now affect both speaker and headphones, and show the system volume UI)
-        AudioVolumeManager.shared.setSystemVolume(to: AudioVolumeManager.shared.alarmVolume)
+        // Only update system volume if significantly different from current
+        let currentVolume = AVAudioSession.sharedInstance().outputVolume
+        if abs(currentVolume - AudioVolumeManager.shared.alarmVolume) > 0.1 {
+            AudioVolumeManager.shared.setSystemVolume(to: AudioVolumeManager.shared.alarmVolume)
+        }
         
         // STEP 2: Set up audio session with speaker enforcement if needed
         do {
-            // Always break existing connections first
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            // Only deactivate if session isn't already active
+            let isSessionActive = AVAudioSession.sharedInstance().isOtherAudioPlaying
+            if !isSessionActive {
+                // Always break existing connections first
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
             
             if useSpeaker {
                 // SPEAKER ENFORCEMENT: 3-step reliable approach
@@ -254,7 +387,6 @@ class AudioPlayerManager: ObservableObject {
                 // Step 1: Break Bluetooth with soloAmbient
                 try AVAudioSession.sharedInstance().setCategory(.soloAmbient)
                 try AVAudioSession.sharedInstance().setActive(true)
-                try AVAudioSession.sharedInstance().setActive(false)
                 
                 // Step 2: Set playAndRecord with defaultToSpeaker (no Bluetooth options)
                 try AVAudioSession.sharedInstance().setCategory(.playAndRecord, 
@@ -281,13 +413,19 @@ class AudioPlayerManager: ObservableObject {
         
         // STEP 3: Initialize player and start playback
         do {
-            audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
-            audioPlayer?.prepareToPlay()
-            audioPlayer?.numberOfLoops = -1 // Loop indefinitely
+            // Create a fresh player
+            let freshPlayer = try AVAudioPlayer(contentsOf: soundURL)
             
-            // Apply player volume settings and ensure system volume is set
+            // Configure it before assigning to ensure we don't lose settings
+            freshPlayer.prepareToPlay()
+            freshPlayer.numberOfLoops = -1 // Loop indefinitely
+            
+            // Set volume BEFORE assigning to property
             let playerVolume = AudioVolumeManager.shared.getAdjustedPlayerVolume()
-            audioPlayer?.volume = playerVolume
+            freshPlayer.volume = playerVolume
+            
+            // Now safely assign to property
+            audioPlayer = freshPlayer
             
             // Log both player and system volume for clarity
             let currentSystemVolume = AVAudioSession.sharedInstance().outputVolume
@@ -296,69 +434,116 @@ class AudioPlayerManager: ObservableObject {
             // Register for interruptions and route changes
             setupAudioNotifications()
             
-            // Add slight delay to ensure session is fully configured
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                guard let self = self else { return }
-                
-                // One final speaker check
-                if useSpeaker && AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType != .builtInSpeaker {
-                    try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+            // CRITICAL CHANGE: Start playing immediately again
+            print("🔊 Attempting immediate audio playback...")
+            if audioPlayer!.play() {
+                print("✅ Immediate playback started successfully.")
+            } else {
+                print("🚨 Immediate playback FAILED to start. Trying prepare/play again...")
+                audioPlayer?.prepareToPlay()
+                if audioPlayer!.play() {
+                     print("✅ Immediate playback started successfully on second attempt.")
+                } else {
+                    print("🚨🚨 Immediate playback FAILED even on second attempt!")
+                    stopAlarmSound() // Give up and clean up
+                    return // Don't proceed
                 }
-                
-                // Double-check system volume one more time
-                let finalSystemVolume = AVAudioSession.sharedInstance().outputVolume
-                if abs(finalSystemVolume - AudioVolumeManager.shared.alarmVolume) > 0.05 {
-                    // If system volume doesn't match our setting, try one more time with force UI
-                    AudioVolumeManager.shared.setSystemVolume(to: AudioVolumeManager.shared.alarmVolume)
-                }
-                
-                // Start playback
-                self.audioPlayer?.play()
-                
-                // Trigger vibration
-                NotificationManager.shared.triggerImmediateAlarmWithVibration()
             }
+            
+            // Trigger Vibration immediately as well
+            print("📳 Triggering vibration for source: \(source)")
+            NotificationManager.shared.triggerImmediateAlarmWithVibration()
+
         } catch {
-            print("🚨 Audio player error: \(error)")
+            print("🚨 Audio player initialization error: \(error)")
             stopAlarmSound()
         }
     }
     
+    // Special method for max timer alarm
+    func playMaxTimerAlarm(selectedAlarmSound: AlarmSound, selectedCustomSoundID: UUID?, customSounds: [CustomSound]) {
+        print("⏰ Max timer triggered alarm")
+
+        // Gentle stop of previous sound/vibration IF playing
+        if isPlayingAlarm {
+            print("⏰ Gently stopping previous alarm/vibration for max timer")
+            // Stop audio player directly
+            audioPlayer?.stop()
+            // Don't nil out audioPlayer here, let playAlarmSound handle replacement
+
+            // Stop vibration sources directly
+            NotificationManager.shared.stopVibrationAlarm()
+            HapticManager.shared.stopAlarmVibration() // Ensure HapticManager timer stops too
+
+            // Don't clear isPlayingAlarm flag here, let playAlarmSound manage it
+        } else {
+             print("⏰ No previous alarm playing, starting max timer fresh")
+             // If nothing was playing, ensure flags are clear (no-op if already clear)
+             isPlayingAlarm = false
+             alarmSource = .none
+        }
+
+
+        // Small delay to ensure stops complete before starting new audio
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self = self else { return }
+
+            // isPlayingAlarm should be true OR false depending on above block
+            // Let playAlarmSound handle setting it true consistently
+            print("📳 Starting fresh max timer alarm. Current isPlayingAlarm=\(self.isPlayingAlarm)")
+            self.playAlarmSound(selectedAlarmSound: selectedAlarmSound,
+                           selectedCustomSoundID: selectedCustomSoundID,
+                           customSounds: customSounds,
+                           source: .maxTimer)
+        }
+    }
+    
     // Stop playing alarm sound
-    func stopAlarmSound() {
-        isPlayingAlarm = false
-        
-        // Stop playback and clean up player
-        audioPlayer?.stop()
-        audioPlayer = nil
-        
-        // Remove audio session observers
-        NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: nil)
-        
-        // Reset audio session
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-            try AVAudioSession.sharedInstance().setCategory(.ambient)
-            try AVAudioSession.sharedInstance().setActive(false)
-        } catch {
-            // Non-critical error
+    func stopAlarmSound(force: Bool = false) {
+        // If already stopped, don't do anything to prevent duplicate stops
+        if !force && !isPlayingAlarm {
+            print("🔊 No alarm playing - nothing to stop")
+            return
         }
         
-        // Stop any music player if active
-        if MPMusicPlayerController.applicationMusicPlayer.playbackState == .playing {
-            MPMusicPlayerController.applicationMusicPlayer.stop()
-        }
+        print("🔊 Stopping alarm sound from source: \(alarmSource)")
         
-        // Stop vibrations
-        NotificationManager.shared.stopVibrationAlarm()
+        // Nuclear option to ensure everything stops - DO NOT preserve session here
+        nukeSoundAndVibration(preserveSession: false)
     }
     
     // Special method to start playing alarm sound in background
     func startBackgroundAlarmSound(selectedAlarmSound: AlarmSound, selectedCustomSoundID: UUID?, customSounds: [CustomSound]) {
         setupBackgroundAudio()
         playAlarmSound(selectedAlarmSound: selectedAlarmSound, 
-                      selectedCustomSoundID: selectedCustomSoundID, 
-                      customSounds: customSounds)
+                       selectedCustomSoundID: selectedCustomSoundID, 
+                       customSounds: customSounds,
+                       source: .backgroundAlarm)
+    }
+    
+    // Call when app is being closed or exited
+    func cleanupOnExit() {
+        print("🧹 Cleaning up audio on exit")
+        nukeSoundAndVibration(preserveSession: false)
+    }
+    
+    // MARK: - Global app termination handling
+    
+    // This can be called from AppDelegate to ensure vibration cleanup
+    class func emergencyStopAllVibrations() {
+        print("🚨 EMERGENCY: Stopping all vibrations on application termination")
+        
+        // Use all available methods to absolutely ensure vibrations stop
+        NotificationManager.shared.stopVibrationAlarm()
+        HapticManager.shared.killAllSystemSounds()
+        
+        // Direct system calls as last resort
+        AudioServicesDisposeSystemSoundID(kSystemSoundID_Vibrate)
+        AudioServicesRemoveSystemSoundCompletion(kSystemSoundID_Vibrate)
+        
+        for soundID in 1000...1016 {
+            AudioServicesDisposeSystemSoundID(SystemSoundID(soundID))
+            AudioServicesRemoveSystemSoundCompletion(SystemSoundID(soundID))
+        }
     }
 } 

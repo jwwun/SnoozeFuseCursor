@@ -35,10 +35,15 @@ class AudioVolumeManager: ObservableObject {
     
     // MARK: - Volume Control Methods
     
+    /// Gets the volume slider from the volume view for direct manipulation
+    func getVolumeSlider() -> UISlider? {
+        return volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider
+    }
+    
     /// Sets the device system volume to the specified value AND shows the system volume UI
     func setSystemVolume(to volume: Float) {
         // Method 1: Use the MPVolumeView's slider (this is reliable)
-        if let volumeSlider = volumeView.subviews.first(where: { $0 is UISlider }) as? UISlider {
+        if let volumeSlider = getVolumeSlider() {
             DispatchQueue.main.async {
                 // Update slider value to change volume
                 volumeSlider.value = volume
@@ -46,20 +51,17 @@ class AudioVolumeManager: ObservableObject {
                 // This will affect both speaker and headphones since it's the system volume
                 print("🔊 System volume set to \(Int(volume * 100))%")
                 
-                // Force the system HUD to show by playing a silent sound
-                // This triggers iOS to show the native volume indicator
-                AudioServicesPlaySystemSound(1519) // Small sound
+                // Only play a sound if needed to trigger volume UI
+                if volume > 0 {
+                    // Use a safer approach with a delayed tiny sound
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        AudioServicesPlaySystemSound(1519) // Small sound
+                    }
+                }
             }
         }
         
-        // Method 2: Try direct notification approach if available
-        // Note: This is a private API approach but it can help trigger the volume HUD
-        let volumeDict: [String: Float] = ["AVSystemController_AudioVolumeNotificationParameter": volume]
-        NotificationCenter.default.post(
-            name: NSNotification.Name(rawValue: "AVSystemController_SystemVolumeDidChangeNotification"), 
-            object: nil, 
-            userInfo: volumeDict
-        )
+        // Method 2 removed - avoid using private API approach that can cause errors
     }
     
     /// Gets the current system volume
@@ -81,9 +83,13 @@ class AudioVolumeManager: ObservableObject {
         // Set audio player volume first
         audioPlayer?.volume = getAdjustedPlayerVolume()
         
-        // Also set system volume to match our desired volume 
-        // (This affects both speaker and external devices like headphones)
-        setSystemVolume(to: alarmVolume)
+        // Safer approach - only update system volume if we need to
+        let currentVolume = getCurrentSystemVolume()
+        if abs(currentVolume - alarmVolume) > 0.05 {  // Only update if difference is significant
+            // Also set system volume to match our desired volume 
+            // (This affects both speaker and external devices like headphones)
+            setSystemVolume(to: alarmVolume)
+        }
     }
     
     // MARK: - UI Control Methods
@@ -103,7 +109,9 @@ class AudioVolumeManager: ObservableObject {
     func prepareVolumeControl() {
         // Add our hidden volume view to the main window (but keep it off-screen)
         DispatchQueue.main.async {
-            if let keyWindow = UIApplication.shared.windows.first {
+            // Use the modern approach to get the window
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let keyWindow = windowScene.windows.first {
                 self.volumeView.isHidden = true // Make sure it's hidden
                 keyWindow.addSubview(self.volumeView)
             }

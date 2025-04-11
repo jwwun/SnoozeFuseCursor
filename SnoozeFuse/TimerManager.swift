@@ -295,7 +295,7 @@ class TimerManager: ObservableObject {
         // Important: Make sure we also stop ALL vibration sources
         // This fixes the bug where vibration continues after stopping the alarm
         HapticManager.shared.stopAlarmVibration()
-        NotificationManager.shared.stopAlarmVibration()
+        NotificationManager.shared.stopVibrationAlarm()
         
         // Clear any pending notifications
         NotificationManager.shared.cancelPendingNotifications()

@@ -120,35 +120,32 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         
         // Cancel any timer
-        stopAlarmVibration()
+        stopVibrationAlarm()
     }
     
     // Function to stop alarm vibration
-    func stopAlarmVibration() {
-        // Make sure to cancel any ongoing vibration timers
-        if let timer = alarmSoundTimer {
-            timer.invalidate()
-            alarmSoundTimer = nil
+    func stopVibrationAlarm() {
+        print("📱 NotificationManager: Stopping vibration TIMER ONLY")
+        
+        // 1: Stop and clear the timer (MAIN THREAD)
+        DispatchQueue.main.async {
+            if let timer = self.alarmSoundTimer {
+                print("Invalidating NotificationManager timer")
+                timer.invalidate()
+                self.alarmSoundTimer = nil
+            }
         }
         
-        // For thorough vibration stopping, use AudioServices
-        DispatchQueue.main.async {
-            // This helps reset the vibration system state
-            AudioServicesDisposeSystemSoundID(kSystemSoundID_Vibrate)
-            
-            // Also ensure HapticManager stops its vibrations
-            HapticManager.shared.stopAlarmVibration()
-        }
+        // REMOVED: Notification removal
+        // REMOVED: System sound cleanup
+        // REMOVED: Session resets
+        // REMOVED: HapticManager call
     }
     
     // Function to clear the app badge count
     func clearBadgeCount() {
-        UIApplication.shared.applicationIconBadgeNumber = 0
-        UNUserNotificationCenter.current().setBadgeCount(0) { error in
-            if let error = error {
-                print("Error clearing badge count: \(error.localizedDescription)")
-            }
-        }
+        // Use the modern approach only - the old one is deprecated
+        UNUserNotificationCenter.current().setBadgeCount(0)
     }
     
     // Register the alarm notification category with actions
@@ -189,50 +186,63 @@ class NotificationManager: ObservableObject {
     
     // Function to trigger an immediate notification with vibration
     func triggerImmediateAlarmWithVibration() {
-        // Use the system's vibration pattern with AudioServices
-        // This will vibrate the device even if sound is muted
+        print("📱 NotificationManager: Starting vibration")
+        
+        // First stop any existing vibration to prevent duplicates
+        stopVibrationAlarm()
+        
+        // Simple one-time vibration to start
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         
-        // For a stronger alarm-like continuous vibration pattern, we alternate between
-        // system sounds and vibrations at short intervals
-        
-        // Start a repeating timer that alternates vibrations
-        let vibrateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            // First vibration (stronger)
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        // Create a secure timer reference to avoid retain cycles and thread issues
+        let timerRef = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard let _ = self else { 
+                timer.invalidate()
+                return
+            }
             
-            // After a short delay, add another vibration for a pattern effect
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Run vibration on main thread
+            DispatchQueue.main.async {
+                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            }
+            
+            // Add second vibration pattern with slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let _ = self else { return }
                 AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
             }
         }
         
-        // Store the timer for later cancellation
-        alarmSoundTimer = vibrateTimer
+        // Securely store the timer reference
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.alarmSoundTimer = timerRef
+        }
         
-        // Also schedule an immediate notification to use both mechanisms
-        let content = UNMutableNotificationContent()
-        content.title = "Wake Up!"
-        content.body = "Your nap time is over."
-        content.sound = UNNotificationSound.defaultCritical
-        content.categoryIdentifier = "alarmCategory"
-        
-        // Create trigger for immediate delivery
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        
-        // Create request with unique ID
-        let request = UNNotificationRequest(
-            identifier: "immediateAlarmNotification",
-            content: content,
-            trigger: trigger
-        )
-        
-        // Add request to notification center
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling immediate notification: \(error.localizedDescription)")
-            } else {
-                print("Immediate notification scheduled for system vibration")
+        // Also schedule a simple notification that provides feedback
+        DispatchQueue.main.async {
+            let content = UNMutableNotificationContent()
+            content.title = "Wake Up!"
+            content.body = "Your nap time is over."
+            content.sound = UNNotificationSound.defaultCritical
+            content.categoryIdentifier = "alarmCategory"
+            
+            // Create trigger for immediate delivery with DIFFERENT identifier
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            
+            // Create request with UNIQUE ID that won't conflict
+            let requestID = "immediateAlarm_\(Date().timeIntervalSince1970)"
+            let request = UNNotificationRequest(
+                identifier: requestID,
+                content: content,
+                trigger: trigger
+            )
+            
+            // Add to notification center
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Error scheduling immediate notification: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -284,18 +294,6 @@ class NotificationManager: ObservableObject {
                 print("Critical alerts authorized: \(settings.criticalAlertSetting == .enabled)")
             }
         }
-    }
-    
-    // Function to stop the vibration alarm
-    func stopVibrationAlarm() {
-        // Stop the vibration timer if it exists
-        alarmSoundTimer?.invalidate()
-        alarmSoundTimer = nil
-        
-        // Remove any delivered notifications
-        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-        
-        print("🔔 Stopped vibration alarm")
     }
 }
 

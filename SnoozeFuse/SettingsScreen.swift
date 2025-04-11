@@ -42,7 +42,8 @@ struct SettingsScreen: View {
                                 .scaledToFit()
                                 .frame(width: 132, height: 66)
                                 .scaleEffect(0.8)
-                                .drawingGroup() // Use Metal rendering for better performance
+                                // Use safe Metal rendering that avoids errors
+                                .safeMetalRendering(isEnabled: true)
                                 .modifier(PixelateEffect(isActive: timerManager.isLogoAnimating))
                                 .onTapGesture {
                                     if !timerManager.isLogoAnimating {
