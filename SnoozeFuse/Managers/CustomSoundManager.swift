@@ -92,6 +92,10 @@ class CustomSoundManager: ObservableObject {
                             // Set exporting flag to false when complete
                             defer { self.isExportingMusic = false }
                             
+                            // Success! Before creating the new sound, remove any placeholder
+                            // that might have been created for this same song
+                            self.removeCustomSoundsByPrefix("🎵 \(displayName)")
+                            
                             // Success! Create and add the custom sound
                             let newSound = CustomSound(name: displayName, fileURL: destinationURL)
                             self.customSounds.append(newSound)
@@ -121,7 +125,10 @@ class CustomSoundManager: ObservableObject {
                             return
                         }
                         
-                        // Success! Create and add the custom sound
+                        // Success! Before creating the new sound, remove any placeholder
+                        // that might have been created for this same song
+                        self.removeCustomSoundsByPrefix("🎵 \(displayName)")
+            
                         let newSound = CustomSound(name: displayName, fileURL: destinationURL)
                         self.customSounds.append(newSound)
                         
@@ -130,7 +137,7 @@ class CustomSoundManager: ObservableObject {
                 }
             }
             
-            // Return the placeholder for now - real file will be updated asynchronously
+            // Create and return the placeholder for now - real file will be updated asynchronously
             return handleExportFailure(item: item, displayName: displayName)
         } else {
             // No asset URL available - handle as fallback case
@@ -158,6 +165,18 @@ class CustomSoundManager: ObservableObject {
         self.isExportingMusic = false
         
         return newSound
+    }
+    
+    // Helper method to remove any custom sounds with a given name prefix
+    private func removeCustomSoundsByPrefix(_ prefix: String) {
+        // Find any sounds that start with the given prefix
+        let soundsToRemove = customSounds.filter { $0.name.hasPrefix(prefix) }
+        
+        // Remove each matching sound
+        for sound in soundsToRemove {
+            print("Removing placeholder for successfully exported sound: \(sound.name)")
+            removeCustomSound(id: sound.id)
+        }
     }
     
     // Remove a custom sound by ID
