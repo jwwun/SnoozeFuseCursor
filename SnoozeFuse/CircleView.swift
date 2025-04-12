@@ -137,26 +137,8 @@ struct CircleView: View {
     
     /// Full-screen mode indicator
     private var fullScreenModeIndicator: some View {
-        Circle()
-            .stroke(
-                AngularGradient(
-                    gradient: Gradient(colors: [
-                        Color.blue.opacity(0.8),
-                        Color.purple.opacity(0.8),
-                        Color.pink.opacity(0.8),
-                        Color.blue.opacity(0.8)
-                    ]),
-                    center: .center
-                ),
-                style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [4, 6])
-            )
-            .scaleEffect(1.05)
-            .rotationEffect(Angle(degrees: isPressed ? -30 : 30))
-            .animation(
-                Animation.linear(duration: 4)
-                    .repeatForever(autoreverses: false),
-                value: isPressed
-            )
+        // Removed the dotted ring as requested
+        EmptyView() // No indicator shown now
     }
     
     /// Max timer progress bar
@@ -448,24 +430,29 @@ struct CircleView: View {
     
     /// The circle background with gradient and animation
     private var circleBackground: some View {
-        Circle()
-            .fill(
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        isPressed ? pressedColor.opacity(0.8) : normalColor.opacity(0.5),
-                        isPressed ? pressedColor.opacity(0.4) : normalColor.opacity(0.2)
-                    ]),
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: size / 1.5
-                )
-            )
-            .overlay(
-                Circle()
-                    .stroke(normalColor.opacity(0.6), lineWidth: 2)
-            )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.spring(response: 0.3), value: isPressed)
+        ZStack {
+            // Outer circle border
+            Circle()
+                .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                .frame(width: size, height: size)
+            
+            // Middle circle
+            Circle()
+                .stroke(isPressed ? pressedColor.opacity(0.4) : normalColor.opacity(0.4), lineWidth: 3)
+                .frame(width: size - 20, height: size - 20)
+            
+            // Inner circle - changes color when pressed
+            Circle()
+                .fill(isPressed ? pressedColor.opacity(0.25) : normalColor.opacity(0.1))
+                .frame(width: size - 30, height: size - 30)
+            
+            // Center fill
+            Circle()
+                .fill(isPressed ? pressedColor.opacity(0.4) : normalColor.opacity(0.2))
+                .frame(width: size * 0.6, height: size * 0.6)
+        }
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3), value: isPressed)
     }
     
     /// The status text in the center of the circle

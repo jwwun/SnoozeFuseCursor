@@ -21,6 +21,7 @@ struct SettingsScreen: View {
     @State private var volumeRefreshTrigger = false // Force view updates for volume UI
     @State private var alarmSoundRefreshTrigger = false // Force view updates for alarm sound UI
     @State private var circleSizeRefreshTrigger = false // Force view updates for circle size UI
+    @AppStorage("hasVisitedTutorial") private var hasVisitedTutorial = false
     
     var body: some View {
         ZStack {
@@ -64,18 +65,36 @@ struct SettingsScreen: View {
                                 
                                 Spacer()
                                 
-                                // About button
-                                NavigationLink(destination: AboutScreen()) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "info.circle")
-                                            .font(.system(size: 14))
-                                        Text("About")
-                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                // Basics button - clean text-only style, precise hitbox
+                                NavigationLink(destination: AboutScreen().onDisappear {
+                                    // Mark as visited when user returns from About screen
+                                    hasVisitedTutorial = true
+                                }) {
+                                    if hasVisitedTutorial {
+                                        // After viewing - just a small info icon
+                                        ZStack {
+                                            // Empty Color view to define exact hitbox area
+                                            Color.clear
+                                                .frame(width: 30, height: 30)
+                                            
+                                            Image(systemName: "info.circle")
+                                                .font(.system(size: 22)) // Slightly larger for visibility
+                                                .foregroundColor(.white.opacity(0.2))
+                                        }
+                                    } else {
+                                        // First time - simple text without button styling
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "info.circle.fill")
+                                                .font(.system(size: 18))
+                                            Text("Basics")
+                                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                        }
+                                        .foregroundColor(.white.opacity(0.7))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
                                     }
-                                    .foregroundColor(.white.opacity(0.5))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
                                 }
+                                .buttonStyle(PlainButtonStyle())
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.leading, -8) // topleft corner
@@ -262,7 +281,6 @@ struct SettingsScreen: View {
     
     private var bottomButtonBar: some View {
         VStack {
-            
             // Circular Start button
             Button(action: {
                 showNapScreen = true
@@ -288,7 +306,8 @@ struct SettingsScreen: View {
                     .foregroundColor(.white)
                 }
             }
-            // More Settings button now links to Advanced Settings
+            
+            // Advanced Settings button
             NavigationLink(destination: AdvancedSettingsScreen()) {
                 VStack(spacing: 8) {
                     Image(systemName: "gearshape.2.fill")

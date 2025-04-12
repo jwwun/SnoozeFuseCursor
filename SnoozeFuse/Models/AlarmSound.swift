@@ -2,9 +2,9 @@ import Foundation
 
 // Available alarm sounds
 enum AlarmSound: String, CaseIterable, Identifiable {
-    case testAlarm = "Korone, Gura, Amelia, Kureiji - Yobio Mix"
+    case vtuber = "Ohio_Ohayō's Edit of Korone, Gawr Gura, Watson Amelia"
     case firecracker = "Firecracker"
-    case vtuberAlarm = "Korone Alarm"
+    case beep = "Computer Beep"
     case warAmbience = "War Ambience"
     case custom = "Custom Sound"
     
@@ -12,9 +12,9 @@ enum AlarmSound: String, CaseIterable, Identifiable {
     
     var filename: String {
         switch self {
-        case .testAlarm: return "testalarm"
+        case .vtuber: return "vtuber"
         case .firecracker: return "firecracker"
-        case .vtuberAlarm: return "vtuberalarm"
+        case .beep: return "beep"
         case .warAmbience: return "war ambience"
         case .custom: return "customSound"
         }
@@ -22,8 +22,9 @@ enum AlarmSound: String, CaseIterable, Identifiable {
     
     var fileExtension: String {
         switch self {
-        case .warAmbience, .firecracker: return "wav"
-        case .testAlarm, .vtuberAlarm, .custom: return "mp3"
+        case .vtuber, .beep, .firecracker: return "caf"
+        case .warAmbience: return "wav"
+        case .custom: return "mp3"
         }
     }
 } 

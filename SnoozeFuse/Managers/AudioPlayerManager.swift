@@ -418,7 +418,7 @@ class AudioPlayerManager: ObservableObject {
         }
         
         // Handle built-in sound selection (or fallback from custom)
-        let soundToPlay = (selectedAlarmSound == .custom) ? .testAlarm : selectedAlarmSound // Fallback to testAlarm if custom failed
+        let soundToPlay = (selectedAlarmSound == .custom) ? .firecracker : selectedAlarmSound // Fallback to testAlarm if custom failed
         
         print("🔊 Attempting to use built-in sound: \(soundToPlay.filename).\(soundToPlay.fileExtension)")
         guard let url = Bundle.main.url(

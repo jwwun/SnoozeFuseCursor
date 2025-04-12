@@ -17,7 +17,7 @@ class SettingsManager: ObservableObject {
     @Published var maxDuration: TimeInterval = 120   // Timer C: 2 minutes default
     
     // Alarm sound settings
-    @Published var selectedAlarmSound: AlarmSound = .testAlarm
+    @Published var selectedAlarmSound: AlarmSound = .firecracker
     @Published var selectedCustomSoundID: UUID?
     
     // UserDefaults keys

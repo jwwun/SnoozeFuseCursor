@@ -174,3 +174,79 @@ Implementation details:
 - The AppDelegate has a `requestNotificationsPermissionWhenNeeded()` method
 - SleepScreen calls this method when a sleep timer is started
 - This ensures notifications are only requested when they're actually needed 
+
+### Custom CAF Sound Notifications Feature
+- **Custom Notification Sounds**: Users can import and use custom .caf format sound files for notifications outside the app
+- **iOS Format Requirement**: Clear warnings and guidance explaining that iOS requires .caf format for notification sounds
+- **File Import**: UI for importing custom .caf files from the Files app
+- **Sound Management**: 
+  - List view for managing imported CAF sounds
+  - Swipe-to-delete functionality for removing sounds
+  - Selection indication for currently active sound
+- **Sound Preview**: Test button to preview selected CAF sound before using it in notifications
+- **Default Sound Option**: Option to use the default system notification sound
+- **Dedicated Test UI**: 
+  - Separate test component for sending immediate test notifications with selected sound
+  - Can test sounds with the app in foreground or background
+  - Clear feedback on whether the test was successful
+- **Format Validation**: Checks and alerts if attempting to import non-CAF files
+- **Helpful Documentation**: Built-in information about CAF files and conversion options
+- **Integration with Existing Notifications**: 
+  - Seamless integration with existing alarm notifications
+  - Custom sounds are used for both scheduled and immediate notifications
+- **Location**: Located in Advanced Settings under the Notifications section
+- **Persistence**: All custom sounds and selection preferences are saved and persist between app launches
+- **Built-in CAF Sounds**:
+  - Includes built-in .caf sound options (beep.caf and vtuber.caf)
+  - Built-in sounds are protected from deletion
+  - Proper file handling for notification system compatibility
+
+## Developer Notes
+
+### Adding CAF Files to the Project
+To add .caf files to the Xcode project:
+
+1. **Create a group for sound resources** (if not already present)
+2. **Drag the .caf files** into this group in the Xcode navigator
+3. In the dialog that appears:
+   - Ensure "Copy items if needed" is checked
+   - Select the appropriate target
+   - Choose "Create groups" for the added folders
+   - Click "Finish"
+4. Verify the files are included in the "Copy Bundle Resources" build phase
+
+### Implementation Details
+
+#### iOS Notification Sound Requirements
+- iOS only supports .caf (Core Audio Format) files for custom notification sounds
+- The sounds must be accessible from a specific location within the app's bundle
+- For custom imported sounds, they must be copied to the Library/Sounds directory
+- Sound file references in notifications must use UNNotificationSoundName
+
+#### Playing CAF Files in Notifications
+1. The app stores CAF files in both:
+   - The Documents directory (for app use and persistence)
+   - The Library/Sounds directory (for iOS notification system use)
+2. When scheduling a notification, the sound is referenced by name:
+   ```swift
+   if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
+       content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
+   }
+   ```
+3. iOS notification system finds the sound file in Library/Sounds and plays it when the notification is triggered 
+
+## Recent Updates
+
+### Sound System Improvements
+
+**Changes to AlarmSound.swift:**
+- Updated the `filename` method to return the actual base filename of the sound file instead of the display name
+- Modified the `fileExtension` method to correctly identify .caf files for vtuber and beep sounds
+
+**Changes to CustomCAFManager.swift:**
+- Implemented mapping from internal filenames to user-friendly display names
+- Fixed sound file handling to properly utilize the mapped names for built-in sounds
+- Improved file copying logic for notification sounds
+- Enhanced the lookup of built-in sounds to use the new mapping dictionary
+
+These changes ensure that built-in sounds are correctly mapped between their filesystem names and their user-friendly display names, which should resolve issues with notification sounds not playing correctly 

@@ -167,14 +167,23 @@ struct AdvancedSettingsScreen: View {
                                     .padding(.horizontal)
                                     .padding(.vertical, 5)
                                 
-                                // Add CAF sound selector component
-                                CAFSoundSelector()
-                                    .padding(.horizontal, 8)
-                                    .padding(.top, 5)
-                                
-                                // Add CAF notification test component
-                                NotificationTestUI()
-                                    .padding(.top, 10)
+                                // Combined Notification Sound Controls - Both components in the same container
+                                VStack(spacing: 15) {
+                                    // CAF sound selector component
+                                    CAFSoundSelector()
+                                    
+                                    Divider()
+                                        .background(Color.gray.opacity(0.5))
+                                        .padding(.horizontal, 30)
+                                    
+                                    // CAF notification test component
+                                    NotificationTestUI()
+                                }
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
+                                .background(Color.gray.opacity(0.2))
+                                .cornerRadius(15)
+                                .padding(.horizontal, 8)
                             }
                         }
                         .padding(.vertical, 16)

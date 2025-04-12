@@ -2,12 +2,21 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AVFoundation
 
+// Extension to get display name for sounds
+extension CustomCAFSound {
+    var displayName: String {
+        return name
+    }
+}
+
 struct CAFSoundSelector: View {
     @ObservedObject private var cafManager = CustomCAFManager.shared
     @State private var isPlaying: Bool = false
     @State private var showDocumentPicker = false
     @State private var showingManageSoundsSheet = false
     @State private var showFileFormatAlert = false
+    @State private var showCAFInfoAlert = false
+    @State private var dontShowCAFInfoAgain = false
     @State private var previewPlayer: AVAudioPlayer?
     
     var body: some View {
@@ -19,49 +28,50 @@ struct CAFSoundSelector: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "Choose a .caf sound file to play when notifications are triggered outside the app. Only .caf files are supported for iOS notifications.")
+                HelpButton(helpText: "Choose a sound to play when notifications are triggered outside the app. The built-in alarm sounds are also available for notifications.")
                 
                 Spacer()
             }
             .padding(.bottom, 3)
             
-            // Format requirement warning
-            Text("Note: iOS requires .caf format files for custom notification sounds")
-                .font(.system(size: 12))
-                .foregroundColor(.orange)
-                .padding(.bottom, 5)
-            
             // Sound selection and import
             HStack {
                 // Dropdown menu for CAF sound selection
                 Menu {
-                    Button(action: {
-                        cafManager.selectedCAFSoundID = nil
-                        cafManager.saveCAFSounds()
-                        stopPreviewSound()
-                    }) {
-                        HStack {
-                            Text("Default System Sound")
-                            if cafManager.selectedCAFSoundID == nil {
-                                Image(systemName: "checkmark")
+                    if !cafManager.cafSounds.isEmpty {
+                        // Built-in sounds section
+                        Section(header: Text("Built-in Sounds")) {
+                            ForEach(cafManager.cafSounds.filter { $0.isBuiltIn }) { cafSound in
+                                Button(action: {
+                                    cafManager.selectedCAFSoundID = cafSound.id
+                                    cafManager.saveCAFSounds()
+                                    stopPreviewSound()
+                                }) {
+                                    HStack {
+                                        Text(cafSound.name)
+                                        if cafManager.selectedCAFSoundID == cafSound.id {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                    
-                    if !cafManager.cafSounds.isEmpty {
-                        Divider()
                         
-                        // Custom CAF sounds section
-                        ForEach(cafManager.cafSounds) { cafSound in
-                            Button(action: {
-                                cafManager.selectedCAFSoundID = cafSound.id
-                                cafManager.saveCAFSounds()
-                                stopPreviewSound()
-                            }) {
-                                HStack {
-                                    Text(cafSound.name)
-                                    if cafManager.selectedCAFSoundID == cafSound.id {
-                                        Image(systemName: "checkmark")
+                        // Custom sounds section (only show if there are custom sounds)
+                        if cafManager.cafSounds.contains(where: { !$0.isBuiltIn }) {
+                            Section(header: Text("Detected .caf Sounds")) {
+                                ForEach(cafManager.cafSounds.filter { !$0.isBuiltIn }) { cafSound in
+                                    Button(action: {
+                                        cafManager.selectedCAFSoundID = cafSound.id
+                                        cafManager.saveCAFSounds()
+                                        stopPreviewSound()
+                                    }) {
+                                        HStack {
+                                            Text(cafSound.name)
+                                            if cafManager.selectedCAFSoundID == cafSound.id {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -71,40 +81,44 @@ struct CAFSoundSelector: View {
                         Button(action: {
                             showingManageSoundsSheet = true
                         }) {
-                            Label("Manage CAF Sounds...", systemImage: "slider.horizontal.3")
+                            Label("Manage Sounds...", systemImage: "slider.horizontal.3")
                         }
                     }
                 } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "bell.and.waveform.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        // Show the name of the selected sound or "Default System Sound"
-                        if let selectedID = cafManager.selectedCAFSoundID,
-                           let customSound = cafManager.cafSounds.first(where: { $0.id == selectedID }) {
-                            MarqueeText(
-                                text: customSound.name,
-                                font: .system(size: 16, weight: .medium),
-                                textColor: .white
-                            )
-                            .frame(height: 20)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            MarqueeText(
-                                text: "Default System Sound",
-                                font: .system(size: 16, weight: .medium),
-                                textColor: .white
-                            )
-                            .frame(height: 20)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // Create a fixed-width container for the marquee
+                        ZStack(alignment: .leading) {
+                            // Show the name of the selected sound
+                            if let selectedID = cafManager.selectedCAFSoundID,
+                               let customSound = cafManager.cafSounds.first(where: { $0.id == selectedID }) {
+                                MarqueeText(
+                                    text: customSound.name,
+                                    font: .system(size: 16, weight: .medium),
+                                    textColor: .white
+                                )
+                            } else if let firstSound = cafManager.cafSounds.first(where: { $0.isBuiltIn }) {
+                                // Fallback to first built-in sound if nothing selected
+                                MarqueeText(
+                                    text: firstSound.name,
+                                    font: .system(size: 16, weight: .medium),
+                                    textColor: .white.opacity(0.7)
+                                )
+                            } else {
+                                // Ultimate fallback if no sounds available
+                                MarqueeText(
+                                    text: "No sounds available",
+                                    font: .system(size: 16, weight: .medium),
+                                    textColor: .white.opacity(0.5)
+                                )
+                            }
                         }
+                        .frame(width: 170, alignment: .leading)
                         
                         Image(systemName: "chevron.down")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                     }
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 6)
                     .padding(.horizontal, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
@@ -114,12 +128,18 @@ struct CAFSoundSelector: View {
 
                 // Import button
                 Button(action: {
-                    showDocumentPicker = true
+                    // Show the CAF info alert if user hasn't chosen to hide it
+                    if !UserDefaults.standard.bool(forKey: "dontShowCAFInfoAlert") {
+                        showCAFInfoAlert = true
+                    } else {
+                        // Go straight to document picker if user has disabled the alert
+                        showDocumentPicker = true
+                    }
                 }) {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 18))
                         .foregroundColor(.white.opacity(0.7))
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 6)
                         .padding(.horizontal, 12)
                 }
 
@@ -137,8 +157,8 @@ struct CAFSoundSelector: View {
                         Text(isPlaying ? "Stop" : "Test")
                             .font(.system(size: 14, weight: .medium))
                     }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 15)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 20)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(isPlaying ? Color.red.opacity(0.6) : Color.purple.opacity(0.6))
@@ -147,10 +167,6 @@ struct CAFSoundSelector: View {
                 }
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 12)
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(15)
         .sheet(isPresented: $showDocumentPicker) {
             CAFDocumentPicker(selectedFileURL: onFileSelected)
         }
@@ -160,10 +176,33 @@ struct CAFSoundSelector: View {
         .alert("Unsupported File Format", isPresented: $showFileFormatAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("Only .caf format files are supported for iOS notifications. Please select a .caf file.")
+            Text("Only .caf format files are supported for notification sounds. Please select a .caf file.")
+        }
+        .alert("Custom Notification Sound", isPresented: $showCAFInfoAlert) {
+            Button("OK") {
+                // Save the preference if user chose not to show again
+                if dontShowCAFInfoAgain {
+                    UserDefaults.standard.set(true, forKey: "dontShowCAFInfoAlert")
+                }
+                // Open document picker
+                showDocumentPicker = true
+            }
+        } message: {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Only .caf format sounds can be used for notifications. Built-in sounds are already compatible.")
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Toggle("Don't show this message again", isOn: $dontShowCAFInfoAgain)
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                    .font(.system(size: 14))
+            }
         }
         .onDisappear {
             stopPreviewSound()
+        }
+        .onAppear {
+            // Load user preference
+            dontShowCAFInfoAgain = UserDefaults.standard.bool(forKey: "dontShowCAFInfoAlert")
         }
     }
     
@@ -197,8 +236,11 @@ struct CAFSoundSelector: View {
                 isPlaying = false
             }
         } else {
-            // Play default system sound if no CAF sound is selected
-            AudioServicesPlaySystemSound(1304) // Default notification sound
+            // Play default system alert sound (this is similar to the iOS notification alert sound)
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate) // Vibrate first
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                AudioServicesPlaySystemSound(1304) // Standard iOS notification sound
+            }
             
             // Since system sounds don't have duration, we'll simulate a short playback
             isPlaying = true
@@ -256,73 +298,6 @@ struct CAFDocumentPicker: UIViewControllerRepresentable {
             if didStartAccessing {
                 url.stopAccessingSecurityScopedResource()
             }
-        }
-    }
-}
-
-// View for managing (deleting) CAF sounds
-struct ManageCAFSoundsView: View {
-    @ObservedObject var cafManager = CustomCAFManager.shared
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationView {
-            List {
-                Section("CAF Notification Sounds") {
-                    if !cafManager.cafSounds.isEmpty {
-                        ForEach(cafManager.cafSounds) { sound in
-                            HStack {
-                                Text(sound.name)
-                                
-                                if cafManager.selectedCAFSoundID == sound.id {
-                                    Spacer()
-                                    Text("Selected")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                        }
-                        .onDelete(perform: deleteItems)
-                    } else {
-                        Text("No CAF sounds added yet.")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("About CAF Files")
-                            .font(.headline)
-                        
-                        Text("iOS requires notification sounds to be in .caf (Core Audio Format) format. Regular audio files like MP3 or WAV won't work for notifications outside the app.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text("You can convert audio files to .caf format using various online converters or audio tools like ffmpeg.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-            .navigationTitle("Manage CAF Sounds")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-            .listStyle(InsetGroupedListStyle())
-        }
-    }
-    
-    private func deleteItems(at offsets: IndexSet) {
-        let idsToDelete = offsets.map { cafManager.cafSounds[$0].id }
-        
-        for id in idsToDelete {
-            cafManager.removeCAFSound(id: id)
         }
     }
 } 

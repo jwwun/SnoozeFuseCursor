@@ -41,7 +41,7 @@ class TimerManager: ObservableObject {
     @Published var showConnectingLine: Bool = true
     
     // Sound-related properties (forwarded from managers)
-    @Published var selectedAlarmSound: AlarmSound = .testAlarm
+    @Published var selectedAlarmSound: AlarmSound = .firecracker
     @Published var customSounds: [CustomSound] = []
     @Published var selectedCustomSoundID: UUID?
     @Published var isExportingMusic: Bool = false
@@ -367,7 +367,7 @@ class TimerManager: ObservableObject {
         // If it's the selected sound, deselect it
         if selectedCustomSoundID == id {
             selectedCustomSoundID = nil
-            selectedAlarmSound = .testAlarm // Fallback to default
+            selectedAlarmSound = .firecracker // Fallback to default
         }
         
         CustomSoundManager.shared.removeCustomSound(id: id)

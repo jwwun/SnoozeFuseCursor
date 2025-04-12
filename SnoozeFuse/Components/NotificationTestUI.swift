@@ -44,11 +44,6 @@ struct NotificationTestUI: View {
                 )
             }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 12)
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(15)
-        .padding(.horizontal, 8)
     }
     
     private var headerView: some View {
@@ -108,10 +103,14 @@ struct NotificationTestUI: View {
                 Text(customSound.name)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
-            } else {
-                Text("Default System Sound")
+            } else if let firstSound = cafManager.cafSounds.first(where: { $0.isBuiltIn }) {
+                Text(firstSound.name + " (default)")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(.white.opacity(0.7))
+            } else {
+                Text("No sounds available")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.5))
             }
         }
     }
@@ -185,9 +184,11 @@ struct NotificationTestUI: View {
     private func setAlertMessage() {
         if let selectedID = cafManager.selectedCAFSoundID,
            let customSound = cafManager.cafSounds.first(where: { $0.id == selectedID }) {
-            alertMessage = "Testing notification with custom sound '\(customSound.name)' after \(Int(testDelaySeconds)) seconds. You can close the app to hear how it sounds when the app is in the background."
+            alertMessage = "Testing notification with '\(customSound.name)' sound after \(Int(testDelaySeconds)) seconds. You can close the app to hear how it sounds when the app is in the background."
+        } else if let firstSound = cafManager.cafSounds.first(where: { $0.isBuiltIn }) {
+            alertMessage = "Test notification scheduled for \(Int(testDelaySeconds)) seconds from now using '\(firstSound.name)' sound (default). You can close the app to see how the notification appears."
         } else {
-            alertMessage = "Test notification scheduled for \(Int(testDelaySeconds)) seconds from now using the default system sound. You can close the app to see how the notification appears."
+            alertMessage = "Test notification scheduled for \(Int(testDelaySeconds)) seconds from now using the system sound. You can close the app to see how the notification appears."
         }
     }
     
@@ -203,9 +204,9 @@ struct NotificationTestUI: View {
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
             print("Testing with custom CAF sound: \(cafSoundName)")
         } else {
-            // Use default sound
-            content.sound = UNNotificationSound.default
-            print("Testing with default notification sound")
+            // Use default critical sound for better audibility
+            content.sound = UNNotificationSound.defaultCritical
+            print("Testing with default critical notification sound")
         }
         
         content.categoryIdentifier = "testCategory" // Use different category from alarms

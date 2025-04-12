@@ -2,15 +2,19 @@ import SwiftUI
 
 /// A text component that automatically scrolls horizontally for text that's too long to display
 struct MarqueeText: View {
+    // Main properties
     let text: String
     let font: Font
     let textColor: Color
     
+    // Using an ID to help SwiftUI recreate the view
+    @State private var viewID = UUID()
     @State private var animate = false
     
     // Only show marquee effect for text longer than this character count
     private let longTextThreshold = 12
     
+    // Computed property to check if text needs to marquee
     private var needsMarquee: Bool {
         return text.count > longTextThreshold
     }
@@ -18,34 +22,35 @@ struct MarqueeText: View {
     var body: some View {
         Group {
             if needsMarquee {
-                // Animated marquee for long text
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 30) {
-                        Text(text)
-                            .font(font)
-                            .foregroundColor(textColor)
-                            .lineLimit(1)
-                        
-                        Text(text)
-                            .font(font)
-                            .foregroundColor(textColor)
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 10)
-                    .offset(x: animate ? -400 : 0)  // Use a large enough offset to ensure scrolling
-                    .animation(
-                        Animation.linear(duration: 12)  // Fixed duration
-                            .repeatForever(autoreverses: true),
-                        value: animate
-                    )
-                    .onAppear {
-                        // Start animation after a delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            animate = true
+                GeometryReader { geometry in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 30) {
+                            Text(text)
+                                .font(font)
+                                .foregroundColor(textColor)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                            
+                            Text(text)
+                                .font(font)
+                                .foregroundColor(textColor)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
+                        .padding(.horizontal, 10)
+                        .offset(x: animate ? -400 : 0)
+                        .animation(
+                            Animation.linear(duration: 12)
+                                .repeatForever(autoreverses: true),
+                            value: animate
+                        )
                     }
+                    .disabled(true)
                 }
-                .disabled(true)  // Disable user scrolling
+                .frame(height: 20)
+                .onAppear {
+                    startAnimation()
+                }
             } else {
                 // Static text for shorter strings
                 Text(text)
@@ -55,7 +60,30 @@ struct MarqueeText: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(height: 25)  // Fixed height for consistency
+        // The critical fix: use text + UUID as the ID to force recreation
+        .id("marquee-\(text)-\(viewID)")
+        // Observe text changes and force view recreation
+        .onChange(of: text) { _ in
+            resetAnimation()
+        }
+    }
+    
+    private func startAnimation() {
+        // Small delay to ensure smooth animation start
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            animate = true
+        }
+    }
+    
+    private func resetAnimation() {
+        // Reset animation state completely
+        animate = false
+        // Generate new ID to force view recreation
+        viewID = UUID()
+        // Restart animation with delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            startAnimation()
+        }
     }
 }
 

@@ -92,9 +92,14 @@ class NotificationManager: ObservableObject {
             // Use the sound name directly for notifications
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
             print("Using custom CAF sound for notification: \(cafSoundName)")
+        } else if let firstBuiltInSound = CustomCAFManager.shared.getFirstBuiltInSoundName() {
+            // Use the first built-in sound if none is selected
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: firstBuiltInSound))
+            print("Using first built-in sound for notification: \(firstBuiltInSound)")
         } else {
-            // Use critical alert for maximum volume with default sound
+            // Ultimate fallback to system sound
             content.sound = UNNotificationSound.defaultCritical
+            print("Using system critical sound for notification (fallback)")
         }
         
         // Important: set this category
@@ -323,10 +328,14 @@ class NotificationManager: ObservableObject {
             // Use the sound name directly for notifications
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
             print("Testing custom CAF sound: \(cafSoundName)")
+        } else if let firstBuiltInSound = CustomCAFManager.shared.getFirstBuiltInSoundName() {
+            // Use the first built-in sound if none is selected
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: firstBuiltInSound))
+            print("Testing first built-in sound: \(firstBuiltInSound)")
         } else {
-            // Use default sound
-            content.sound = UNNotificationSound.default
-            print("Testing with default notification sound")
+            // Ultimate fallback to system sound
+            content.sound = UNNotificationSound.defaultCritical
+            print("Testing system critical sound (fallback)")
         }
         
         // Create trigger for immediate delivery

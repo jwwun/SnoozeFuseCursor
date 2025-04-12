@@ -839,3 +839,38 @@ This refactoring makes the codebase more modular, easier to maintain, and reduce
 - **Main Thread Safety:** Interactions with `AVAudioSession` (like `setActive`, `setCategory`, `overrideOutputAudioPort`) can block the main thread, causing UI hangs.
 - **Solution:** All `AVAudioSession` calls within `AudioPlayerManager` (`cleanupAudio`, `setupBackgroundAudio`, `handleRouteChange`) have been moved to a dedicated serial background queue (`audioSessionQueue`) to prevent main thread blocking.
 - **Synchronization:** Care must be taken if shared state (e.g., `isPlayingAlarm`, properties from other managers like `AudioOutputManager`) is accessed or modified from this background queue. Currently, reads are assumed safe, but writes would require proper synchronization (e.g., using `DispatchQueue.main.async` or locks). UI updates triggered by background queue operations should be dispatched back to the main thread.
+
+## Code Optimization Notes
+
+### Swift UI Component Refactoring
+- **Issue**: Large complex views can cause the compiler to be unable to type-check expressions in reasonable time
+- **Solution**: Break large views into smaller components:
+  - Extract each page in a TabView into its own view struct
+  - Break down complex UI elements into their own components
+  - Use MARK comments to organize the code structure
+
+### TimerElement Enum Improvements
+- **Issue**: Complex enum properties with large string literals can cause compiler type-checking issues
+- **Solution**: 
+  - Extract long string literals into separate helper methods
+  - Instead of inline string literals, use function calls in the switch statement
+  - Example: `return getReleaseExplanation()` instead of returning the string directly
+
+### AboutScreen Structure
+The AboutScreen has been refactored into these components:
+- `PageIndicator`: Shows the current page dots
+- `NavigationButtons`: Previous/Next/Get Started buttons
+- `WelcomePage`: The first page with app introduction
+- `HowItWorksPage`: The demonstration with tap & hold mechanism
+  - `DemoCircleView`: The interactive circle component
+  - `DemoCircleText`: Text display based on circle state
+- `SmartTimerSystemPage`: The interactive timer explanation screen
+  - `TimerControlsView`: Container for all timer controls
+  - `TimerControlView`: Individual timer component (RELEASE, NAP, MAX)
+  - `UnitsIndicator`: Seconds/minutes selector
+  - `TimerExplanationView`: Explanatory text for selected elements
+- `PositioningPage`: Phone positioning information
+- `SupportPage`: Donation and support information
+  - `DonationTiersView`: Donation goals information
+
+This modular approach improves maintainability and resolves compiler type-checking limitations.

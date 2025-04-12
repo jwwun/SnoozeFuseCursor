@@ -368,20 +368,11 @@ struct NapScreen: View {
                                 .padding(.vertical, 25)
                                 .background(
                                     ZStack {
+                                        // Use transparent layered circles instead of gradients
                                         RoundedRectangle(cornerRadius: 22)
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [
-                                                        Color.purple.opacity(0.7),
-                                                        Color.blue.opacity(0.6)
-                                                    ],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .blur(radius: 0.5)
+                                            .fill(Color.black.opacity(0.2))
                                         
-                                        // Animated pulsing effect
+                                        // Just keep small decorative dots for subtle texture
                                         Circle()
                                             .fill(Color.white.opacity(0.1))
                                             .frame(width: 20, height: 20)
@@ -400,28 +391,9 @@ struct NapScreen: View {
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 22)
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [.white.opacity(0.7), .blue.opacity(0.3)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1.5
-                                        )
+                                        .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
                                 )
-                                .shadow(color: .black.opacity(0.5), radius: 15, x: 0, y: 8)
-                                .overlay(
-                                    // Add subtle glass reflection
-                                    RoundedRectangle(cornerRadius: 22)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [.white.opacity(0.15), .clear],
-                                                startPoint: .topLeading,
-                                                endPoint: .center
-                                            )
-                                        )
-                                        .padding(2)
-                                )
+                                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
                                 
                                 Spacer()
                             }
