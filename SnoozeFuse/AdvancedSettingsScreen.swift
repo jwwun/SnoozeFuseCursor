@@ -42,155 +42,79 @@ struct AdvancedSettingsScreen: View {
                 
                 ScrollView {
                     VStack(spacing: 25) {
-                        // Notification Settings Section
-                        VStack(alignment: .center, spacing: 15) {
-                            
-                            HStack(spacing: 12) {
-                                Image(systemName: notificationManager.isNotificationAuthorized ? 
-                                      "bell.badge.fill" : "bell.slash.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(notificationManager.isNotificationAuthorized ? 
-                                                    Color.green : Color.orange)
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Alarm Notifications")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
+                        // Critical Alerts Section (Prioritized)
+                        if notificationManager.isNotificationAuthorized {
+                            VStack(alignment: .center, spacing: 15) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: notificationManager.isCriticalAlertsAuthorized ? 
+                                          "bell.and.waves.left.and.right.fill" : "bell.and.waves.left.and.right")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
+                                                        Color.green : Color.red)
                                     
-                                    Text(notificationManager.isNotificationAuthorized ? 
-                                         "Notifications are enabled. You'll be alerted when your nap time is over." : 
-                                         "Currently disabled.")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .fixedSize(horizontal: false, vertical: true)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Critical Alerts")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundColor(.white)
                                         
-                                    // Add critical alerts status if notifications are enabled
-                                    if notificationManager.isNotificationAuthorized {
-                                        HStack {
-                                            Image(systemName: notificationManager.isCriticalAlertsAuthorized ? 
-                                                  "bell.and.waves.left.and.right.fill" : "bell.and.waves.left.and.right")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
-                                                                Color.green : Color.orange)
-                                            
-                                            Text("Optional Critical Alerts: \(notificationManager.isCriticalAlertsAuthorized ? "Enabled" : "Disabled")")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
-                                                                Color.green.opacity(0.8) : Color.orange.opacity(0.8))
-                                        }
+                                        Text(notificationManager.isCriticalAlertsAuthorized ? 
+                                             "Critical alerts are enabled. Your alarm will sound even in silent mode." : 
+                                             "⚠️ Critical alerts disabled! Alarms may not sound in silent mode.")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(notificationManager.isCriticalAlertsAuthorized ? 
+                                                            .green.opacity(0.8) : .red.opacity(0.9))
+                                            .fixedSize(horizontal: false, vertical: true)
                                     }
-                                }
-                                                            Button(action: {
-                                if notificationManager.isHiddenFromMainSettings {
-                                    // Reset hidden state if currently hidden
-                                    notificationManager.resetHiddenState()
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        // First try to request notification authorization with critical alerts
+                                        notificationManager.requestNotificationAuthorization()
+                                        
+                                        // Also open settings in case user needs to manually enable
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                            notificationManager.openAppSettings()
+                                        }
+                                    }) {
+                                        Text("Enable")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(.white)
+                                            .padding(.vertical, 10)
+                                            .padding(.horizontal, 20)
+                                            .background(
+                                                Capsule()
+                                                    .fill(LinearGradient(
+                                                        colors: [Color.red, Color.red.opacity(0.7)],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    ))
+                                            )
+                                    }
                                 }
                                 
-                                if notificationManager.isNotificationAuthorized {
-                                    // If already authorized, go to settings to manage
-                                    notificationManager.openAppSettings()
-                                } else {
-                                    // Request permission
-                                    notificationManager.requestPermission { granted in
-                                        if !granted {
-                                            // If denied, prompt to open settings
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                                notificationManager.openAppSettings()
-                                            }
-                                        }
-                                    }
-                                }
-                            }) {
-
-                                    Text(notificationManager.isNotificationAuthorized ? 
-                                         "Manage Notifications" : "Enable")
-                                
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white)
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 20)
-                                .background(
-                                    Capsule()
-                                        .fill(LinearGradient(
-                                            colors: [
-                                                notificationManager.isNotificationAuthorized ? 
-                                                Color.blue : Color.orange, 
-                                                notificationManager.isNotificationAuthorized ? 
-                                                Color.blue.opacity(0.7) : Color.orange.opacity(0.7)
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        ))
-                                )
-                            }
-                            .padding(.top, 5)
-                            }
-                            .padding(.horizontal)
-                            
-
-                            
-                            // Show button to move notification warning back to main settings
-                            if notificationManager.isHiddenFromMainSettings && !notificationManager.isNotificationAuthorized {
-                                Button(action: {
-                                    notificationManager.resetHiddenState()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "arrow.up.left.circle")
-                                        Text("Move the below UI back to Main Settings")
-                                    }
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
-                                    .padding(.vertical, 10)
-                                    .padding(.horizontal, 20)
-                                    .background(
-                                        Capsule()
-                                            .fill(LinearGradient(
-                                                colors: [Color.gray, Color.gray.opacity(0.7)],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            ))
-                                    )
-                                }
-                                .padding(.top, 5)
-                            }
-                                                                                    // Show notification warning if hidden from main settings and notifications not authorized
-                            if !notificationManager.isNotificationAuthorized && notificationManager.isHiddenFromMainSettings {
-                                // Use NotificationPermissionWarning without the Hide button
-                                NotificationPermissionWarning(showHideButton: false)
-                                    .padding(.bottom, 10)
-                            }
-                            
-                            // Add CAF Sound Selection (only when notifications are authorized)
-                            if notificationManager.isNotificationAuthorized {
-                                Divider()
-                                    .background(Color.gray.opacity(0.5))
+                                Text("Critical alerts are essential for reliable alarm behavior. They allow sounds to play even when your device is in silent mode or Do Not Disturb is on.")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .multilineTextAlignment(.center)
                                     .padding(.horizontal)
-                                    .padding(.vertical, 5)
+                                    .padding(.top, 5)
                                 
-                                // Combined Notification Sound Controls - Both components in the same container
-                                VStack(spacing: 15) {
-                                    // CAF sound selector component
-                                    CAFSoundSelector()
-                                    
-                                    Divider()
-                                        .background(Color.gray.opacity(0.5))
-                                        .padding(.horizontal, 30)
-                                    
-                                    // CAF notification test component
-                                    NotificationTestUI()
+                                if !notificationManager.isCriticalAlertsAuthorized {
+                                    Text("Enable critical alerts in your device settings to ensure alarms sound even when your phone is on silent or in Do Not Disturb mode.")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.yellow.opacity(0.9))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                        .padding(.top, 2)
                                 }
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 12)
-                                .background(Color.gray.opacity(0.2))
-                                .cornerRadius(15)
-                                .padding(.horizontal, 8)
                             }
+                            .padding(.vertical, 16)
+                            .padding(.horizontal, 12)
+                            .background(Color.gray.opacity(0.2))
+                            .cornerRadius(15)
+                            .padding(.horizontal, 8)
                         }
-                        .padding(.vertical, 16)
-                        .padding(.horizontal, 12)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(15)
-                        .padding(.horizontal, 8)
                         
                         // Show Presets UI if hidden from main settings
                         if presetManager.isHiddenFromMainSettings {
@@ -353,7 +277,7 @@ struct AdvancedSettingsScreen: View {
                                     timerManager.saveSettings()
                                 }
                             
-                            Toggle("Show connecting line", isOn: $timerManager.showConnectingLine)
+                            Toggle("Show FS Touch Mode line", isOn: $timerManager.showConnectingLine)
                                 .padding(.horizontal)
                                 .onChange(of: timerManager.showConnectingLine) { _ in
                                     timerManager.saveSettings()
@@ -382,56 +306,122 @@ struct AdvancedSettingsScreen: View {
                         .padding(.horizontal, 8)
                         .padding(.bottom, 12)
                         
-                        // Add info about critical alerts
-                        if notificationManager.isNotificationAuthorized {
-                            VStack(alignment: .center, spacing: 8) {
-                                Text("Optional Critical Alerts")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.white)
+                        // Backup Notification Settings Section (moved to bottom)
+                        // Always show regardless of critical alerts status
+                        VStack(alignment: .center, spacing: 15) {
+                            
+                            HStack(spacing: 12) {
+                                Image(systemName: notificationManager.isNotificationAuthorized ? 
+                                      "bell.badge.fill" : "bell.slash.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(notificationManager.isNotificationAuthorized ? 
+                                                    Color.blue : Color.orange)
                                 
-                                Text("Critical alerts allow the app to make sounds and vibrations even when your device is in silent mode or Do Not Disturb is on. This is important for reliable alarm behavior.")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                                
-                                if !notificationManager.isCriticalAlertsAuthorized {
-                                    Text("Note: Critical alerts require special permission from Apple. SnoozeFuse may have requested this permission, but if it was denied, you'll need to enable it in Settings.")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.orange.opacity(0.8))
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Backup Notifications")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
                                     
-                                    Button(action: {
-                                        // Request critical alerts specifically
-                                        notificationManager.requestNotificationAuthorization()
-                                    }) {
-                                        Text("Request Critical Alerts Permission")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(.white)
-                                            .padding(.vertical, 8)
-                                            .padding(.horizontal, 16)
-                                            .background(
-                                                Capsule()
-                                                    .fill(LinearGradient(
-                                                        colors: [Color.orange, Color.orange.opacity(0.7)],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    ))
-                                            )
+                                    if notificationManager.isCriticalAlertsAuthorized {
+                                        Text("Regular notifications serve as a backup if critical alerts fail or if the app is completely terminated.")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white.opacity(0.8))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    } else {
+                                        Text(notificationManager.isNotificationAuthorized ? 
+                                             "You'll see a banner when your nap time is over." : 
+                                             "Currently disabled.")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white.opacity(0.8))
+                                            .fixedSize(horizontal: false, vertical: true)
                                     }
-                                    .padding(.top, 5)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    if notificationManager.isHiddenFromMainSettings {
+                                        // Reset hidden state if currently hidden
+                                        notificationManager.resetHiddenState()
+                                    }
+                                    
+                                    if notificationManager.isNotificationAuthorized {
+                                        // If already authorized, go to settings to manage
+                                        notificationManager.openAppSettings()
+                                    } else {
+                                        // Request permission
+                                        notificationManager.requestPermission { granted in
+                                            if !granted {
+                                                // If denied, prompt to open settings
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                                    notificationManager.openAppSettings()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }) {
+                                    Text(notificationManager.isNotificationAuthorized ? 
+                                         "Manage" : "Enable")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
+                                        .background(
+                                            Capsule()
+                                                .fill(LinearGradient(
+                                                    colors: [
+                                                        notificationManager.isNotificationAuthorized ? 
+                                                        Color.blue : Color.orange, 
+                                                        notificationManager.isNotificationAuthorized ? 
+                                                        Color.blue.opacity(0.7) : Color.orange.opacity(0.7)
+                                                    ],
+                                                    startPoint: .leading,
+                                                    endPoint: .trailing
+                                                ))
+                                        )
                                 }
                             }
-                            .padding(.vertical, 10)
-                        }
-                        
-                        // Add the notification test UI
-                        NotificationTestUI()
+                            .padding(.horizontal)
                             .padding(.top, 5)
+                        
+                            // Show notification warning if hidden from main settings and notifications not authorized
+                            if !notificationManager.isNotificationAuthorized && notificationManager.isHiddenFromMainSettings {
+                                // Use NotificationPermissionWarning without the Hide button
+                                NotificationPermissionWarning(showHideButton: false)
+                                    .padding(.bottom, 10)
+                            }
+                            
+                            // Add CAF Sound Selection (only when notifications are authorized)
+                            if notificationManager.isNotificationAuthorized {
+                                Divider()
+                                    .background(Color.gray.opacity(0.5))
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 5)
+                                
+                                // Sound controls without nested cell styling
+                                VStack(spacing: 15) {
+                                    // CAF sound selector component
+                                    CAFSoundSelector()
+                                    
+                                    Divider()
+                                        .background(Color.gray.opacity(0.5))
+                                        .padding(.horizontal, 30)
+                                    
+                                    // CAF notification test component
+                                    NotificationTestUI()
+                                }
+                            }
+                        }
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 12)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(15)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 10)
+                        .padding(.bottom, 16)
                     }
-                    .padding(.top, 10)
                 }
+                .padding(.top, 10)
             }
         }
         // Allow native back button to show
@@ -494,3 +484,4 @@ struct AdvancedSettingsScreen: View {
 #Preview {
     AdvancedSettingsScreen()
 } 
+

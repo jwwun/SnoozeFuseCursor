@@ -335,6 +335,25 @@ class CustomCAFManager: ObservableObject {
         return baseName + ".caf"
     }
     
+    // Get the URL for a built-in sound by name
+    func getBuiltInSoundURL(named soundName: String) -> URL? {
+        // Remove .caf extension if present
+        let baseName = soundName.hasSuffix(".caf") ? String(soundName.dropLast(4)) : soundName
+        
+        // First try looking in the bundle
+        if let bundleURL = Bundle.main.url(forResource: baseName, withExtension: "caf") {
+            return bundleURL
+        }
+        
+        // If not found in bundle, check the sounds directory
+        let soundsURL = soundsDirectory.appendingPathComponent(soundName)
+        if FileManager.default.fileExists(atPath: soundsURL.path) {
+            return soundsURL
+        }
+        
+        return nil
+    }
+    
     func copyCAFSoundToNotificationDirectory(sound: CustomCAFSound) -> String? {
         do {
             // Create sounds directory if it doesn't exist

@@ -241,6 +241,16 @@ Used for managers that need global access:
   - Improves readability of long custom sound names
   - Provides visual indication that text extends beyond visible area
 
+### Audio Improvements
+- **Standardized CAF Audio Format**: Converted all built-in sounds to Core Audio Format (.caf)
+  - Optimized file size and performance for iOS devices
+  - Improved audio loading times and memory usage
+  - Maintains higher quality within smaller file sizes
+  - Better integration with iOS audio system
+  - More efficient processing by the audio engine
+  - Consistent format across all built-in sounds
+  - User-imported sounds still support multiple formats (MP3, WAV, etc.) for flexibility
+
 ### Notification Testing UI
 - **Out-of-App Notification Tester**: Added dedicated UI for testing notifications
   - Located in Advanced Settings
@@ -368,15 +378,27 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
 - Notifications are scheduled with critical sound (`UNNotificationSound.defaultCritical`)
 - Notification UI components adapt based on current permission state
 - Advanced notification settings available in the Advanced Settings screen
-- Notification warning UI can be moved between main Settings and Advanced Settings screens
+- Notification warning UI is hidden from main Settings by default
+- Critical alerts are prominently featured at the top of the Advanced Settings screen
 - User preference for notification warning location is persisted across app launches
 
 ### User Interaction Flow
-1. By default, if notifications are not enabled, a warning appears in the main Settings screen
-2. User can tap "Hide This" to move the warning to the Advanced Settings screen
-3. In Advanced Settings, user can tap "Show in Main Settings" to move it back
-4. Setting is persisted in UserDefaults so it remembers user preference across app launches
-5. When notifications are enabled, the warning UI disappears from both screens automatically
+1. Regular notifications are hidden from the main Settings screen by default
+2. Critical alerts are prominently featured at the top of Advanced Settings when notifications are enabled
+3. The Advanced Settings screen provides detailed control of notification features
+4. Critical alerts are highlighted as an essential feature for reliable alarm functionality
+5. Regular notifications serve as a backup when the app is completely terminated
+6. When notifications are enabled, the app checks if critical alerts are also authorized
+
+### Critical Alerts Implementation
+- **Entitlement Requirement**: The app requires the `com.apple.developer.usernotifications.critical-alerts` entitlement from Apple
+- **App Store Approval**: Critical alerts require special permission during App Store review
+- **App Behavior**: 
+  - The app shows critical alerts as "disabled" until App Store approval is granted
+  - After approval, users can enable this permission
+  - The app prioritizes critical alerts as they're essential for reliable alarm behavior
+- **User Experience**: Clear explanations about why critical alerts are important for alarm functionality
+- **Graceful Fallback**: Direct audio playback works as primary alarm method regardless of critical alert status
 
 ## UI Improvements
 

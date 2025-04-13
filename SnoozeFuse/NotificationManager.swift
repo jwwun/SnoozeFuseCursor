@@ -9,11 +9,16 @@ class NotificationManager: ObservableObject {
     
     @Published var isNotificationAuthorized = false
     @Published var isCheckingPermission = false
-    @Published var isHiddenFromMainSettings = false
+    @Published var isHiddenFromMainSettings = true
     @Published var isCriticalAlertsAuthorized: Bool = false
     
     // Keep a reference to the scheduled alarm sound timer
     private var alarmSoundTimer: Timer?
+    
+    // Flag to track if notification sound is playing
+    private var isNotificationSoundPlaying = false
+    private var lastNotificationTime: Date?
+    private var currentSoundDuration: TimeInterval = 30.0 // Default to 30s if we can't detect
     
     private enum UserDefaultsKeys {
         static let hasCheckedNotificationPermission = "hasCheckedNotificationPermission"
@@ -188,7 +193,10 @@ class NotificationManager: ObservableObject {
     // Load settings from UserDefaults
     private func loadSettings() {
         let defaults = UserDefaults.standard
-        isHiddenFromMainSettings = defaults.bool(forKey: UserDefaultsKeys.isHiddenFromMainSettings)
+        // Only load the setting if it exists, otherwise keep our default (true)
+        if defaults.object(forKey: UserDefaultsKeys.isHiddenFromMainSettings) != nil {
+            isHiddenFromMainSettings = defaults.bool(forKey: UserDefaultsKeys.isHiddenFromMainSettings)
+        }
     }
     
     // Save settings to UserDefaults
@@ -207,9 +215,12 @@ class NotificationManager: ObservableObject {
         // Simple one-time vibration to start
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         
+        // Try to get the actual duration of the selected sound
+        updateCurrentSoundDuration()
+        
         // Create a secure timer reference to avoid retain cycles and thread issues
         let timerRef = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
-            guard let _ = self else { 
+            guard let self = self else { 
                 timer.invalidate()
                 return
             }
@@ -224,6 +235,32 @@ class NotificationManager: ObservableObject {
                 guard let _ = self else { return }
                 AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
             }
+            
+            // Only send notifications when app is not in foreground
+            // This prevents conflicts with the app's own alarm sound
+            if UIApplication.shared.applicationState != .active {
+                // Check if it's time to schedule a new notification
+                let currentTime = Date()
+                if let lastTime = self.lastNotificationTime {
+                    // Only send a new notification if the sound duration has passed since the last one
+                    // Add a small buffer (1 second) to ensure the previous sound has finished
+                    let timeSinceLastNotification = currentTime.timeIntervalSince(lastTime)
+                    let neededInterval = min(self.currentSoundDuration + 1.0, 30.0) // Cap at 30s
+                    
+                    if timeSinceLastNotification >= neededInterval {
+                        print("💬 Sending next notification after waiting \(timeSinceLastNotification) seconds (sound duration is \(self.currentSoundDuration)s)")
+                        self.sendAlarmNotification()
+                        self.lastNotificationTime = currentTime
+                    }
+                } else {
+                    // First run - send notification immediately
+                    print("💬 Sending first notification (app in background)")
+                    self.sendAlarmNotification()
+                    self.lastNotificationTime = currentTime
+                }
+            } else {
+                print("🔕 App is in foreground - skipping notification but continuing vibration")
+            }
         }
         
         // Securely store the timer reference
@@ -231,8 +268,50 @@ class NotificationManager: ObservableObject {
             guard let self = self else { return }
             self.alarmSoundTimer = timerRef
         }
+    }
+    
+    // Get the duration of the current notification sound
+    private func updateCurrentSoundDuration() {
+        // Try to get the URL of the selected sound file
+        if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
+            if let cafSoundURL = CustomCAFManager.shared.getSelectedCAFSoundURL() {
+                if let duration = getSoundDuration(from: cafSoundURL) {
+                    // We found the duration - cap it at 30 seconds (iOS limit)
+                    currentSoundDuration = min(duration, 30.0)
+                    print("📊 Detected notification sound duration: \(currentSoundDuration) seconds")
+                    return
+                }
+            }
+        }
         
-        // Also schedule a simple notification that provides feedback
+        // If we couldn't get the duration, try the fallback built-in sound
+        if let firstBuiltInSoundName = CustomCAFManager.shared.getFirstBuiltInSoundName(),
+           let firstBuiltInURL = CustomCAFManager.shared.getBuiltInSoundURL(named: firstBuiltInSoundName) {
+            if let duration = getSoundDuration(from: firstBuiltInURL) {
+                currentSoundDuration = min(duration, 30.0)
+                print("📊 Using fallback built-in sound duration: \(currentSoundDuration) seconds")
+                return
+            }
+        }
+        
+        // If all else fails, use a conservative default (5 seconds)
+        currentSoundDuration = 5.0
+        print("📊 Could not detect sound duration, using default: \(currentSoundDuration) seconds")
+    }
+    
+    // Helper to get sound duration from a URL
+    private func getSoundDuration(from url: URL) -> TimeInterval? {
+        do {
+            let audioPlayer = try AVAudioPlayer(contentsOf: url)
+            return audioPlayer.duration
+        } catch {
+            print("📊 Error getting sound duration: \(error)")
+            return nil
+        }
+    }
+    
+    // Helper method to send the actual notification
+    private func sendAlarmNotification() {
         DispatchQueue.main.async {
             let content = UNMutableNotificationContent()
             content.title = "Wake Up!"

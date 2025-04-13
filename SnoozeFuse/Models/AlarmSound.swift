@@ -20,10 +20,10 @@ enum AlarmSound: String, CaseIterable, Identifiable {
         }
     }
     
+    // All built-in sounds use the Core Audio Format (.caf) for optimal playback and lower resource usage
     var fileExtension: String {
         switch self {
-        case .vtuber, .beep, .firecracker: return "caf"
-        case .warAmbience: return "wav"
+        case .vtuber, .beep, .firecracker, .warAmbience: return "caf"
         case .custom: return "mp3"
         }
     }

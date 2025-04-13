@@ -1,8 +1,18 @@
-<!-- Add the necessary keys to the Info.plist for notification sounds to work -->
-<key>UIBackgroundModes</key>
-<array>
-    <string>audio</string>
-    <string>processing</string>
-</array>
-<key>NSUserNotificationsUsageDescription</key>
-<string>We use notifications to alert you when your nap time is over, even when the app is in the background.</string> 
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UIBackgroundModes</key>
+	<array>
+    	<string>audio</string>
+    	<string>processing</string>
+	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>We use notifications to alert you when your nap time is over, even when the app is in the background.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.snoozefuse.refreshTimer</string>
+		<string>com.snoozefuse.processingTask</string>
+	</array>
+</dict>
+</plist>

@@ -26,7 +26,7 @@ struct AlarmSoundSelector: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "Choose the sound that will play as a looping alarm when your nap ends. You can select from built-in sounds or add your own custom sounds. \n\n It was not possible for me to add the Apple default alarm sounds.")
+                HelpButton(helpText: "Choose the sound that will play as a looping alarm when your nap ends. You can select from built-in sounds or add your own custom sounds. \nIt accepts .wav and .mp3 and .caf.\n\n It was not possible for me to add the Apple default alarm sounds.")
                 
                 Spacer()
                 

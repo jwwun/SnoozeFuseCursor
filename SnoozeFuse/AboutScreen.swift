@@ -139,7 +139,7 @@ struct NavigationButtons: View {
                     Spacer() // Push to the right
                     Button(action: { withAnimation { currentPage = 4 } }) {
                         // Text-only button
-                        Text("Support")
+                        Text("Support / Bugs")
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundColor(.white.opacity(0.8))
                             .padding(.vertical, 8)
@@ -798,7 +798,7 @@ struct SupportPage: View {
                     Text("Email: snoozefuze@proton.me")
                         .font(.system(size: 15, design: .rounded))
                         .foregroundColor(.white.opacity(0.9))
-                    Text("For feedback, support, or questions")
+                    Text("For bugs, feedback, support, or questions")
                         .font(.system(size: 14, design: .rounded))
                         .foregroundColor(.white.opacity(0.7))
                 }

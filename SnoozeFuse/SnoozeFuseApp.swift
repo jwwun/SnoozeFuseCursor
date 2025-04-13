@@ -217,22 +217,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                willPresent notification: UNNotification,
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // If this is our immediate alarm notification, allow it to present with sound and vibration
-        if notification.request.identifier == "immediateAlarmNotification" {
-            // Pass options that include sound for the vibration pattern
-            completionHandler([.sound])
-            print("🔔 Allowing immediateAlarmNotification to present with system vibration in foreground")
-        }
-        // If this is our regular alarm notification, do NOT show it in the foreground
-        // SleepScreen already handles playing the sound internally when its timer finishes.
-        else if notification.request.identifier == "alarmNotification" {
+        // If this is our immediate alarm notification or regular alarm notification,
+        // do NOT show it in the foreground as the app UI already handles it
+        if notification.request.identifier == "immediateAlarmNotification" ||
+           notification.request.identifier == "alarmNotification" ||
+           notification.request.identifier.starts(with: "immediateAlarm_") {
             // Pass empty options to prevent alert/sound/badge in foreground
             completionHandler([])
             
-            print("🔔 Foreground alarm notification received, but presentation suppressed as SleepScreen handles it.")
+            print("🔔 Foreground alarm notification received but suppressed - app is already displaying alarm UI")
         } else {
             // For other notifications, allow standard presentation (banner, sound, badge)
-             completionHandler([.banner, .sound, .badge])
+            completionHandler([.banner, .sound, .badge])
         }
     }
 }

@@ -23,7 +23,7 @@ struct AudioVolumeUI: View {
                     .foregroundColor(Color.blue.opacity(0.7))
                     .tracking(3)
                 
-                HelpButton(helpText: "This controls the device volume when the alarm plays.\n\nWhen enabled, this will change your device's system volume to match the setting when the alarm sounds - including volume of any connected AirPods or Bluetooth devices.")
+                HelpButton(helpText: "This controls the device volume when the alarm plays.\n\nWhen enabled, this will change your device's system volume to match the setting when the alarm sounds. The volume will go back when alarm is done")
                 
                 Spacer()
                 

@@ -23,9 +23,6 @@ struct NotificationTestUI: View {
                 // Notification delay controls
                 delayControlsView
                 
-                // Current sound info
-                currentSoundInfoView
-                
                 // Warning about permissions
                 permissionWarningView
                 
@@ -61,68 +58,41 @@ struct NotificationTestUI: View {
     }
     
     private var delayControlsView: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text("Test notification after:")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.9))
-                
-                Spacer()
-                
-                Text("\(Int(testDelaySeconds)) seconds")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-            }
-            
-            // Slider for setting delay time
-            HStack {
-                Image(systemName: "clock")
-                    .foregroundColor(.white.opacity(0.6))
-                
-                Slider(value: $testDelaySeconds, in: 3...30, step: 1)
-                    .accentColor(.indigo.opacity(0.8))
-                
-                Text("\(Int(testDelaySeconds))")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.8))
-                    .frame(width: 30)
-            }
-        }
-    }
-    
-    private var currentSoundInfoView: some View {
-        HStack {
-            Text("Notification sound:")
+        // Single HStack for more compact layout
+        HStack(spacing: 8) {
+            // Label
+            Text("Test after:")
                 .font(.system(size: 14))
                 .foregroundColor(.white.opacity(0.9))
+                .fixedSize()
             
-            Spacer()
+            // Clock icon
+            Image(systemName: "clock")
+                .foregroundColor(.white.opacity(0.6))
+                .font(.system(size: 12))
             
-            if let selectedID = cafManager.selectedCAFSoundID,
-               let customSound = cafManager.cafSounds.first(where: { $0.id == selectedID }) {
-                Text(customSound.name)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-            } else if let firstSound = cafManager.cafSounds.first(where: { $0.isBuiltIn }) {
-                Text(firstSound.name + " (default)")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-            } else {
-                Text("No sounds available")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.5))
-            }
+            // Slider
+            Slider(value: $testDelaySeconds, in: 3...30, step: 1)
+                .accentColor(.indigo.opacity(0.8))
+            
+            // Time display
+            Text("\(Int(testDelaySeconds))s")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white)
+                .frame(width: 30)
         }
     }
     
     @ViewBuilder
     private var permissionWarningView: some View {
-        if !notificationManager.isNotificationAuthorized {
-            Text("⚠️ Notifications are currently disabled. Please enable them in settings.")
-                .font(.system(size: 12))
-                .foregroundColor(.orange)
-                .padding(.top, 2)
-        }
+
+            if !notificationManager.isNotificationAuthorized {
+                Text("⚠️ Notifications are currently disabled. Please enable them in settings.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.orange)
+                    .padding(.top, 2)
+            }
+
     }
     
     private var testButtonView: some View {
