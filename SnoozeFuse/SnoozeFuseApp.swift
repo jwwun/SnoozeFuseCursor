@@ -239,6 +239,7 @@ struct SnoozeFuseApp: App {
     @StateObject private var orientationManager = OrientationManager.shared
     @StateObject private var notificationManager = NotificationManager.shared
     @StateObject private var audioOutputManager = AudioOutputManager.shared
+    @StateObject private var mediaLibraryManager = MediaLibraryManager.shared
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @Environment(\.scenePhase) private var scenePhase
     
@@ -267,6 +268,9 @@ struct SnoozeFuseApp: App {
                     // Check notification permission on startup
                     notificationManager.checkNotificationPermission()
                     
+                    // Check media library permission on startup
+                    mediaLibraryManager.checkMediaLibraryPermission()
+                    
                     // Register notification categories for alarm
                     notificationManager.registerNotificationCategories()
                     
@@ -287,6 +291,12 @@ struct SnoozeFuseApp: App {
                     if scenePhase == .active {
                         // Refresh notification permission status when app becomes active
                         notificationManager.checkNotificationPermission()
+                        
+                        // Refresh media library permission status when app becomes active
+                        mediaLibraryManager.checkMediaLibraryPermission()
+                        
+                        // Also recheck permissions specifically after returning from settings
+                        mediaLibraryManager.recheckPermissionsAfterSettings()
                         
                         // Clear the app badge number when app becomes active
                         UIApplication.shared.applicationIconBadgeNumber = 0

@@ -13,6 +13,7 @@ struct SettingsScreen: View {
     @FocusState private var isAnyFieldFocused: Bool
     @State private var showNapScreen = false  // State for showing nap screen
     @ObservedObject private var notificationManager = NotificationManager.shared
+    @ObservedObject private var mediaLibraryManager = MediaLibraryManager.shared
     @ObservedObject private var presetManager = PresetManager.shared
     @ObservedObject private var alarmSoundManager = AlarmSoundManager.shared
     @ObservedObject private var circleSizeManager = CircleSizeManager.shared
@@ -104,6 +105,11 @@ struct SettingsScreen: View {
                             // Notification permission warning - only show if not hidden from main settings
                             if !notificationManager.isHiddenFromMainSettings {
                                 NotificationPermissionWarning()
+                            }
+                            
+                            // Media Library permission warning - only show if not hidden from main settings AND not authorized
+                            if !mediaLibraryManager.isHiddenFromMainSettings && !mediaLibraryManager.isMediaLibraryAuthorized {
+                                MediaLibraryPermissionWarning()
                             }
                             
                             // Circle size control - only show if not hidden from main settings

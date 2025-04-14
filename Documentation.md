@@ -261,6 +261,26 @@ Used for managers that need global access:
   - Uses different notification category from alarms
   - Ideal for verifying system notification settings
 
+### Media Library Permission Warning Feature
+- **Background Alarm Issue Detection**: Added UI warning to inform users when Media Library access is disabled
+- **Problem Context**: Without Media Library access, alarms may not play properly when the app is in the background
+- **Clear Notification UI**: Similar to the existing notification permission warning
+  - Highlighted with orange color for visibility
+  - Clear explanation of the issue and its impact
+  - Direct "Enable Media Library" button to request permission
+- **Settings Integration**:
+  - Automatically opens system settings if permission is denied
+  - Can be dismissed from main screen with "Hide This" button
+  - Always available in Advanced Settings if hidden from main screen
+- **Permission Management**:
+  - `MediaLibraryManager` to centralize permission handling
+  - Checks permission status on app launch and when returning to foreground
+  - Similar structure to `NotificationManager` for consistency
+- **Improved User Experience**:
+  - Clearly explains that alarms won't play outside the app without Media Library access
+  - Provides direct access to fix the issue
+  - Ensures users understand why this permission is required
+
 ## Future Improvements
 
 ### Potential Refactoring Opportunities

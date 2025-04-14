@@ -6,6 +6,7 @@ struct AdvancedSettingsScreen: View {
     @ObservedObject var hapticManager = HapticManager.shared
     @ObservedObject var orientationManager = OrientationManager.shared
     @ObservedObject var notificationManager = NotificationManager.shared
+    @ObservedObject var mediaLibraryManager = MediaLibraryManager.shared
     @ObservedObject var presetManager = PresetManager.shared
     @ObservedObject var audioManager = AudioOutputManager.shared
     @ObservedObject var alarmSoundManager = AlarmSoundManager.shared
@@ -391,6 +392,13 @@ struct AdvancedSettingsScreen: View {
                                     .padding(.bottom, 10)
                             }
                             
+                            // Show media library warning if hidden from main settings and media library not authorized
+                            if !mediaLibraryManager.isMediaLibraryAuthorized && mediaLibraryManager.isHiddenFromMainSettings {
+                                // Use MediaLibraryPermissionWarning without the Hide button
+                                MediaLibraryPermissionWarning(showHideButton: false)
+                                    .padding(.bottom, 10)
+                            }
+                            
                             // Add CAF Sound Selection (only when notifications are authorized)
                             if notificationManager.isNotificationAuthorized {
                                 Divider()
@@ -435,6 +443,8 @@ struct AdvancedSettingsScreen: View {
             orientationManager.lockOrientation()
             // Refresh notification status
             notificationManager.checkNotificationPermission()
+            // Refresh media library status
+            mediaLibraryManager.checkMediaLibraryPermission()
             
             // Add observer for preset UI state changes
             NotificationCenter.default.addObserver(forName: .presetUIStateChanged, object: nil, queue: .main) { _ in
