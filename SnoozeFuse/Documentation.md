@@ -249,4 +249,26 @@ To add .caf files to the Xcode project:
 - Improved file copying logic for notification sounds
 - Enhanced the lookup of built-in sounds to use the new mapping dictionary
 
-These changes ensure that built-in sounds are correctly mapped between their filesystem names and their user-friendly display names, which should resolve issues with notification sounds not playing correctly 
+### Haptic and Timer Display Fixes
+
+**Haptic Manager Improvements:**
+- Reorganized the `HapticManager` class for better code clarity and readability
+- Added proper private/public access control for properties
+- Improved code organization with MARK comments
+- Created a dedicated method to play heartbeat sequences
+- Simplified timer management and cleanup
+
+**Heartbeat Haptic Feedback Fix:**
+- Fixed issue where heartbeat haptic feedback would automatically start when opening the NapScreen
+- Modified the haptic feedback to only trigger after the first user interaction with the circle
+- Removed automatic haptic feedback from the NapScreen's onAppear method
+- Improved the toggle behavior in settings to prevent auto-starting the pulse test when enabling
+
+**Timer Display Format Consistency:**
+- Fixed issue where max timer would flicker between different time units (minutes/seconds)
+- Added consistent unit formatting to prevent the display from switching between formats
+- Implemented smart unit selection based on the original timer duration
+- Used floor() to round down to the nearest second to prevent display jitter
+- This ensures that 1 min 5 sec doesn't change to 1 sec 5 sec as the timer counts down
+
+These improvements enhance the user experience by making haptic feedback behavior more intuitive and timer displays more consistent and readable. 

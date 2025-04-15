@@ -11,16 +11,15 @@ class HapticManager: ObservableObject {
     @Published var isVisualHeartbeatEnabled = true
     @Published var bpmValue: Double = 60 // Default BPM value
     
-    // Add a property to store the current alarm vibration timer
-    var alarmVibrationTimer: Timer?
-    // Track whether vibration is active
-    var isAlarmVibrationActive = false
-    // BPM pulse timer
-    var bpmPulseTimer: Timer?
-    // BPM second beat timer (for double-beat effect)
-    var bpmSecondBeatTimer: Timer?
-    // Track if BPM pulsing is active
-    var isBPMPulsing = false
+    // MARK: - Private Properties
+    // Timers and state tracking
+    private var alarmVibrationTimer: Timer?
+    private var bpmPulseTimer: Timer?
+    private var bpmSecondBeatTimer: Timer?
+    
+    // State flags
+    private(set) var isAlarmVibrationActive = false
+    private(set) var isBPMPulsing = false
     
     // MARK: - Singleton Instance
     static let shared = HapticManager()
@@ -39,11 +38,12 @@ class HapticManager: ObservableObject {
         loadSettings()
     }
     
-    // MARK: - Haptic Feedback Methods
+    // MARK: - Basic Haptic Feedback
     
     /// Triggers impact haptic feedback with the current style
     func trigger() {
         guard isHapticEnabled else { return }
+        
         let generator = UIImpactFeedbackGenerator(style: hapticStyle)
         generator.prepare()
         generator.impactOccurred()
@@ -52,6 +52,7 @@ class HapticManager: ObservableObject {
     /// Triggers a softer haptic feedback for the second beat
     func triggerSecondBeat() {
         guard isHapticEnabled else { return }
+        
         // Use a lighter feedback for the second beat
         let style: UIImpactFeedbackGenerator.FeedbackStyle
         
@@ -70,85 +71,78 @@ class HapticManager: ObservableObject {
     }
     
     /// Triggers notification haptic feedback
-    /// - Parameter type: The type of notification feedback
     func triggerNotification(type: UINotificationFeedbackGenerator.FeedbackType) {
         guard isHapticEnabled else { return }
+        
         let generator = UINotificationFeedbackGenerator()
         generator.prepare()
         generator.notificationOccurred(type)
     }
     
-    /// Starts pulsing haptic feedback at the current BPM with realistic double-beat pattern
+    // MARK: - BPM Heartbeat Control
+    
+    /// Starts pulsing haptic feedback with realistic double-beat heart pattern
     func startBPMPulse() {
+        // Don't start if haptics are disabled or already pulsing
         guard isHapticEnabled && isBPMPulseEnabled && !isBPMPulsing else { return }
         
         // Stop any existing pulse
         stopBPMPulse()
         
-        // Calculate interval in seconds based on BPM
-        let beatsPerSecond = bpmValue / 60.0
-        let mainInterval = 1.0 / beatsPerSecond 
-        let secondBeatDelay = mainInterval * 0.3 // Second beat comes 30% after first beat
-        
         // Mark pulsing as active
         isBPMPulsing = true
-        
-        // Notify listeners of state change
         objectWillChange.send()
         
-        // Initial pulse
+        // Calculate timing based on BPM
+        let interval = 60.0 / bpmValue  // Convert BPM to seconds
+        let secondBeatDelay = interval * 0.3  // Second beat after 30% of interval
+        
+        // Initial pulse sequence
+        playHeartbeatSequence(interval: interval, secondBeatDelay: secondBeatDelay)
+        
+        // Set up repeating timer for heartbeat pattern
+        bpmPulseTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            guard let self = self, self.isBPMPulsing else { return }
+            self.playHeartbeatSequence(interval: interval, secondBeatDelay: secondBeatDelay)
+        }
+    }
+    
+    /// Plays a single heartbeat sequence (main + second beat)
+    private func playHeartbeatSequence(interval: Double, secondBeatDelay: Double) {
+        // First beat (stronger)
         trigger()
         
-        // Schedule second beat for initial heartbeat
-        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay) {
-            // Only trigger if still pulsing
-            if self.isBPMPulsing {
-                self.triggerSecondBeat()
-            }
-        }
-        
-        // Create a repeating timer for the first beat of each pulse
-        bpmPulseTimer = Timer.scheduledTimer(withTimeInterval: mainInterval, repeats: true) { [weak self] _ in
+        // Schedule second beat after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay) { [weak self] in
             guard let self = self, self.isBPMPulsing else { return }
-            
-            // First beat (stronger)
-            self.trigger()
-            
-            // Schedule second beat after delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay) {
-                // Only trigger if still pulsing
-                if self.isBPMPulsing {
-                    self.triggerSecondBeat()
-                }
-            }
+            self.triggerSecondBeat()
         }
     }
     
     /// Stops the BPM pulse
     func stopBPMPulse() {
-        // Only send change notification if we're actually changing state
+        // Only notify if state is changing
         let wasActive = isBPMPulsing
         
+        // Update state
         isBPMPulsing = false
         
-        if let timer = bpmPulseTimer {
-            timer.invalidate()
-            bpmPulseTimer = nil
-            
-            // Only notify if there was an actual state change
-            if wasActive {
-                objectWillChange.send()
-            }
-        }
+        // Clean up timers
+        bpmPulseTimer?.invalidate()
+        bpmPulseTimer = nil
         
-        if let timer = bpmSecondBeatTimer {
-            timer.invalidate()
-            bpmSecondBeatTimer = nil
+        bpmSecondBeatTimer?.invalidate()
+        bpmSecondBeatTimer = nil
+        
+        // Notify listeners if there was a state change
+        if wasActive {
+            objectWillChange.send()
         }
     }
     
+    // MARK: - Alarm Vibration
+    
     /// Triggers a continuous alarm vibration pattern
-    /// - Returns: Timer that controls the vibration loop (can be used to stop vibration)
     @discardableResult
     func triggerAlarmVibration() -> Timer? {
         guard isHapticEnabled else { return nil }
@@ -159,72 +153,52 @@ class HapticManager: ObservableObject {
         // Mark vibration as active
         isAlarmVibrationActive = true
         
-        // Use error notification for first hit (strongest vibration pattern)
+        // Initial vibration (strongest pattern)
         triggerNotification(type: .error)
         
-        // Create a repeating timer to trigger vibrations in a pattern
-        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        // Set up recurring pattern
+        alarmVibrationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self, self.isAlarmVibrationActive else { return }
             
-            // Alternating pattern of different vibrations for a more noticeable effect
+            // Main vibration
             self.triggerNotification(type: .error)
             
-            // Add secondary vibration with slight delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                // Use heavy impact for second vibration in pattern
-                if self.isAlarmVibrationActive {
-                    let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
-                    heavyGenerator.impactOccurred()
-                }
+            // Secondary vibration after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self, self.isAlarmVibrationActive else { return }
+                
+                let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
+                heavyGenerator.impactOccurred()
             }
         }
         
-        // Store the timer reference for later cancellation
-        alarmVibrationTimer = timer
-        
-        return timer
+        return alarmVibrationTimer
     }
     
-    /// Stops the alarm vibration completely
+    /// Stops the alarm vibration
     func stopAlarmVibration() {
-        print("🚨 HapticManager: Stopping vibration TIMER and FLAG ONLY")
-        
-        // First stop the flag to prevent any queued vibrations
+        // Update state flag first to prevent queued haptics
         isAlarmVibrationActive = false
         
-        // Stop and clear any timers
-        if let timer = alarmVibrationTimer {
-            print("Invalidating HapticManager timer")
-            timer.invalidate()
-            alarmVibrationTimer = nil
-        }
+        // Clean up timer
+        alarmVibrationTimer?.invalidate()
+        alarmVibrationTimer = nil
     }
     
-    /// Last resort method to kill all system sounds and vibrations
-    /// This targets the underlying system sound mechanism directly
+    /// Emergency method to stop all haptic feedback
     func killAllSystemSounds() {
-        print("🚨 Emergency vibration kill initiated - SIMPLIFIED (NO SYSTEM CALLS)")
-        
-        // ONLY stop the timer and reset the flag here
+        // Stop alarm vibration
         isAlarmVibrationActive = false
-        if let timer = alarmVibrationTimer {
-            print("Invalidating HapticManager timer from killAllSystemSounds")
-            timer.invalidate()
-            alarmVibrationTimer = nil
-        }
+        alarmVibrationTimer?.invalidate()
+        alarmVibrationTimer = nil
         
         // Also stop BPM pulse
         stopBPMPulse()
     }
     
-    /// Legacy method - redirects to stopAlarmVibration()
-    func stopAlarmVibration(timer: Timer?) {
-        stopAlarmVibration()
-    }
-    
     // MARK: - Settings Persistence
     
-    /// Saves haptic settings to UserDefaults
+    /// Saves all haptic settings to UserDefaults
     func saveSettings() {
         let defaults = UserDefaults.standard
         defaults.set(isHapticEnabled, forKey: UserDefaultsKeys.isHapticEnabled)
@@ -238,20 +212,23 @@ class HapticManager: ObservableObject {
     private func loadSettings() {
         let defaults = UserDefaults.standard
         
+        // Load haptic enabled state
         if defaults.object(forKey: UserDefaultsKeys.isHapticEnabled) != nil {
             isHapticEnabled = defaults.bool(forKey: UserDefaultsKeys.isHapticEnabled)
         }
         
+        // Load haptic style
         if let styleRawValue = defaults.object(forKey: UserDefaultsKeys.hapticStyle) as? Int,
            let style = UIImpactFeedbackGenerator.FeedbackStyle(rawValue: styleRawValue) {
             hapticStyle = style
         }
         
+        // Load BPM pulse enabled state
         if defaults.object(forKey: UserDefaultsKeys.isBPMPulseEnabled) != nil {
             isBPMPulseEnabled = defaults.bool(forKey: UserDefaultsKeys.isBPMPulseEnabled)
         }
         
-        // Set visual heartbeat to true by default when first running the app
+        // Set visual heartbeat to true by default first time
         if defaults.object(forKey: UserDefaultsKeys.isVisualHeartbeatEnabled) != nil {
             isVisualHeartbeatEnabled = defaults.bool(forKey: UserDefaultsKeys.isVisualHeartbeatEnabled)
         } else {
@@ -259,6 +236,7 @@ class HapticManager: ObservableObject {
             defaults.set(true, forKey: UserDefaultsKeys.isVisualHeartbeatEnabled)
         }
         
+        // Load BPM value
         if defaults.object(forKey: UserDefaultsKeys.bpmValue) != nil {
             bpmValue = defaults.double(forKey: UserDefaultsKeys.bpmValue)
         }
@@ -272,8 +250,6 @@ extension SettingsScreen {
         
         var body: some View {
             VStack(alignment: .center, spacing: 15) {
-
-                
                 Toggle("Enable Haptics", isOn: $hapticManager.isHapticEnabled)
                     .padding(.horizontal)
                     .onChange(of: hapticManager.isHapticEnabled) { _ in

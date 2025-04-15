@@ -11,6 +11,11 @@ class SettingsManager: ObservableObject {
     @Published var isFullScreenMode: Bool = false
     @Published var circleSize: CGFloat = 250
     
+    // Animation settings
+    @Published var showRippleEffects: Bool = true
+    @Published var showMiniAnimations: Bool = true
+    @Published var showTouchFeedback: Bool = true
+    
     // Timer durations (defaults)
     @Published var holdDuration: TimeInterval = 5    // Timer A: 5 seconds default
     @Published var napDuration: TimeInterval = 60    // Timer B: 1 minutes default
@@ -31,6 +36,9 @@ class SettingsManager: ObservableObject {
         static let showTimerArcs = "showTimerArcs"
         static let showConnectingLine = "showConnectingLine"
         static let isFullScreenMode = "isFullScreenMode"
+        static let showRippleEffects = "showRippleEffects"
+        static let showMiniAnimations = "showMiniAnimations"
+        static let showTouchFeedback = "showTouchFeedback"
     }
     
     init() {
@@ -49,6 +57,9 @@ class SettingsManager: ObservableObject {
         defaults.set(showTimerArcs, forKey: UserDefaultsKeys.showTimerArcs)
         defaults.set(showConnectingLine, forKey: UserDefaultsKeys.showConnectingLine)
         defaults.set(isFullScreenMode, forKey: UserDefaultsKeys.isFullScreenMode)
+        defaults.set(showRippleEffects, forKey: UserDefaultsKeys.showRippleEffects)
+        defaults.set(showMiniAnimations, forKey: UserDefaultsKeys.showMiniAnimations)
+        defaults.set(showTouchFeedback, forKey: UserDefaultsKeys.showTouchFeedback)
         
         // Save custom sounds separately
         CustomSoundManager.shared.saveCustomSounds()
@@ -87,6 +98,19 @@ class SettingsManager: ObservableObject {
         
         if defaults.object(forKey: UserDefaultsKeys.isFullScreenMode) != nil {
             isFullScreenMode = defaults.bool(forKey: UserDefaultsKeys.isFullScreenMode)
+        }
+        
+        // Load animation settings
+        if defaults.object(forKey: UserDefaultsKeys.showRippleEffects) != nil {
+            showRippleEffects = defaults.bool(forKey: UserDefaultsKeys.showRippleEffects)
+        }
+        
+        if defaults.object(forKey: UserDefaultsKeys.showMiniAnimations) != nil {
+            showMiniAnimations = defaults.bool(forKey: UserDefaultsKeys.showMiniAnimations)
+        }
+        
+        if defaults.object(forKey: UserDefaultsKeys.showTouchFeedback) != nil {
+            showTouchFeedback = defaults.bool(forKey: UserDefaultsKeys.showTouchFeedback)
         }
         
         // Load selected alarm type

@@ -356,128 +356,116 @@ struct AdvancedSettingsScreen: View {
                                         .padding(.horizontal)
                                         .padding(.vertical, 5)
                                     
+                                    // Improved heading for haptic heartbeat section
+                                    Text("Heartbeat Haptic Feedback")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .padding(.bottom, 4)
+                                    
                                     // BPM Pulse Toggle
                                     Toggle("Enable heartbeat haptic feedback", isOn: $hapticManager.isBPMPulseEnabled)
                                         .padding(.horizontal)
                                         .onChange(of: hapticManager.isBPMPulseEnabled) { _ in
                                             hapticManager.saveSettings()
-                                            // Update the pulse state
-                                            if hapticManager.isBPMPulseEnabled {
-                                                hapticManager.startBPMPulse()
-                                            } else {
+                                            // Don't automatically start the pulse when toggled on
+                                            if !hapticManager.isBPMPulseEnabled {
                                                 hapticManager.stopBPMPulse()
                                             }
                                         }
                                     
                                     if hapticManager.isBPMPulseEnabled {
-                                        // BPM Value Display
-                                        Text("\(Int(hapticManager.bpmValue)) BPM")
-                                            .font(.system(size: 16, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .padding(.top, 5)
-                                        
-                                        // BPM Slider
-                                        HStack {
-                                            Text("1")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.white.opacity(0.7))
-                                            
-                                            Slider(value: $hapticManager.bpmValue, in: 1...300, step: 1)
-                                                .accentColor(.blue)
-                                                .onChange(of: hapticManager.bpmValue) { _ in
-                                                    hapticManager.saveSettings()
-                                                    
-                                                    // Restart the pulse with new BPM if active
-                                                    if hapticManager.isBPMPulsing {
-                                                        // Stop the existing pulse
-                                                        hapticManager.stopBPMPulse()
-                                                        
-                                                        // Small delay to ensure clean restart
-                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                                            hapticManager.startBPMPulse()
-                                                        }
-                                                    }
-                                                }
-                                            
-                                            Text("300")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.white.opacity(0.7))
-                                        }
-                                        .padding(.horizontal)
-                                        
-                                        // BPM Test Button
-                                        Button(action: {
-                                            // Toggle BPM pulse
-                                            if hapticManager.isBPMPulsing {
-                                                hapticManager.stopBPMPulse()
-                                            } else {
-                                                hapticManager.startBPMPulse()
-                                            }
-                                            // Force UI refresh
-                                            withAnimation {
-                                                // This triggers a state update to refresh the UI
-                                                hapticManager.objectWillChange.send()
-                                            }
-                                        }) {
-                                            HStack(spacing: 6) {
-                                                // Show stop icon when pulsing
-                                                if hapticManager.isBPMPulsing {
-                                                    Image(systemName: "stop.fill")
-                                                        .font(.system(size: 14, weight: .bold))
-                                                } else {
-                                                    Image(systemName: "play.fill")
-                                                        .font(.system(size: 14, weight: .bold))
-                                                }
+                                        // BPM Value Control
+                                        VStack(spacing: 5) {
+                                            HStack {
+                                                Text("BPM: \(Int(hapticManager.bpmValue))")
+                                                    .font(.system(size: 14, weight: .medium))
+                                                    .foregroundColor(.white.opacity(0.9))
+                                                    .frame(width: 70, alignment: .leading)
                                                 
-                                                Text(hapticManager.isBPMPulsing ? "STOP PULSE" : "Test Pulse")
-                                                    .font(.system(size: hapticManager.isBPMPulsing ? 14 : 13, weight: hapticManager.isBPMPulsing ? .bold : .medium))
-                                            }
-                                            .foregroundColor(.white)
-                                            .padding(.vertical, 8)
-                                            .padding(.horizontal, 16)
-                                            .background(
-                                                Group {
+                                                Spacer()
+                                                
+                                                // Improved test button
+                                                Button(action: {
+                                                    // Toggle BPM pulse
                                                     if hapticManager.isBPMPulsing {
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .fill(Color.red.opacity(0.6))
-                                                            .overlay(
-                                                                RoundedRectangle(cornerRadius: 8)
-                                                                    .strokeBorder(Color.red.opacity(0.8), lineWidth: 2)
-                                                                    .scaleEffect(hapticManager.isBPMPulsing ? 1.08 : 1.0)
-                                                                    .opacity(hapticManager.isBPMPulsing ? 0.6 : 0.0)
-                                                            )
-                                                            .animation(
-                                                                Animation.easeInOut(duration: 0.5)
-                                                                    .repeatForever(autoreverses: true),
-                                                                value: hapticManager.isBPMPulsing
-                                                            )
+                                                        hapticManager.stopBPMPulse()
                                                     } else {
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .fill(Color.green.opacity(0.6))
+                                                        hapticManager.startBPMPulse()
+                                                    }
+                                                    // Force UI refresh
+                                                    withAnimation {
+                                                        hapticManager.objectWillChange.send()
+                                                    }
+                                                }) {
+                                                    HStack(spacing: 6) {
+                                                        Image(systemName: hapticManager.isBPMPulsing ? "stop.fill" : "play.fill")
+                                                            .font(.system(size: 10))
+                                                        Text(hapticManager.isBPMPulsing ? "Stop" : "Test")
+                                                            .font(.system(size: 13))
+                                                    }
+                                                    .foregroundColor(.white)
+                                                    .padding(.vertical, 5)
+                                                    .padding(.horizontal, 12)
+                                                    .background(
+                                                        RoundedRectangle(cornerRadius: 6)
+                                                            .fill(hapticManager.isBPMPulsing ? Color.red.opacity(0.7) : Color.blue.opacity(0.6))
+                                                    )
+                                                }
+                                            }
+                                            .padding(.horizontal)
+                                            
+                                            // BPM slider with better visual design
+                                            Slider(
+                                                value: $hapticManager.bpmValue,
+                                                in: 40...120,
+                                                step: 1.0,
+                                                onEditingChanged: { _ in
+                                                    hapticManager.saveSettings()
+                                                    if hapticManager.isBPMPulsing {
+                                                        // Restart the pulse with new BPM
+                                                        hapticManager.stopBPMPulse()
+                                                        hapticManager.startBPMPulse()
                                                     }
                                                 }
                                             )
+                                            .accentColor(Color.purple.opacity(0.7))
+                                            .padding(.horizontal)
+                                            
+                                            // Add BPM range indicators
+                                            HStack {
+                                                Text("40")
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.white.opacity(0.5))
+                                                Spacer()
+                                                Text("Heart Rate (BPM)")
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.white.opacity(0.7))
+                                                Spacer()
+                                                Text("120")
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.white.opacity(0.5))
+                                            }
+                                            .padding(.horizontal)
                                         }
                                         .padding(.top, 5)
-                                        // Add ID to force view refresh when state changes
-                                        .id("pulseTestButton-\(hapticManager.isBPMPulsing)")
                                         
-                                        // Help text about stopping - only shown when active
+                                        // Visual indicator for test mode
                                         if hapticManager.isBPMPulsing {
-                                            Text("Press the red button to stop the pulse test")
+                                            Text("Press the red button to stop the test")
                                                 .font(.system(size: 12, weight: .medium))
                                                 .foregroundColor(.red.opacity(0.9))
                                                 .padding(.top, 5)
                                         }
-                                        
-                                        // Explanation text
-                                        Text("The heartbeat setting controls the rhythm of haptic feedback at the selected BPM (beats per minute). Visual heartbeat animation can be enabled in Visual Settings.")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.white.opacity(0.7))
-                                            .multilineTextAlignment(.center)
-                                            .padding(.horizontal)
-                                            .padding(.top, 5)
                                     }
+                                    
+                                    // Explanation text with better formatting
+                                    Text("Heartbeat feedback produces a realistic double-pulse haptic pattern at the selected BPM. The visual animation can be enabled separately in Visual Settings.")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.white.opacity(0.7))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                        .padding(.top, 5)
+                                        .padding(.bottom, 2)
                                 }
                             }
                             .padding(.bottom, 5)
@@ -517,6 +505,36 @@ struct AdvancedSettingsScreen: View {
                                     .padding(.horizontal)
                                     .onChange(of: hapticManager.isVisualHeartbeatEnabled) { _ in
                                         hapticManager.saveSettings()
+                                    }
+                                
+                                Divider()
+                                    .background(Color.gray.opacity(0.5))
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 5)
+                                
+                                // New animation toggles section
+                                Text("Touch Animations")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.blue.opacity(0.8))
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.bottom, 5)
+                                
+                                Toggle("Ripple effect when pressing", isOn: $timerManager.showRippleEffects)
+                                    .padding(.horizontal)
+                                    .onChange(of: timerManager.showRippleEffects) { _ in
+                                        timerManager.saveSettings()
+                                    }
+                                
+                                Toggle("Mini animations when resetting", isOn: $timerManager.showMiniAnimations)
+                                    .padding(.horizontal)
+                                    .onChange(of: timerManager.showMiniAnimations) { _ in
+                                        timerManager.saveSettings()
+                                    }
+                                
+                                Toggle("Touch feedback in full-screen mode", isOn: $timerManager.showTouchFeedback)
+                                    .padding(.horizontal)
+                                    .onChange(of: timerManager.showTouchFeedback) { _ in
+                                        timerManager.saveSettings()
                                     }
                                 
                                 // Circle size control when hidden from main settings

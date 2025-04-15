@@ -83,16 +83,32 @@ struct SettingsScreen: View {
                                                 .foregroundColor(.white.opacity(0.2))
                                         }
                                     } else {
-                                        // First time - simple text without button styling
+                                        // First time - enhanced attention-grabbing style
                                         HStack(spacing: 5) {
                                             Image(systemName: "info.circle.fill")
                                                 .font(.system(size: 18))
                                             Text("Basics")
                                                 .font(.system(size: 16, weight: .medium, design: .rounded))
                                         }
-                                        .foregroundColor(.white.opacity(0.7))
+                                        .foregroundColor(.white)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.5)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                            .opacity(0.7)
+                                        )
+                                        .cornerRadius(18)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 18)
+                                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                        )
+                                        .shadow(color: Color.blue.opacity(0.5), radius: 4, x: 0, y: 2)
+                                        // Subtle pulse animation for first-time users
+                                        .modifier(PulseAnimation())
                                     }
                                 }
                                 .buttonStyle(PlainButtonStyle())
@@ -368,4 +384,22 @@ struct SettingsScreen: View {
     SettingsScreen()
         .environmentObject(TimerManager())
         .preferredColorScheme(.dark)
+}
+
+// Add this struct after the Color extension at the end of the file
+struct PulseAnimation: ViewModifier {
+    @State private var isPulsing = false
+    
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isPulsing ? 1.05 : 1.0)
+            .onAppear {
+                // Start pulsing with a slight delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                        isPulsing = true
+                    }
+                }
+            }
+    }
 } 

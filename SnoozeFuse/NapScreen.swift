@@ -70,6 +70,12 @@ struct NapScreen: View {
     @State private var currentTouchPosition: CGPoint? = nil
     @State private var isShowingTouchLine: Bool = false
     
+    // Add animation state properties
+    @State private var showRippleEffect: Bool = false
+    @State private var showResetAnimation: Bool = false
+    @State private var touchFeedbackPosition: CGPoint? = nil
+    @State private var showTouchFeedback: Bool = false
+    
     // MARK: - Actions
     
     func resetPlacementState() {
@@ -90,6 +96,15 @@ struct NapScreen: View {
         
         // Reset the first interaction flag
         isFirstInteraction = true
+        
+        // Show reset animation if enabled
+        if timerManager.showMiniAnimations {
+            showResetAnimation = true
+            // Hide it after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                showResetAnimation = false
+            }
+        }
     }
     
     private func parseTimerComponents(_ text: String) -> [TimerComponent] {
@@ -172,7 +187,10 @@ struct NapScreen: View {
                                 
                                 // Force consistent format by rounding to the nearest second to avoid constantly switching
                                 let maxTimerValue = floor(timerManager.maxTimer)
-                                let maxTimerText = timerManager.formatTime(maxTimerValue)
+                                // Use the same format consistently based on the original max duration
+                                let maxTimerText = timerManager.maxDuration >= 60 ?
+                                    "\(Int(maxTimerValue / 60))min \(Int(maxTimerValue.truncatingRemainder(dividingBy: 60)))sec" :
+                                    "\(Int(maxTimerValue))sec"
                                 let maxComponents = parseTimerComponents(maxTimerText)
                                 HStack(spacing: 0) {
                                     ForEach(maxComponents, id: \.number) { component in
@@ -274,6 +292,11 @@ struct NapScreen: View {
                                 showArcs: timerManager.showTimerArcs,
                                 isFullScreenMode: timerManager.isFullScreenMode
                             )
+                            
+                            // Ripple effect when pressed
+                            if showRippleEffect && timerManager.showRippleEffects {
+                                RippleEffect(size: timerManager.circleSize * 1.2, color: .blue)
+                            }
                         }
                         .overlay(
                             // Only use the circle touch handler when not in full-screen mode
@@ -285,6 +308,15 @@ struct NapScreen: View {
                                                 isPressed = touchingCircle
                                                 if touchingCircle {
                                                     // User is pressing the circle
+                                                    
+                                                    // Show ripple effect when circle is pressed
+                                                    if timerManager.showRippleEffects {
+                                                        showRippleEffect = true
+                                                        // Hide after animation completes
+                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                                            showRippleEffect = false
+                                                        }
+                                                    }
                                                     
                                                     // If this is the first interaction since placing the circle,
                                                     // start the max timer when user first holds down
@@ -467,11 +499,30 @@ struct NapScreen: View {
                                     if isTouching {
                                         // User is touching the screen
                                         
+                                        // Enhanced touch feedback if enabled
+                                        if timerManager.showTouchFeedback, let touchPos = currentTouchPosition {
+                                            touchFeedbackPosition = touchPos
+                                            showTouchFeedback = true
+                                            // Hide after animation completes
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                                showTouchFeedback = false
+                                            }
+                                        }
+                                        
                                         // If this is the first interaction since placing the circle,
                                         // start the max timer when user first holds down
                                         if isFirstInteraction {
                                             timerManager.startMaxTimer()
                                             isFirstInteraction = false
+                                        }
+                                        
+                                        // Show ripple effect when pressed
+                                        if timerManager.showRippleEffects {
+                                            showRippleEffect = true
+                                            // Hide after animation completes
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                                showRippleEffect = false
+                                            }
                                         }
                                         
                                         // Stop the hold timer when holding
@@ -502,6 +553,21 @@ struct NapScreen: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(Rectangle())
                         .zIndex(10) // Set high zIndex to ensure it's above all other content
+                        
+                        // Touch feedback animation
+                        if showTouchFeedback, let position = touchFeedbackPosition, timerManager.showTouchFeedback {
+                            Circle()
+                                .fill(RadialGradient(
+                                    gradient: Gradient(colors: [.white, .blue.opacity(0.5), .clear]),
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: 20
+                                ))
+                                .frame(width: 40, height: 40)
+                                .position(position)
+                                .transition(.opacity)
+                                .zIndex(15)
+                        }
                     }
                 }
                 .contentShape(Rectangle())
@@ -547,6 +613,15 @@ struct NapScreen: View {
                 }
                 .allowsHitTesting(true)
                 .zIndex(20) // Make sure this is higher than the full-screen touch overlay
+                
+                // Show mini reset animation
+                if showResetAnimation {
+                    GeometryReader { geometry in
+                        ResetMiniAnimation(size: 60, color: .blue)
+                            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    }
+                    .zIndex(25)
+                }
             }
             .navigationBarHidden(true)
         }
@@ -578,6 +653,9 @@ struct NapScreen: View {
             
             // Reset background flag
             wasInBackground = false
+            
+            // Make sure haptic BPM is not running when screen first appears
+            hapticManager.stopBPMPulse()
             
             // Subscribe to holdTimer reaching zero
             NotificationCenter.default.addObserver(
@@ -635,11 +713,6 @@ struct NapScreen: View {
             
             // Lock orientation when screen appears
             orientationManager.lockOrientation()
-            
-            // Start BPM pulse if enabled
-            if hapticManager.isBPMPulseEnabled && hapticManager.isHapticEnabled {
-                hapticManager.startBPMPulse()
-            }
         }
         .onDisappear {
             // Clean up notification observer
@@ -834,6 +907,77 @@ struct TouchPointCircle: View {
             // Add subtle pulsing animation
             withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
                 pulseSize = 1.2
+            }
+        }
+    }
+}
+
+// MARK: - Ripple Effect Animation
+struct RippleEffect: View {
+    var size: CGFloat
+    var color: Color
+    
+    @State private var rippleScale: CGFloat = 0.5
+    @State private var opacity: Double = 0.7
+    
+    var body: some View {
+        Circle()
+            .stroke(color, lineWidth: 2)
+            .scaleEffect(rippleScale)
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(Animation.easeOut(duration: 0.8)) {
+                    rippleScale = 1.5
+                    opacity = 0
+                }
+            }
+            .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Reset Mini Animation
+struct ResetMiniAnimation: View {
+    var size: CGFloat
+    var color: Color
+    
+    @State private var rotation: Double = 0
+    @State private var scale: CGFloat = 0.5
+    @State private var opacity: Double = 0.8
+    
+    var body: some View {
+        ZStack {
+            // Burst particles
+            ForEach(0..<8) { index in
+                let angle = Double(index) * 45.0
+                let distance = size * 0.6
+                
+                Circle()
+                    .fill(color)
+                    .frame(width: 5, height: 5)
+                    .offset(
+                        x: CGFloat(cos(angle * .pi / 180) * distance),
+                        y: CGFloat(sin(angle * .pi / 180) * distance)
+                    )
+                    .opacity(opacity)
+                    .scaleEffect(scale)
+            }
+            
+            // Center swirl
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundColor(color)
+                .font(.system(size: size * 0.4))
+                .rotationEffect(.degrees(rotation))
+                .opacity(opacity)
+                .scaleEffect(scale)
+        }
+        .onAppear {
+            withAnimation(Animation.spring(response: 0.6, dampingFraction: 0.7)) {
+                rotation = 360
+                scale = 1.2
+            }
+            
+            withAnimation(Animation.easeOut(duration: 0.8)) {
+                opacity = 0
             }
         }
     }

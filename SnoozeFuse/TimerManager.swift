@@ -40,6 +40,11 @@ class TimerManager: ObservableObject {
     @Published var showTimerArcs: Bool = true
     @Published var showConnectingLine: Bool = true
     
+    // Animation settings
+    @Published var showRippleEffects: Bool = true
+    @Published var showMiniAnimations: Bool = true
+    @Published var showTouchFeedback: Bool = true
+    
     // Sound-related properties (forwarded from managers)
     @Published var selectedAlarmSound: AlarmSound = .firecracker
     @Published var customSounds: [CustomSound] = []
@@ -75,6 +80,11 @@ class TimerManager: ObservableObject {
         isFullScreenMode = SettingsManager.shared.isFullScreenMode
         showTimerArcs = SettingsManager.shared.showTimerArcs
         showConnectingLine = SettingsManager.shared.showConnectingLine
+        
+        // Initialize animation settings
+        showRippleEffects = SettingsManager.shared.showRippleEffects
+        showMiniAnimations = SettingsManager.shared.showMiniAnimations
+        showTouchFeedback = SettingsManager.shared.showTouchFeedback
         
         selectedAlarmSound = SettingsManager.shared.selectedAlarmSound
         selectedCustomSoundID = SettingsManager.shared.selectedCustomSoundID
@@ -150,86 +160,48 @@ class TimerManager: ObservableObject {
     }
     
     private func setupSettingsBindings() {
-        // Listen for changes in SettingsManager to update TimerManager
+        // Forward timer durations
         SettingsManager.shared.$holdDuration
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.holdDuration != newValue {
-                    self.holdDuration = newValue
-                }
-            }
+            .assign(to: \.holdDuration, on: self)
             .store(in: &cancellables)
             
         SettingsManager.shared.$napDuration
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.napDuration != newValue {
-                    self.napDuration = newValue
-                }
-            }
+            .assign(to: \.napDuration, on: self)
             .store(in: &cancellables)
             
         SettingsManager.shared.$maxDuration
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.maxDuration != newValue {
-                    self.maxDuration = newValue
-                }
-            }
+            .assign(to: \.maxDuration, on: self)
             .store(in: &cancellables)
             
-        SettingsManager.shared.$circleSize
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.circleSize != newValue {
-                    self.circleSize = newValue
-                }
-            }
-            .store(in: &cancellables)
-            
-        SettingsManager.shared.$isFullScreenMode
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.isFullScreenMode != newValue {
-                    self.isFullScreenMode = newValue
-                }
-            }
-            .store(in: &cancellables)
-            
+        // Forward UI settings
         SettingsManager.shared.$showTimerArcs
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.showTimerArcs != newValue {
-                    self.showTimerArcs = newValue
-                }
-            }
+            .assign(to: \.showTimerArcs, on: self)
             .store(in: &cancellables)
             
         SettingsManager.shared.$showConnectingLine
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.showConnectingLine != newValue {
-                    self.showConnectingLine = newValue
-                }
-            }
+            .assign(to: \.showConnectingLine, on: self)
+            .store(in: &cancellables)
+        
+        // Forward animation settings
+        SettingsManager.shared.$showRippleEffects
+            .assign(to: \.showRippleEffects, on: self)
             .store(in: &cancellables)
             
+        SettingsManager.shared.$showMiniAnimations
+            .assign(to: \.showMiniAnimations, on: self)
+            .store(in: &cancellables)
+            
+        SettingsManager.shared.$showTouchFeedback
+            .assign(to: \.showTouchFeedback, on: self)
+            .store(in: &cancellables)
+        
+        // Forward selected sound
         SettingsManager.shared.$selectedAlarmSound
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.selectedAlarmSound != newValue {
-                    self.selectedAlarmSound = newValue
-                }
-            }
+            .assign(to: \.selectedAlarmSound, on: self)
             .store(in: &cancellables)
             
         SettingsManager.shared.$selectedCustomSoundID
-            .sink { [weak self] newValue in
-                guard let self = self else { return }
-                if self.selectedCustomSoundID != newValue {
-                    self.selectedCustomSoundID = newValue
-                }
-            }
+            .assign(to: \.selectedCustomSoundID, on: self)
             .store(in: &cancellables)
     }
     
@@ -379,10 +351,6 @@ class TimerManager: ObservableObject {
     
     // Settings
     func saveSettings() {
-        // Manual sync of values from TimerManager to SettingsManager before saving
-        syncToSettingsManager()
-        
-        // Now save the settings
         SettingsManager.shared.saveSettings()
     }
     
