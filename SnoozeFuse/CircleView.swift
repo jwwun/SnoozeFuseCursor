@@ -68,35 +68,37 @@ struct CircleView: View {
     // MARK: - Private Animation State
     
     /// State for a single sparkle particle
-    private struct SparkState {
-        var id = UUID()
+    private struct SparkleState {
+        var scale: CGFloat = 1.0
         var offset: CGPoint = .zero
-        var scale: CGFloat = 0.0
         var opacity: Double = 0.0
         var rotation: Double = 0.0
     }
     
-    /// State for a single burnt particle emitting from the tip
-    private struct BurntEmitParticleState {
-        var id = UUID()
-        var offset: CGPoint = .zero
-        var scale: CGFloat = 0.0
-        var opacity: Double = 0.0
-    }
-    
-    /// State for a single burnt particle near the tip (not currently used visually but kept for potential future use)
+    /// State for a burnt particle
     private struct BurntParticleState {
-        var id = UUID()
+        var scale: CGFloat = 1.0
         var offset: CGPoint = .zero
-        var scale: CGFloat = 0.0
         var rotation: Double = 0.0
     }
     
-    @State private var sparkStates: [SparkState] = Array(repeating: SparkState(), count: 12)
-    @State private var burntEmitStates: [BurntEmitParticleState] = Array(repeating: BurntEmitParticleState(), count: 8)
-    @State private var burntStates: [BurntParticleState] = Array(repeating: BurntParticleState(), count: 6) // Kept for potential future effects
+    /// Initialize states for sparkle particles
+    @State private var sparkStates = (0..<6).map { _ in SparkleState() }
     
-    // MARK: - Body
+    /// Initialize states for burnt particle emission
+    @State private var burntEmitStates = (0..<8).map { _ in SparkleState() }
+    
+    /// Initialize states for burnt particles
+    @State private var burntStates = (0..<4).map { _ in BurntParticleState() }
+    
+    // BPM Pulse Animation States
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var pulseFade: Double = 1.0
+    @State private var isAnimating = false
+    @State private var isInSecondBeat = false
+    
+    // Access to HapticManager for pulse settings
+    @ObservedObject private var hapticManager = HapticManager.shared
     
     var body: some View {
         ZStack {
@@ -105,7 +107,12 @@ struct CircleView: View {
                 fullScreenModeIndicator
             }
             
+            // Apply the pulse animation when enabled AND when circle is being pressed
             circleBackground
+                .scaleEffect(shouldPulse ? pulseScale : (isPressed ? 0.95 : 1.0))
+                .opacity(shouldPulse ? pulseFade : 1.0)
+                .animation(isPressed && !shouldPulse ? .spring(response: 0.3) : nil, value: isPressed)
+            
             if showArcs {
                 progressBar
                 releaseTimerBar
@@ -126,11 +133,111 @@ struct CircleView: View {
             for i in 0..<burntEmitStates.count {
                 resetBurntEmitParticle(index: i, initialDelay: Double(i) * 0.15)
             }
-            // Burnt particle initialization (currently unused visually)
-            // for i in 0..<burntStates.count {
-            //     resetBurntParticle(index: i, initialDelay: Double(i) * 0.1)
-            // }
         }
+        .onChange(of: shouldPulse) { newValue in
+            if newValue {
+                startPulseAnimation()
+            } else {
+                stopPulseAnimation()
+            }
+        }
+        .onChange(of: isPressed) { newValue in
+            if newValue {
+                // If circle is pressed and we should be pulsing, start animation
+                if shouldPulse {
+                    startPulseAnimation()
+                }
+            } else {
+                // When touch is released, stop the animation immediately
+                stopPulseAnimation()
+            }
+        }
+    }
+    
+    // Computed property to determine if we should show the pulse animation
+    private var shouldPulse: Bool {
+        return hapticManager.isVisualHeartbeatEnabled
+    }
+    
+    // Start or update the pulse animation based on current settings
+    private func startPulseAnimation() {
+        // Stop any existing animation
+        stopPulseAnimation()
+        
+        // Only animate if should pulse
+        guard shouldPulse else { return }
+        
+        // Set flag to indicate we're animating
+        isAnimating = true
+        
+        // Calculate animation duration from BPM (beats per minute to seconds per beat)
+        let beatsPerSecond = hapticManager.bpmValue / 60.0
+        let mainInterval = 1.0 / beatsPerSecond 
+        let secondBeatDelay = mainInterval * 0.25 // Second beat comes 25% after first beat
+        
+        // Start the realistic heartbeat animation
+        animateHeartbeat(interval: mainInterval, secondBeatDelay: secondBeatDelay)
+    }
+    
+    // Create a realistic heartbeat animation with double-beat pattern
+    private func animateHeartbeat(interval: Double, secondBeatDelay: Double) {
+        // First beat animation
+        withAnimation(.easeIn(duration: interval * 0.15)) {
+            // Quick expansion for first beat
+            pulseScale = 1.12
+            pulseFade = 0.95
+        }
+        
+        // Contract slightly after first beat
+        DispatchQueue.main.asyncAfter(deadline: .now() + (interval * 0.15)) {
+            if self.isAnimating {
+                withAnimation(.easeOut(duration: interval * 0.1)) {
+                    self.pulseScale = 1.05
+                    self.pulseFade = 0.98
+                }
+            }
+        }
+        
+        // Second beat (stronger)
+        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay) {
+            if self.isAnimating {
+                withAnimation(.easeIn(duration: interval * 0.15)) {
+                    self.pulseScale = 1.18 // Larger expansion for second beat
+                    self.pulseFade = 0.92
+                }
+            }
+        }
+        
+        // Return to normal size slowly after second beat
+        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay + (interval * 0.15)) {
+            if self.isAnimating {
+                withAnimation(.easeOut(duration: interval * 0.35)) {
+                    self.pulseScale = 1.0
+                    self.pulseFade = 1.0
+                }
+            }
+        }
+        
+        // Schedule next heartbeat if still animating
+        DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
+            if self.isAnimating && self.shouldPulse {
+                self.animateHeartbeat(interval: interval, secondBeatDelay: secondBeatDelay)
+            }
+        }
+    }
+    
+    // Stop the pulse animation
+    private func stopPulseAnimation() {
+        guard isAnimating else { return }
+        
+        // Remove animation and reset values
+        withAnimation(.easeOut(duration: 0.2)) {
+            pulseScale = 1.0
+            pulseFade = 1.0
+        }
+        
+        isAnimating = false
+        isInSecondBeat = false
     }
     
     // MARK: - Private Views
@@ -164,7 +271,7 @@ struct CircleView: View {
     
     /// Release timer progress bar (inner arc)
     private var releaseTimerBar: some View {
-        // Only show if we have a release timer progress value
+        // Only show the release timer if there's a value and it's not at max
         Group {
             if let progress = releaseTimerProgress, progress < 1.0 {
                 ZStack {
@@ -191,7 +298,7 @@ struct CircleView: View {
                             )
                         )
                         // Dynamically change color based on press state
-                        .foregroundColor(isPressed ? Color.pink.opacity(0.8) : Color.white.opacity(0.8))
+                        .foregroundColor(isPressed ? Color.pink.opacity(0.8) : releaseTimerColor)
                         .rotationEffect(Angle(degrees: -90))
                         .padding(25) // More inset for better visual separation
                     
@@ -451,8 +558,6 @@ struct CircleView: View {
                 .fill(isPressed ? pressedColor.opacity(0.4) : normalColor.opacity(0.2))
                 .frame(width: size * 0.6, height: size * 0.6)
         }
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3), value: isPressed)
     }
     
     /// The status text in the center of the circle

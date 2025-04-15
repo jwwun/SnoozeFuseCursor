@@ -251,6 +251,38 @@ Used for managers that need global access:
   - Consistent format across all built-in sounds
   - User-imported sounds still support multiple formats (MP3, WAV, etc.) for flexibility
 
+### BPM Heartbeat Pulse Feature
+- **Rhythmic Visual Feedback**: Circle pulses like a heartbeat at a configurable beats-per-minute (BPM) rate
+  - Subtle size pulsation (approximately 15% size increase at peak)
+  - Organic easing for natural-looking pulse animation
+  - Synchronized visual and haptic feedback
+  - Non-distracting subtle opacity changes during pulse
+- **Haptic Synchronization**: Haptic feedback pulses match exactly with the visual animation
+  - Tactile "heartbeat" sensation provides additional timer awareness
+  - Uses the selected haptic intensity (light/medium/heavy)
+  - Provides awareness of active timer even when not looking at screen
+- **Customizable BPM Settings**: 
+  - Adjustable from 1-300 BPM via slider control
+  - Default of 60 BPM (average resting heart rate)
+  - Real-time preview when adjusting BPM value
+  - Changes apply immediately without requiring confirmation
+- **Toggle Control**: Can be easily enabled/disabled without losing BPM setting
+  - Preserves custom BPM value when temporarily disabled
+  - Settings persist between app sessions
+- **Test Button**: Dedicated test button to preview the pulse effect
+  - Start/stop testing without leaving settings screen
+  - Real-time feedback for chosen BPM rate
+- **Smart Behavior**: 
+  - Automatically pauses during circle press/drag operations
+  - Automatically resumes when interaction ends
+  - No interference with timer functionality
+  - Stops when leaving the nap screen to preserve battery
+- **Implementation Details**:
+  - Uses SwiftUI's animation system for smooth performance
+  - Haptic timing managed via precise Timer scheduling
+  - Minimal battery impact through efficient animation
+  - Located in Advanced Settings under Haptic Feedback section
+
 ### Notification Testing UI
 - **Out-of-App Notification Tester**: Added dedicated UI for testing notifications
   - Located in Advanced Settings
@@ -419,6 +451,26 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - The app prioritizes critical alerts as they're essential for reliable alarm behavior
 - **User Experience**: Clear explanations about why critical alerts are important for alarm functionality
 - **Graceful Fallback**: Direct audio playback works as primary alarm method regardless of critical alert status
+
+## Critical Alerts Status Management
+
+SnoozeFuse uses a dual notification system that adapts based on the approval status of critical alerts:
+
+### Standard Notifications (Default)
+- Used as the primary alarm mechanism until critical alerts are approved by Apple
+- Standard notifications respect the device's sound/silent settings
+- Alarms will only play sounds if the device is not in silent mode
+
+### Critical Alerts (When Approved)
+- Allow alarms to sound even when the device is in silent mode or Do Not Disturb
+- Require special Apple entitlement and approval process
+- The app includes a Critical Alert Status system to track approval
+
+### Status Management UI
+- The Critical Alert Status Control in Advanced Settings allows tracking approval status
+- States include: Not Requested, Pending Approval, Approved, and Denied
+- When marked as "Approved," the app attempts to request critical alert permissions
+- The UI adapts to always use the best available notification type
 
 ## UI Improvements
 

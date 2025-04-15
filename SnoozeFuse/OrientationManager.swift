@@ -466,7 +466,7 @@ extension AdvancedSettingsScreen {
                                 orientationManager.saveSettings(forceOverride: true)
                             }
                         } message: {
-                            Text("iPhoneX and newer models do not support Upside Down orientation. It's recommended to use Portrait mode only on these devices since the home indicator needs to be visible.")
+                            Text("iPhoneX and newer models do not support Upside Down orientation yet. It's recommended to use Portrait mode only on these devices since the home indicator needs to be visible.")
                         }
                         
                         // Landscape Left button

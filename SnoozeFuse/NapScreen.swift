@@ -51,6 +51,11 @@ struct NapScreen: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var timerManager: TimerManager
     
+    // Using shared instances instead of environment objects
+    private var hapticManager = HapticManager.shared
+    private var orientationManager = OrientationManager.shared
+    private var audioPlayerManager = AudioPlayerManager.shared
+    
     // MARK: - State
     
     @State private var circlePosition: CGPoint? = nil
@@ -133,7 +138,9 @@ struct NapScreen: View {
                                 .padding(.bottom, 5)
                             
                             // Timer display with big numbers, small units
-                            let timerText = timerManager.formatTime(timerManager.holdTimer)
+                            // Force consistent format by rounding to the nearest second to avoid constantly switching
+                            let holdTimerValue = floor(timerManager.holdTimer)
+                            let timerText = timerManager.formatTime(holdTimerValue)
                             let components = parseTimerComponents(timerText)
                             VStack(spacing: 0) {
                                 HStack(spacing: 1) {
@@ -163,7 +170,9 @@ struct NapScreen: View {
                                     .foregroundColor(Color.purple.opacity(0.8))
                                     .tracking(1)
                                 
-                                let maxTimerText = timerManager.formatTime(timerManager.maxTimer)
+                                // Force consistent format by rounding to the nearest second to avoid constantly switching
+                                let maxTimerValue = floor(timerManager.maxTimer)
+                                let maxTimerText = timerManager.formatTime(maxTimerValue)
                                 let maxComponents = parseTimerComponents(maxTimerText)
                                 HStack(spacing: 0) {
                                     ForEach(maxComponents, id: \.number) { component in
@@ -289,10 +298,18 @@ struct NapScreen: View {
                                                     
                                                     // Immediately reset hold timer to original duration when pressed
                                                     timerManager.holdTimer = timerManager.holdDuration
+                                                    
+                                                    // Start the haptic BPM pulse if enabled
+                                                    if hapticManager.isBPMPulseEnabled && hapticManager.isHapticEnabled {
+                                                        hapticManager.startBPMPulse()
+                                                    }
                                                 } else {
                                                     // User has released the circle
                                                     // Start/resume the hold timer
                                                     timerManager.startHoldTimer()
+                                                    
+                                                    // Stop the BPM pulse when circle is released
+                                                    hapticManager.stopBPMPulse()
                                                 }
                                             }
                                         },
@@ -462,10 +479,18 @@ struct NapScreen: View {
                                         
                                         // Immediately reset hold timer to original duration when pressed
                                         timerManager.holdTimer = timerManager.holdDuration
+                                        
+                                        // Start the haptic BPM pulse if enabled
+                                        if hapticManager.isBPMPulseEnabled && hapticManager.isHapticEnabled {
+                                            hapticManager.startBPMPulse()
+                                        }
                                     } else {
                                         // User has released the screen
                                         // Start/resume the hold timer
                                         timerManager.startHoldTimer()
+                                        
+                                        // Stop the BPM pulse when touch is released
+                                        hapticManager.stopBPMPulse()
                                     }
                                 }
                             },
@@ -604,6 +629,17 @@ struct NapScreen: View {
                     timerManager.startHoldTimer()
                 }
             }
+            
+            // Setup background audio handling
+            audioPlayerManager.setupBackgroundAudio()
+            
+            // Lock orientation when screen appears
+            orientationManager.lockOrientation()
+            
+            // Start BPM pulse if enabled
+            if hapticManager.isBPMPulseEnabled && hapticManager.isHapticEnabled {
+                hapticManager.startBPMPulse()
+            }
         }
         .onDisappear {
             // Clean up notification observer
@@ -615,6 +651,12 @@ struct NapScreen: View {
             
             // Stop alarms to ensure they don't continue playing
             timerManager.stopAlarmSound()
+            
+            // Unlock orientation when screen disappears
+            orientationManager.unlockOrientation()
+            
+            // Stop BPM pulse
+            hapticManager.stopBPMPulse()
         }
         .fullScreenCover(isPresented: $showSleepScreen) {
             // Simple transition - no fancy effects

@@ -55,9 +55,9 @@ class PresetManager: ObservableObject {
         // Quick test preset: 5s -> 20s -> 1m
         let quickTestPreset = PresetItem(
             name: "Quick test",
-            holdDuration: 5, // 5 seconds
-            napDuration: 20, // 20 seconds
-            maxDuration: 60 // 1 minute
+            holdDuration: 2, // 2 seconds
+            napDuration: 5, // 5s
+            maxDuration: 15 // 15s
         )
         
         // Add presets to the array

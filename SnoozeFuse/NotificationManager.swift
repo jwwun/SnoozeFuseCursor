@@ -11,6 +11,7 @@ class NotificationManager: ObservableObject {
     @Published var isCheckingPermission = false
     @Published var isHiddenFromMainSettings = true
     @Published var isCriticalAlertsAuthorized: Bool = false
+    @Published var criticalAlertsStatus: CriticalAlertStatus = .pendingApproval
     
     // Keep a reference to the scheduled alarm sound timer
     private var alarmSoundTimer: Timer?
@@ -23,9 +24,37 @@ class NotificationManager: ObservableObject {
     private enum UserDefaultsKeys {
         static let hasCheckedNotificationPermission = "hasCheckedNotificationPermission"
         static let isHiddenFromMainSettings = "isHiddenFromMainSettings"
+        static let criticalAlertsStatus = "criticalAlertsStatus"
+    }
+    
+    // Enum for critical alert status
+    enum CriticalAlertStatus: String, Codable {
+        case notRequested // Initial state, not yet requested
+        case pendingApproval // Requested but waiting for Apple approval
+        case approved // Approved and available
+        case denied // Denied by Apple or user
+        
+        var displayString: String {
+            switch self {
+            case .notRequested:
+                return "Not yet requested"
+            case .pendingApproval:
+                return "Pending Apple approval"
+            case .approved:
+                return "Approved"
+            case .denied:
+                return "Denied"
+            }
+        }
     }
     
     init() {
+        // Load critical alerts status
+        if let savedStatus = UserDefaults.standard.string(forKey: UserDefaultsKeys.criticalAlertsStatus),
+           let status = CriticalAlertStatus(rawValue: savedStatus) {
+            criticalAlertsStatus = status
+        }
+        
         checkNotificationPermission()
         loadSettings()
     }
@@ -92,6 +121,9 @@ class NotificationManager: ObservableObject {
         content.title = "Wake Up!"
         content.body = "Your nap time is over."
         
+        // Check if we should use critical alerts (only if approved and authorized)
+        let useCriticalAlerts = criticalAlertsStatus == .approved && isCriticalAlertsAuthorized
+        
         // Check if we need to use a custom CAF sound
         if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
             // Use the sound name directly for notifications
@@ -102,9 +134,9 @@ class NotificationManager: ObservableObject {
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: firstBuiltInSound))
             print("Using first built-in sound for notification: \(firstBuiltInSound)")
         } else {
-            // Ultimate fallback to system sound
-            content.sound = UNNotificationSound.defaultCritical
-            print("Using system critical sound for notification (fallback)")
+            // Ultimate fallback to system sound - use critical only if approved
+            content.sound = useCriticalAlerts ? UNNotificationSound.defaultCritical : UNNotificationSound.default
+            print("Using system \(useCriticalAlerts ? "critical" : "default") sound for notification (fallback)")
         }
         
         // Important: set this category
@@ -212,6 +244,9 @@ class NotificationManager: ObservableObject {
         // First stop any existing vibration to prevent duplicates
         stopVibrationAlarm()
         
+        // Make sure audio session is set up for background use - IMPORTANT FIX
+        setupBackgroundAudioSession()
+        
         // Simple one-time vibration to start
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         
@@ -263,10 +298,26 @@ class NotificationManager: ObservableObject {
             }
         }
         
+        // Make timer more robust for background
+        RunLoop.current.add(timerRef, forMode: .common)
+        
         // Securely store the timer reference
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.alarmSoundTimer = timerRef
+        }
+    }
+    
+    // Setup background audio session to ensure timer continues
+    private func setupBackgroundAudioSession() {
+        do {
+            // Configure audio session for background operation
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default)
+            try audioSession.setActive(true)
+            print("📱 NotificationManager: Audio session configured for background")
+        } catch {
+            print("📱 NotificationManager: Failed to configure audio session: \(error)")
         }
     }
     
@@ -312,62 +363,63 @@ class NotificationManager: ObservableObject {
     
     // Helper method to send the actual notification
     private func sendAlarmNotification() {
-        DispatchQueue.main.async {
-            let content = UNMutableNotificationContent()
-            content.title = "Wake Up!"
-            content.body = "Your nap time is over."
-            
-            // Check if we need to use a custom CAF sound
-            if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
-                // Use the sound name directly for notifications
-                content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
+        // Remove isNotificationSoundPlaying check as it may be preventing notifications
+        guard isNotificationAuthorized else { return }
+        
+        // Create notification content
+        let content = UNMutableNotificationContent()
+        content.title = "Wake Up!"
+        content.body = "Your nap time is over."
+        
+        // Check if we should use critical alerts (only if approved and authorized)
+        let useCriticalAlerts = criticalAlertsStatus == .approved && isCriticalAlertsAuthorized
+        
+        // Check if we need to use a custom CAF sound
+        if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
+            // Use the sound name directly for notifications
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
+        } else {
+            // Use default critical sound only if approved
+            content.sound = useCriticalAlerts ? UNNotificationSound.defaultCritical : UNNotificationSound.default
+        }
+        
+        content.categoryIdentifier = "alarmCategory"
+        
+        // Create trigger for immediate delivery with DIFFERENT identifier
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        
+        // Create request with UNIQUE ID that won't conflict
+        let requestID = "immediateAlarm_\(Date().timeIntervalSince1970)"
+        let request = UNNotificationRequest(
+            identifier: requestID,
+            content: content,
+            trigger: trigger
+        )
+        
+        // Add to notification center
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling immediate notification: \(error.localizedDescription)")
             } else {
-                content.sound = UNNotificationSound.defaultCritical
-            }
-            
-            content.categoryIdentifier = "alarmCategory"
-            
-            // Create trigger for immediate delivery with DIFFERENT identifier
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            
-            // Create request with UNIQUE ID that won't conflict
-            let requestID = "immediateAlarm_\(Date().timeIntervalSince1970)"
-            let request = UNNotificationRequest(
-                identifier: requestID,
-                content: content,
-                trigger: trigger
-            )
-            
-            // Add to notification center
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error = error {
-                    print("Error scheduling immediate notification: \(error.localizedDescription)")
-                }
+                print("Immediate background notification scheduled successfully")
             }
         }
     }
     
     // MARK: - Authorization
     func requestNotificationAuthorization() {
-        // Create authorization options array
-        var options: UNAuthorizationOptions = [.alert, .sound, .badge]
+        // Update critical alert status to pendingApproval
+        criticalAlertsStatus = .pendingApproval
+        saveCriticalAlertStatus()
         
-        // Add critical alerts option - requires special entitlement from Apple
-        options.insert(.criticalAlert)
-        
-        // Request authorization
-        UNUserNotificationCenter.current().requestAuthorization(options: options) { [weak self] success, error in
+        // Use a standard request for now - when your app is approved, you'll use .criticalAlert here
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in
             DispatchQueue.main.async {
-                if success {
-                    self?.isNotificationAuthorized = true
-                    print("Notification authorization granted, including critical alerts if available")
-                    
-                    // Register notification categories
-                    self?.registerNotificationCategories()
-                } else if let error = error {
-                    print("Notification authorization denied: \(error.localizedDescription)")
-                    self?.isNotificationAuthorized = false
-                }
+                self?.isNotificationAuthorized = granted
+                self?.isCheckingPermission = false
+                
+                // Notify that we've requested critical alerts (even though we're not actually using them yet)
+                NotificationCenter.default.post(name: .criticalAlertStatusChanged, object: nil)
             }
         }
     }
@@ -402,6 +454,9 @@ class NotificationManager: ObservableObject {
         content.title = "Custom Sound Test"
         content.body = "Testing your custom notification sound."
         
+        // Check if we should use critical alerts (only if approved and authorized)
+        let useCriticalAlerts = criticalAlertsStatus == .approved && isCriticalAlertsAuthorized
+        
         // Check if we need to use a custom CAF sound
         if let cafSoundName = CustomCAFManager.shared.getSelectedCAFSoundName() {
             // Use the sound name directly for notifications
@@ -412,9 +467,9 @@ class NotificationManager: ObservableObject {
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: firstBuiltInSound))
             print("Testing first built-in sound: \(firstBuiltInSound)")
         } else {
-            // Ultimate fallback to system sound
-            content.sound = UNNotificationSound.defaultCritical
-            print("Testing system critical sound (fallback)")
+            // Ultimate fallback to system sound, use critical only if approved
+            content.sound = useCriticalAlerts ? UNNotificationSound.defaultCritical : UNNotificationSound.default
+            print("Testing system \(useCriticalAlerts ? "critical" : "default") sound (fallback)")
         }
         
         // Create trigger for immediate delivery
@@ -437,6 +492,22 @@ class NotificationManager: ObservableObject {
             }
         }
     }
+    
+    // Function to update critical alert status
+    func updateCriticalAlertStatus(_ status: CriticalAlertStatus) {
+        criticalAlertsStatus = status
+        saveCriticalAlertStatus()
+        
+        // Also update the isCriticalAlertsAuthorized flag for compatibility
+        isCriticalAlertsAuthorized = (status == .approved)
+        
+        // Notify that the status changed
+        NotificationCenter.default.post(name: .criticalAlertStatusChanged, object: nil)
+    }
+    
+    private func saveCriticalAlertStatus() {
+        UserDefaults.standard.set(criticalAlertsStatus.rawValue, forKey: UserDefaultsKeys.criticalAlertsStatus)
+    }
 }
 
 // SwiftUI View component for notification warning
@@ -454,11 +525,11 @@ struct NotificationPermissionWarning: View {
                         .foregroundColor(.orange)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Optional Notifications")
+                        Text("Notifications Disabled")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.white)
                         
-                        Text("If you already have critical alerts you do not need this.Enabling lets you receive alerts when your nap ends when out of app. It does not notify for anything else.")
+                        Text("SnoozeFuse needs notifications to alert you when your nap ends when the app is in the background. Notifications will only be used for nap alarms.")
                             .font(.system(size: 14))
                             .foregroundColor(.white.opacity(0.8))
                             .fixedSize(horizontal: false, vertical: true)
@@ -537,4 +608,9 @@ struct NotificationPermissionWarning: View {
             EmptyView()
         }
     }
+}
+
+// Notification name extension
+extension Notification.Name {
+    static let criticalAlertStatusChanged = Notification.Name("criticalAlertStatusChanged")
 }
