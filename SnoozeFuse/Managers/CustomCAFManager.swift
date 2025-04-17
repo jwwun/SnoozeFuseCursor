@@ -112,6 +112,8 @@ class CustomCAFManager: ObservableObject {
         
         // Copy built-in sounds to the sounds directory for notifications
         setupBuiltInSoundsForNotifications()
+        
+        // Remove automatic selection of a default sound - let user choose explicitly
     }
     
     // MARK: - Built-in Sounds

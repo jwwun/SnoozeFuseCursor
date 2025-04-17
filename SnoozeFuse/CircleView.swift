@@ -96,6 +96,8 @@ struct CircleView: View {
     @State private var pulseFade: Double = 1.0
     @State private var isAnimating = false
     @State private var isInSecondBeat = false
+    @State private var animationWorkItems: [DispatchWorkItem] = []
+    @State private var animationTimestamp: Date = Date()
     
     // Access to HapticManager for pulse settings
     @ObservedObject private var hapticManager = HapticManager.shared
@@ -134,14 +136,14 @@ struct CircleView: View {
                 resetBurntEmitParticle(index: i, initialDelay: Double(i) * 0.15)
             }
         }
-        .onChange(of: shouldPulse) { newValue in
+        .onChange(of: shouldPulse) { oldValue, newValue in
             if newValue {
                 startPulseAnimation()
             } else {
                 stopPulseAnimation()
             }
         }
-        .onChange(of: isPressed) { newValue in
+        .onChange(of: isPressed) { oldValue, newValue in
             if newValue {
                 // If circle is pressed and we should be pulsing, start animation
                 if shouldPulse {
@@ -167,6 +169,14 @@ struct CircleView: View {
         // Only animate if should pulse
         guard shouldPulse else { return }
         
+        // Add debouncing to prevent rapid re-triggers
+        let now = Date()
+        if now.timeIntervalSince(animationTimestamp) < 0.1 {
+            // Too soon since last animation started, ignore this request
+            return
+        }
+        animationTimestamp = now
+        
         // Set flag to indicate we're animating
         isAnimating = true
         
@@ -181,6 +191,9 @@ struct CircleView: View {
     
     // Create a realistic heartbeat animation with double-beat pattern
     private func animateHeartbeat(interval: Double, secondBeatDelay: Double) {
+        // Cancel any existing animation work items to prevent overlapping animations
+        cancelAllAnimationWorkItems()
+        
         // First beat animation
         withAnimation(.easeIn(duration: interval * 0.15)) {
             // Quick expansion for first beat
@@ -189,46 +202,63 @@ struct CircleView: View {
         }
         
         // Contract slightly after first beat
-        DispatchQueue.main.asyncAfter(deadline: .now() + (interval * 0.15)) {
-            if self.isAnimating {
-                withAnimation(.easeOut(duration: interval * 0.1)) {
-                    self.pulseScale = 1.05
-                    self.pulseFade = 0.98
-                }
+        let contractWorkItem = DispatchWorkItem { [self] in
+            guard self.isAnimating else { return }
+            
+            withAnimation(.easeOut(duration: interval * 0.1)) {
+                self.pulseScale = 1.05
+                self.pulseFade = 0.98
             }
         }
+        animationWorkItems.append(contractWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + (interval * 0.15), execute: contractWorkItem)
         
         // Second beat (stronger)
-        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay) {
-            if self.isAnimating {
-                withAnimation(.easeIn(duration: interval * 0.15)) {
-                    self.pulseScale = 1.18 // Larger expansion for second beat
-                    self.pulseFade = 0.92
-                }
+        let secondBeatWorkItem = DispatchWorkItem { [self] in
+            guard self.isAnimating else { return }
+            
+            withAnimation(.easeIn(duration: interval * 0.15)) {
+                self.pulseScale = 1.18 // Larger expansion for second beat
+                self.pulseFade = 0.92
             }
         }
+        animationWorkItems.append(secondBeatWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay, execute: secondBeatWorkItem)
         
         // Return to normal size slowly after second beat
-        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay + (interval * 0.15)) {
-            if self.isAnimating {
-                withAnimation(.easeOut(duration: interval * 0.35)) {
-                    self.pulseScale = 1.0
-                    self.pulseFade = 1.0
-                }
+        let returnWorkItem = DispatchWorkItem { [self] in
+            guard self.isAnimating else { return }
+            
+            withAnimation(.easeOut(duration: interval * 0.35)) {
+                self.pulseScale = 1.0
+                self.pulseFade = 1.0
             }
         }
+        animationWorkItems.append(returnWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay + (interval * 0.15), execute: returnWorkItem)
         
         // Schedule next heartbeat if still animating
-        DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
-            if self.isAnimating && self.shouldPulse {
-                self.animateHeartbeat(interval: interval, secondBeatDelay: secondBeatDelay)
-            }
+        let nextBeatWorkItem = DispatchWorkItem { [self] in
+            guard self.isAnimating && self.shouldPulse else { return }
+            self.animateHeartbeat(interval: interval, secondBeatDelay: secondBeatDelay)
         }
+        animationWorkItems.append(nextBeatWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + interval, execute: nextBeatWorkItem)
+    }
+    
+    // Helper to cancel all pending animation work items
+    private func cancelAllAnimationWorkItems() {
+        // Cancel all existing work items
+        animationWorkItems.forEach { $0.cancel() }
+        animationWorkItems.removeAll()
     }
     
     // Stop the pulse animation
     private func stopPulseAnimation() {
         guard isAnimating else { return }
+        
+        // Cancel all pending animation tasks
+        cancelAllAnimationWorkItems()
         
         // Remove animation and reset values
         withAnimation(.easeOut(duration: 0.2)) {

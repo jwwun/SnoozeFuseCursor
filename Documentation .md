@@ -29,7 +29,6 @@ SnoozeFuse is an iOS app built with SwiftUI that provides timer functionality wi
 #### `OrientationManager.swift`
 - Controls device orientation settings
 - Handles orientation locks
-- Known limitation: Orientation lock feature does not work properly on iPad devices
 
 #### `MultiTouchHandler.swift`
 - Provides multi-touch detection within circular areas
@@ -414,23 +413,6 @@ Note: There is a small lag when first using a SwiftUI wheel picker after app lau
   - Ensures volume setting is saved both during dragging and on release
   - Maintains consistent volume setting between app launches
   - Prevents unexpected volume changes when alarm triggers
-
-### iPad Orientation Lock Limitation
-- **Orientation Lock on iPad**: The in-app orientation lock feature does not work properly on iPad devices
-  - Added clear warning in the Orientation Settings UI specifically for iPad users
-  - Warning uses distinctive red styling to ensure visibility
-  - Recommends using the iPad's built-in orientation lock instead
-  - Limitation is clearly documented in the OrientationManager description
-  - This is a known limitation due to differences in how iPadOS handles orientation changes
-
-### iPhone Landscape Mode Limitation
-- **Horizontal Orientation on iPhone**: UI elements may not fit properly in landscape orientation on iPhone
-  - Added warning in the Orientation Settings UI when landscape mode is selected
-  - Added warning in the Positioning page of About screen
-  - Warnings use orange styling to indicate caution
-  - Clearly explains that some controls may be cut off or difficult to access
-  - Recommends portrait mode for the best experience on iPhone
-  - App is optimized primarily for portrait orientation on phones
 
 ## Build and Run Instructions
 
@@ -995,23 +977,5 @@ The AboutScreen has been refactored into these components:
 - `PositioningPage`: Phone positioning information
 - `SupportPage`: Donation and support information
   - `DonationTiersView`: Donation goals information
-  - `MilestoneTier`: Interactive component for displaying donation milestones with donor recognition
-
-### Donor Recognition Feature
-- **Interactive Milestone Tiers**: Added expandable donation milestones with donor recognition
-  - Completed milestones are visually crossed out to show progress
-  - Tapping on a milestone with donors expands to show the contributor list
-  - Subtle dropdown animation enhances user experience
-  - Star emoji (⭐️) highlights each donor in the expanded view
-  - Preserves clean UI by hiding donor details until requested
-- **Visual Progress Tracking**: 
-  - Strikethrough formatting for completed milestones
-  - Reduced opacity for completed items to maintain focus on active goals
-  - Chevron indicators show which milestones contain donor information
-- **Individual Donor Recognition**: 
-  - Each donor is credited with their donation amount
-  - Implementation maintains privacy by only showing information approved for public display
-  - Expandable design allows for multiple donors per milestone as needed
-  - Framework supports future enhancements like donation dates or special recognition tiers
 
 This modular approach improves maintainability and resolves compiler type-checking limitations.

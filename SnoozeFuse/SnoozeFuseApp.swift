@@ -315,7 +315,10 @@ struct SnoozeFuseApp: App {
                         // If any timer is running, ensure background audio is properly set up
                         if timerManager.isNapTimerRunning || timerManager.isMaxTimerRunning {
                             print("Timer is active - ensuring background audio will work")
+                            // Setup background audio session AND start playing silent audio
                             timerManager.setupBackgroundAudio()
+                            // Actually start playing background audio to keep app alive
+                            timerManager.startBackgroundAlarmSound()
                         } else {
                             // No timers running, make sure to stop all sounds and vibrations
                             print("No timers active - stopping all sounds and vibrations")

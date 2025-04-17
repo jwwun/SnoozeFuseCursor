@@ -55,6 +55,40 @@ struct SleepScreen: View {
                             Capsule()
                                 .fill(Color.black.opacity(0.3))
                         )
+                        
+                        // Add small max timer display
+                        HStack(spacing: 5) {
+                            Image(systemName: "timer")
+                                .foregroundColor(.purple.opacity(0.8))
+                                .font(.system(size: 10))
+                            
+                            let maxTimerText = timerManager.formatTime(timerManager.maxTimer)
+                            let components = parseTimerComponents(maxTimerText)
+                            HStack(spacing: 0) {
+                                ForEach(components, id: \.number) { component in
+                                    Text(component.number)
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundColor(.purple.opacity(0.9))
+                                    
+                                    Text(component.unit)
+                                        .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                        .foregroundColor(.purple.opacity(0.7))
+                                        .baselineOffset(-2)
+                                        .padding(.trailing, 1)
+                                }
+                            }
+                            
+                            Text("remaining")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.purple.opacity(0.8))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.3))
+                        )
+                        .opacity(0.8)
                     }
                     .padding(.vertical)
                     .padding(.horizontal, 30)
@@ -85,7 +119,7 @@ struct SleepScreen: View {
                                 .foregroundColor(.white.opacity(0.7))
                         }
                     } else {
-                        // Sleep message - simple
+                        // Sleep message with Z's
                         VStack(spacing: 15) {
                             Text("😴")
                                 .font(.system(size: 50))
@@ -94,7 +128,7 @@ struct SleepScreen: View {
                                 .font(.system(size: 28, weight: .medium, design: .rounded))
                                 .foregroundColor(.white)
                             
-                            // Simple static Z's
+                            // Static Z's
                             HStack(spacing: 10) {
                                 Text("Z")
                                     .font(.system(size: 24, weight: .bold, design: .rounded))
@@ -113,7 +147,7 @@ struct SleepScreen: View {
                     
                     Spacer()
                     
-                    // Timer display - simple
+                    // Timer display
                     VStack(spacing: 2) {
                         Text("NAP TIMER")
                             .font(.system(size: 12, weight: .bold, design: .rounded))

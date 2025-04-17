@@ -9,7 +9,7 @@ class NotificationManager: ObservableObject {
     
     @Published var isNotificationAuthorized = false
     @Published var isCheckingPermission = false
-    @Published var isHiddenFromMainSettings = true
+    @Published var isHiddenFromMainSettings = false
     @Published var isCriticalAlertsAuthorized: Bool = false
     @Published var criticalAlertsStatus: CriticalAlertStatus = .pendingApproval
     
@@ -129,14 +129,10 @@ class NotificationManager: ObservableObject {
             // Use the sound name directly for notifications
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
             print("Using custom CAF sound for notification: \(cafSoundName)")
-        } else if let firstBuiltInSound = CustomCAFManager.shared.getFirstBuiltInSoundName() {
-            // Use the first built-in sound if none is selected
-            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: firstBuiltInSound))
-            print("Using first built-in sound for notification: \(firstBuiltInSound)")
         } else {
-            // Ultimate fallback to system sound - use critical only if approved
+            // Use system default sound if no sound is selected (don't fallback to first built-in)
             content.sound = useCriticalAlerts ? UNNotificationSound.defaultCritical : UNNotificationSound.default
-            print("Using system \(useCriticalAlerts ? "critical" : "default") sound for notification (fallback)")
+            print("Using system \(useCriticalAlerts ? "critical" : "default") sound for notification (no sound selected)")
         }
         
         // Important: set this category
@@ -225,7 +221,7 @@ class NotificationManager: ObservableObject {
     // Load settings from UserDefaults
     private func loadSettings() {
         let defaults = UserDefaults.standard
-        // Only load the setting if it exists, otherwise keep our default (true)
+        // Only load the setting if it exists, otherwise keep our default (false)
         if defaults.object(forKey: UserDefaultsKeys.isHiddenFromMainSettings) != nil {
             isHiddenFromMainSettings = defaults.bool(forKey: UserDefaultsKeys.isHiddenFromMainSettings)
         }
@@ -379,7 +375,7 @@ class NotificationManager: ObservableObject {
             // Use the sound name directly for notifications
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
         } else {
-            // Use default critical sound only if approved
+            // Use system default sound if no sound is selected
             content.sound = useCriticalAlerts ? UNNotificationSound.defaultCritical : UNNotificationSound.default
         }
         
@@ -462,14 +458,10 @@ class NotificationManager: ObservableObject {
             // Use the sound name directly for notifications
             content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: cafSoundName))
             print("Testing custom CAF sound: \(cafSoundName)")
-        } else if let firstBuiltInSound = CustomCAFManager.shared.getFirstBuiltInSoundName() {
-            // Use the first built-in sound if none is selected
-            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: firstBuiltInSound))
-            print("Testing first built-in sound: \(firstBuiltInSound)")
         } else {
-            // Ultimate fallback to system sound, use critical only if approved
+            // Use system default sound if no sound is selected
             content.sound = useCriticalAlerts ? UNNotificationSound.defaultCritical : UNNotificationSound.default
-            print("Testing system \(useCriticalAlerts ? "critical" : "default") sound (fallback)")
+            print("Testing system \(useCriticalAlerts ? "critical" : "default") sound (no sound selected)")
         }
         
         // Create trigger for immediate delivery

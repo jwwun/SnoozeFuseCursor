@@ -72,18 +72,19 @@ struct SettingsScreen: View {
                                     hasVisitedTutorial = true
                                 }) {
                                     if hasVisitedTutorial {
-                                        // After viewing - just a small info icon
-                                        ZStack {
-                                            // Empty Color view to define exact hitbox area
-                                            Color.clear
-                                                .frame(width: 30, height: 30)
-                                            
-                                            Image(systemName: "info.circle")
-                                                .font(.system(size: 22)) // Slightly larger for visibility
-                                                .foregroundColor(.white.opacity(0.2))
-                                        }
+                                        // After viewing - just a small info icon with proper hitbox
+                                        Image(systemName: "info.circle")
+                                            .font(.system(size: 22))
+                                            .foregroundColor(.white.opacity(0.2))
+                                            .frame(width: 30, height: 30)
+                                            .contentShape(Circle()) // Explicit hitbox shape
+                                            .background(
+                                                Circle()
+                                                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                                                    .frame(width: 30, height: 30)
+                                            )
                                     } else {
-                                        // First time - enhanced attention-grabbing style
+                                        // First time - clean but noticeable style
                                         HStack(spacing: 5) {
                                             Image(systemName: "info.circle.fill")
                                                 .font(.system(size: 18))
@@ -93,20 +94,12 @@ struct SettingsScreen: View {
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
-                                        .background(
-                                            LinearGradient(
-                                                colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.5)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                            .opacity(0.7)
-                                        )
+                                        .background(Color.gray.opacity(0.15))
                                         .cornerRadius(18)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 18)
                                                 .stroke(Color.white.opacity(0.3), lineWidth: 1)
                                         )
-                                        .shadow(color: Color.blue.opacity(0.5), radius: 4, x: 0, y: 2)
                                         // Subtle pulse animation for first-time users
                                         .modifier(PulseAnimation())
                                     }

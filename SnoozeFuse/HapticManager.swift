@@ -21,6 +21,10 @@ class HapticManager: ObservableObject {
     private(set) var isAlarmVibrationActive = false
     private(set) var isBPMPulsing = false
     
+    // Debounce handling
+    private var lastPulseStartTime: Date = Date(timeIntervalSince1970: 0)
+    private var pendingPulseWorkItems: [DispatchWorkItem] = []
+    
     // MARK: - Singleton Instance
     static let shared = HapticManager()
     
@@ -86,6 +90,14 @@ class HapticManager: ObservableObject {
         // Don't start if haptics are disabled or already pulsing
         guard isHapticEnabled && isBPMPulseEnabled && !isBPMPulsing else { return }
         
+        // Add debouncing to prevent rapid re-triggers
+        let now = Date()
+        if now.timeIntervalSince(lastPulseStartTime) < 0.2 {
+            // Too soon since last pulse started, ignore this request
+            return
+        }
+        lastPulseStartTime = now
+        
         // Stop any existing pulse
         stopBPMPulse()
         
@@ -112,11 +124,22 @@ class HapticManager: ObservableObject {
         // First beat (stronger)
         trigger()
         
+        // Cancel any pending work items to prevent overlapping effects
+        cancelPendingPulseWorkItems()
+        
         // Schedule second beat after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay) { [weak self] in
+        let secondBeatWorkItem = DispatchWorkItem { [weak self] in
             guard let self = self, self.isBPMPulsing else { return }
             self.triggerSecondBeat()
         }
+        pendingPulseWorkItems.append(secondBeatWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + secondBeatDelay, execute: secondBeatWorkItem)
+    }
+    
+    /// Cancels any pending haptic pulse work items
+    private func cancelPendingPulseWorkItems() {
+        pendingPulseWorkItems.forEach { $0.cancel() }
+        pendingPulseWorkItems.removeAll()
     }
     
     /// Stops the BPM pulse
@@ -126,6 +149,9 @@ class HapticManager: ObservableObject {
         
         // Update state
         isBPMPulsing = false
+        
+        // Cancel any pending work items
+        cancelPendingPulseWorkItems()
         
         // Clean up timers
         bpmPulseTimer?.invalidate()

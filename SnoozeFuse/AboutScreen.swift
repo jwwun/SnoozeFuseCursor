@@ -751,6 +751,68 @@ struct PositioningPage: View {
                 .background(Color.white.opacity(0.05))
                 .cornerRadius(15)
                 
+                // Landscape warning
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 14))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("⚠️ WARNING: About Landscape Mode")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.orange)
+                            
+                            Text("UI elements may not fit properly in landscape orientation on iPhone. Please use portrait mode for the best experience.")
+                                .font(.system(size: 12))
+                                .foregroundColor(.orange.opacity(0.8))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.15))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 5)
+                }
+                
+                // iPad warning
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                            .font(.system(size: 14))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("⚠️ WARNING: iPad Orientation Lock")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.red)
+                            
+                            Text("The in-app orientation lock feature does not work properly on iPad devices. Please use your device's built-in orientation lock instead.")
+                                .font(.system(size: 12))
+                                .foregroundColor(.red.opacity(0.8))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.red.opacity(0.15))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 5)
+                }
+                
                 Text("Best positions for napping:\n• Above your hand while lying down\n• On a cushioned surface beside you\n• Sideways to prevent accidental taps\n• On a pillow at a comfortable angle")
                     .font(.system(size: 16, design: .rounded))
                     .foregroundColor(.white.opacity(0.9))
@@ -762,7 +824,15 @@ struct PositioningPage: View {
             }
             .frame(minHeight: UIScreen.main.bounds.height - 160) // Ensure minimal height for proper swiping
         }
-        .gesture(DragGesture()) // Empty drag gesture to ensure scrolling works properly
+        .simultaneousGesture(DragGesture(minimumDistance: 5)
+            .onEnded { gesture in
+                // Only handle vertical scrolling, let parent TabView handle horizontal swipes
+                let isHorizontal = abs(gesture.translation.width) > abs(gesture.translation.height)
+                if isHorizontal {
+                    // Do nothing - let the TabView handle horizontal gestures
+                }
+            }
+        )
     }
 }
 
@@ -826,12 +896,22 @@ struct SupportPage: View {
             }
             .frame(minHeight: UIScreen.main.bounds.height - 160) // Ensure minimal height for proper swiping
         }
-        .gesture(DragGesture()) // Empty drag gesture to ensure scrolling works properly
+        .simultaneousGesture(DragGesture(minimumDistance: 5)
+            .onEnded { gesture in
+                // Only handle vertical scrolling, let parent TabView handle horizontal swipes
+                let isHorizontal = abs(gesture.translation.width) > abs(gesture.translation.height)
+                if isHorizontal {
+                    // Do nothing - let the TabView handle horizontal gestures
+                }
+            }
+        )
     }
 }
 
 // MARK: - Donation Tiers View
 struct DonationTiersView: View {
+    @State private var expandedMilestone: Int? = nil
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Total Donation Goals:")
@@ -839,9 +919,17 @@ struct DonationTiersView: View {
                 .foregroundColor(.white)
                 .padding(.bottom, 2)
             
-            Text("• $99 total → Renewing the app dev license for another year")
-                .font(.system(size: 15, design: .rounded))
-                .foregroundColor(.white.opacity(0.9))
+            // $99 milestone (crossed out)
+            MilestoneTier(
+                amount: 99,
+                isCompleted: true, 
+                description: "Renewing the app dev license for another year",
+                expandedID: $expandedMilestone,
+                id: 1,
+                donors: ["Jeffrey Le: $91.52"]
+            )
+            
+            // Other milestones (unchanged)
             Text("• $125 total → Adding a snooze button")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
@@ -867,17 +955,81 @@ struct DonationTiersView: View {
             Text("Donate any amount you're comfortable with! Every contribution helps, even $1.")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
-            Text("I will put a shoutout somewhere in the app to all donations in the next app update.")
+            Text("I will put a shoutout *somewhere* in the app to all donations in the next app update.")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
             
-            Text("No pressure — just if you wanna help out!")
+            Text("Please don't feel obligated to donate though... every new feature means I have to dive back into this codebase 😂")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .padding(.top, 5)
         }
         .padding(.horizontal, 30)
         .padding(.vertical, 15)
+    }
+}
+
+// MARK: - Milestone Tier View
+struct MilestoneTier: View {
+    let amount: Int
+    let isCompleted: Bool
+    let description: String
+    @Binding var expandedID: Int?
+    let id: Int
+    let donors: [String]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // The milestone row with text and dropdown controls
+            HStack {
+                // The milestone text (crossed out if completed)
+                Text("• $\(amount) total → \(description)")
+                    .font(.system(size: 15, design: .rounded))
+                    .foregroundColor(.white.opacity(isCompleted ? 0.7 : 0.9))
+                    .strikethrough(isCompleted, color: .white)
+                
+                Spacer()
+                
+                // Expand/collapse button if there are donors
+                if !donors.isEmpty {
+                    Image(systemName: expandedID == id ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if expandedID == id {
+                        expandedID = nil
+                    } else {
+                        expandedID = id
+                    }
+                }
+            }
+            
+            // Donors list (only shown if expanded and there are donors)
+            if expandedID == id && !donors.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Title for donors section
+                    Text("Donors:")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.top, 4)
+                    
+                    // List each donor
+                    ForEach(donors, id: \.self) { donor in
+                        Text("⭐️ \(donor)")
+                            .font(.system(size: 13, design: .rounded))
+                            .foregroundColor(.white.opacity(0.8))
+                            .padding(.leading, 8)
+                    }
+                }
+                .padding(.top, 2)
+                .padding(.leading, 12)
+                .transition(.opacity)
+            }
+        }
     }
 }
 

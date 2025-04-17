@@ -560,7 +560,7 @@ extension AdvancedSettingsScreen {
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.orange)
                                     
-                                    Text("UI will be usable but difficult in landscape on iPhone. This is expected. App is optimized for portrait mode.")
+                                    Text("UI elements may not fit properly in landscape on iPhone. Some controls could be cut off or difficult to access. App is optimized for portrait mode only.")
                                         .font(.system(size: 12))
                                         .foregroundColor(.orange.opacity(0.8))
                                 }
@@ -574,6 +574,36 @@ extension AdvancedSettingsScreen {
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
                                             .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                            .padding(.top, 8)
+                        }
+                        
+                        // iPad warning - orientation lock doesn't work
+                        if UIDevice.current.userInterfaceIdiom == .pad {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.red)
+                                    .font(.system(size: 14))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("⚠️ WARNING: iPad Not Supported")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(.red)
+                                    
+                                    Text("The orientation lock feature does not work properly on iPad devices. Please use your device's built-in orientation lock instead.")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.red.opacity(0.8))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.red.opacity(0.15))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
                                     )
                             )
                             .padding(.top, 8)

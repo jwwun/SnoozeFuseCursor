@@ -271,4 +271,22 @@ To add .caf files to the Xcode project:
 - Used floor() to round down to the nearest second to prevent display jitter
 - This ensures that 1 min 5 sec doesn't change to 1 sec 5 sec as the timer counts down
 
+**NapScreen Timer Initialization Fix:**
+- Fixed issue where timer values were locked at 5 seconds (release) and 2 minutes (max) in NapScreen
+- Replaced manual timer value assignments with proper call to timerManager.resetTimers()
+- Removed redundant code that was overriding the timer values from settings
+- Timers now consistently use the values set in the SettingsScreen instead of being reset to defaults
+
+**Heartbeat Animation Desynchronization Fix:**
+- Fixed issue where rapidly pressing the heartbeat animation button caused multiple overlapping animations
+- Implemented proper cancellation of in-progress animations before starting new ones:
+  - Added tracking system for animation work items in CircleView
+  - Added method to cancel all pending animation tasks
+  - Implemented timestamp-based debouncing to prevent rapid re-triggering
+- Applied similar fixes to the haptic feedback in HapticManager:
+  - Added work item tracking for haptic sequences
+  - Implemented debounce protection for the startBPMPulse method
+  - Ensured clean cancellation of all pending haptic events
+- Result is much smoother heartbeat animations without visual glitches or desynchronization
+
 These improvements enhance the user experience by making haptic feedback behavior more intuitive and timer displays more consistent and readable. 

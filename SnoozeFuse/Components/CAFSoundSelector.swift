@@ -183,19 +183,12 @@ struct CAFSoundSelector: View {
                                     font: .system(size: 16, weight: .medium),
                                     textColor: .white
                                 )
-                            } else if let firstSound = cafManager.cafSounds.first(where: { $0.isBuiltIn }) {
-                                // Fallback to first built-in sound if nothing selected
+                            } else {
+                                // Don't display any default selection - make user choose explicitly
                                 MarqueeText(
-                                    text: firstSound.name,
+                                    text: "Select a notification sound",
                                     font: .system(size: 16, weight: .medium),
                                     textColor: .white.opacity(0.7)
-                                )
-                            } else {
-                                // Ultimate fallback if no sounds available
-                                MarqueeText(
-                                    text: "No sounds available",
-                                    font: .system(size: 16, weight: .medium),
-                                    textColor: .white.opacity(0.5)
                                 )
                             }
                         }
