@@ -740,7 +740,7 @@ struct PositioningPage: View {
                         .foregroundColor(.white)
                         .padding(.bottom, 5)
                     
-                    Text("The app works in portrait mode by default. More options in Advanced Settings.")
+                    Text("The app works in portrait mode by default. No need to use system orientation settings. More options are available in Advanced Settings.")
                         .font(.system(size: 14, design: .rounded))
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
